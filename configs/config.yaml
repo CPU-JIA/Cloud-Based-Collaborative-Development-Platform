@@ -1,0 +1,172 @@
+# Cloud-Based Collaborative Development Platform
+# 应用程序配置文件
+
+# 服务器配置
+server:
+  port: 8080
+  host: "0.0.0.0"
+  read_timeout: "30s"
+  write_timeout: "30s"
+  idle_timeout: "120s"
+  environment: "development"
+
+# 数据库配置
+database:
+  host: "localhost"
+  port: 5432
+  name: "devcollab_development"
+  user: "devcollab_dev"
+  password: "${DATABASE_PASSWORD}"
+  ssl_mode: "disable"
+  max_open_conns: 25
+  max_idle_conns: 5
+  conn_max_lifetime: "300s"
+  conn_max_idle_time: "60s"
+
+# Redis配置
+redis:
+  host: "localhost"
+  port: 6379
+  password: "${REDIS_PASSWORD}"
+  db: 0
+  pool_size: 10
+  dial_timeout: "5s"
+  read_timeout: "3s"
+  write_timeout: "3s"
+
+# Kafka配置
+kafka:
+  brokers:
+    - "localhost:9092"
+  group_id: "collaborative-platform"
+
+# 认证配置
+auth:
+  jwt_secret: "${JWT_SECRET}"
+  jwt_expiration: "24h"
+  refresh_token_expiry: "168h"  # 7天
+  password_min_length: 8
+  max_login_attempts: 5
+  lockout_duration: "15m"
+  session_timeout: "30m"
+  two_factor_enabled: false
+
+# 日志配置
+log:
+  level: "info"
+  format: "json"
+  output: "stdout"
+  max_size: 100    # MB
+  max_backups: 3
+  max_age: 28      # 天
+  compress: true
+
+# 监控配置
+monitor:
+  enabled: true
+  metrics_port: 9090
+  tracing_enabled: true
+  tracing_endpoint: "http://localhost:14268/api/traces"
+  sampling_rate: 0.1
+
+# 邮件配置
+email:
+  smtp_host: "smtp.company.com"
+  smtp_port: 587
+  username: "${EMAIL_USERNAME}"
+  password: "${EMAIL_PASSWORD}"
+  from_address: "noreply@company.com"
+  from_name: "Collaborative Platform"
+
+# 对象存储配置
+storage:
+  type: "s3"  # s3, minio, local
+  endpoint: "https://s3.amazonaws.com"
+  bucket: "collaborative-platform-storage"
+  access_key: "${STORAGE_ACCESS_KEY}"
+  secret_key: "${STORAGE_SECRET_KEY}"
+  region: "us-east-1"
+
+# 缓存配置
+cache:
+  default_ttl: "1h"
+  cleanup_interval: "10m"
+  max_entries: 1000
+
+# 限流配置
+rate_limit:
+  enabled: true
+  requests_per_minute: 60
+  burst_size: 10
+
+# 安全配置
+security:
+  cors_allowed_origins:
+    - "http://localhost:3000"
+    - "http://localhost:8080"
+  trusted_proxies:
+    - "127.0.0.1"
+    - "10.0.0.0/8"
+  max_request_size: "10MB"
+
+# 功能开关
+features:
+  enable_metrics: true
+  enable_tracing: true
+  enable_audit_log: true
+  enable_2fa: false
+  enable_webhook: true
+
+---
+# 生产环境配置覆盖
+production:
+  server:
+    environment: "production"
+  
+  database:
+    ssl_mode: "require"
+    max_open_conns: 50
+    max_idle_conns: 10
+  
+  redis:
+    pool_size: 20
+  
+  log:
+    level: "warn"
+    output: "file"
+    file_path: "/var/log/collaborative-platform/app.log"
+  
+  auth:
+    two_factor_enabled: true
+  
+  security:
+    cors_allowed_origins:
+      - "https://app.company.com"
+    trusted_proxies:
+      - "10.0.0.0/8"
+  
+  features:
+    enable_2fa: true
+
+---
+# 测试环境配置覆盖
+test:
+  server:
+    environment: "test"
+  
+  database:
+    name: "devcollab_test"
+    max_open_conns: 5
+  
+  redis:
+    db: 1
+  
+  log:
+    level: "debug"
+  
+  auth:
+    jwt_expiration: "1h"
+  
+  features:
+    enable_metrics: false
+    enable_tracing: false
