@@ -1,0 +1,202 @@
+# Cloud-Based Collaborative Development Platform
+# Database Configuration for Different Environments
+# PostgreSQL Multi-Tenant Configuration
+
+# 开发环境配置
+development:
+  adapter: postgresql
+  host: ${DATABASE_HOST:localhost}
+  port: ${DATABASE_PORT:5432}
+  database: ${DATABASE_NAME:devcollab_development}
+  username: ${DATABASE_USER:devcollab_dev}
+  password: ${DATABASE_PASSWORD}
+  pool_size: 10
+  timeout: 5000
+  encoding: utf8
+  # 连接池配置
+  connection_pool:
+    initial_size: 5
+    max_size: 20
+    acquire_timeout: 30000
+    validation_query: "SELECT 1"
+  # SSL配置
+  ssl:
+    enabled: false
+    mode: prefer
+  # 多租户配置
+  multi_tenant:
+    enabled: true
+    tenant_header: "X-Tenant-ID"
+    default_tenant: null
+  # 性能配置
+  performance:
+    log_slow_queries: true
+    slow_query_threshold: 1000  # 1秒
+    enable_query_cache: true
+    statement_timeout: 30000    # 30秒
+  # 迁移配置
+  migrations:
+    auto_migrate: true
+    migration_table: schema_migrations
+    migration_lock_timeout: 60
+
+# 测试环境配置
+test:
+  adapter: postgresql
+  host: ${DATABASE_HOST:localhost}
+  port: ${DATABASE_PORT:5432}
+  database: ${DATABASE_NAME:devcollab_test}
+  username: ${DATABASE_USER:devcollab_test}
+  password: ${DATABASE_PASSWORD}
+  pool_size: 5
+  timeout: 5000
+  encoding: utf8
+  connection_pool:
+    initial_size: 2
+    max_size: 10
+    acquire_timeout: 15000
+    validation_query: "SELECT 1"
+  ssl:
+    enabled: false
+    mode: prefer
+  multi_tenant:
+    enabled: true
+    tenant_header: "X-Tenant-ID"
+    default_tenant: null
+  performance:
+    log_slow_queries: true
+    slow_query_threshold: 500   # 0.5秒
+    enable_query_cache: false
+    statement_timeout: 15000    # 15秒
+  migrations:
+    auto_migrate: true
+    migration_table: schema_migrations
+    migration_lock_timeout: 30
+
+# 生产环境配置
+production:
+  adapter: postgresql
+  host: ${DATABASE_HOST}
+  port: ${DATABASE_PORT:5432}
+  database: ${DATABASE_NAME}
+  username: ${DATABASE_USER}
+  password: ${DATABASE_PASSWORD}
+  pool_size: ${DATABASE_POOL_SIZE:20}
+  timeout: ${DATABASE_TIMEOUT:10000}
+  encoding: utf8
+  # 连接池配置
+  connection_pool:
+    initial_size: ${DATABASE_POOL_INITIAL:10}
+    max_size: ${DATABASE_POOL_MAX:50}
+    acquire_timeout: ${DATABASE_ACQUIRE_TIMEOUT:30000}
+    validation_query: "SELECT 1"
+    test_on_borrow: true
+    test_on_return: false
+    test_while_idle: true
+    time_between_eviction_runs: 30000
+    min_evictable_idle_time: 60000
+  # SSL配置
+  ssl:
+    enabled: ${DATABASE_SSL_ENABLED:true}
+    mode: ${DATABASE_SSL_MODE:require}
+    cert_path: ${DATABASE_SSL_CERT_PATH}
+    key_path: ${DATABASE_SSL_KEY_PATH}
+    ca_path: ${DATABASE_SSL_CA_PATH}
+  # 多租户配置
+  multi_tenant:
+    enabled: true
+    tenant_header: "X-Tenant-ID"
+    default_tenant: null
+    isolation_level: "row_level_security"
+  # 性能配置
+  performance:
+    log_slow_queries: true
+    slow_query_threshold: ${DATABASE_SLOW_QUERY_THRESHOLD:2000}  # 2秒
+    enable_query_cache: true
+    statement_timeout: ${DATABASE_STATEMENT_TIMEOUT:60000}       # 60秒
+    lock_timeout: ${DATABASE_LOCK_TIMEOUT:30000}                 # 30秒
+    idle_in_transaction_timeout: ${DATABASE_IDLE_TIMEOUT:300000} # 5分钟
+  # 备份配置
+  backup:
+    enabled: ${DATABASE_BACKUP_ENABLED:true}
+    schedule: "0 2 * * *"  # 每日凌晨2点
+    retention_days: ${DATABASE_BACKUP_RETENTION:30}
+    compression: true
+    encryption_key: ${DATABASE_BACKUP_ENCRYPTION_KEY}
+  # 监控配置
+  monitoring:
+    enabled: ${DATABASE_MONITORING_ENABLED:true}
+    metrics_port: ${DATABASE_METRICS_PORT:9090}
+    health_check_interval: 30
+    connection_check_interval: 60
+  # 迁移配置
+  migrations:
+    auto_migrate: ${DATABASE_AUTO_MIGRATE:false}
+    migration_table: schema_migrations
+    migration_lock_timeout: ${DATABASE_MIGRATION_TIMEOUT:300}
+
+# 预发布环境配置
+staging:
+  adapter: postgresql
+  host: ${DATABASE_HOST}
+  port: ${DATABASE_PORT:5432}
+  database: ${DATABASE_NAME}
+  username: ${DATABASE_USER}
+  password: ${DATABASE_PASSWORD}
+  pool_size: ${DATABASE_POOL_SIZE:15}
+  timeout: ${DATABASE_TIMEOUT:8000}
+  encoding: utf8
+  connection_pool:
+    initial_size: 8
+    max_size: 30
+    acquire_timeout: 25000
+    validation_query: "SELECT 1"
+  ssl:
+    enabled: ${DATABASE_SSL_ENABLED:true}
+    mode: ${DATABASE_SSL_MODE:require}
+  multi_tenant:
+    enabled: true
+    tenant_header: "X-Tenant-ID"
+    default_tenant: null
+  performance:
+    log_slow_queries: true
+    slow_query_threshold: 1500  # 1.5秒
+    enable_query_cache: true
+    statement_timeout: 45000    # 45秒
+  migrations:
+    auto_migrate: false
+    migration_table: schema_migrations
+    migration_lock_timeout: 120
+
+# Docker环境配置
+docker:
+  adapter: postgresql
+  host: ${DATABASE_HOST:postgres}
+  port: ${DATABASE_PORT:5432}
+  database: ${DATABASE_NAME:devcollab}
+  username: ${DATABASE_USER:devcollab}
+  password: ${DATABASE_PASSWORD}
+  pool_size: 10
+  timeout: 5000
+  encoding: utf8
+  connection_pool:
+    initial_size: 5
+    max_size: 15
+    acquire_timeout: 20000
+    validation_query: "SELECT 1"
+  ssl:
+    enabled: false
+    mode: prefer
+  multi_tenant:
+    enabled: true
+    tenant_header: "X-Tenant-ID"
+    default_tenant: null
+  performance:
+    log_slow_queries: true
+    slow_query_threshold: 1000
+    enable_query_cache: true
+    statement_timeout: 30000
+  migrations:
+    auto_migrate: true
+    migration_table: schema_migrations
+    migration_lock_timeout: 60
