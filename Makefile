@@ -121,12 +121,28 @@ db-migrate: ## 运行数据库迁移
 	@echo "运行数据库迁移..."
 	cd database && ./scripts/init_database.sh
 
+db-migrate-iam: ## 运行IAM服务数据库迁移
+	@echo "运行IAM服务数据库迁移..."
+	cd database && ./scripts/run_iam_migrations.sh
+
 db-reset: ## 重置数据库
 	@echo "重置数据库..."
 	cd database && ./scripts/reset_database.sh
 
 db-backup: ## 备份数据库
 	cd database && ./scripts/backup_database.sh
+
+db-status: ## 检查数据库状态
+	@echo "检查数据库状态..."
+	@cd database && psql $$DATABASE_URL -c "SELECT schemaname,tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename;" 2>/dev/null || echo "无法连接到数据库"
+
+db-check-iam: ## 检查IAM表状态
+	@echo "检查IAM表状态..."
+	@cd database && psql $$DATABASE_URL -c "SELECT table_name FROM information_schema.tables WHERE table_name IN ('users', 'roles', 'permissions', 'user_roles', 'role_permissions', 'user_sessions') ORDER BY table_name;" 2>/dev/null || echo "无法连接到数据库或IAM表不存在"
+
+db-verify-iam: ## 验证IAM迁移
+	@echo "验证IAM服务数据库迁移..."
+	cd database && ./scripts/verify_iam_migration.sh
 
 # =============================================================================
 # Docker构建
