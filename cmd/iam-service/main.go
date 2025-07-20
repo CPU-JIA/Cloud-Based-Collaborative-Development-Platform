@@ -103,12 +103,20 @@ func main() {
 	// 初始化会话管理服务
 	sessionMgmtService := services.NewSessionManagementService(db)
 
+	// 初始化SSO服务
+	ssoService := services.NewSSOService(db)
+
+	// 初始化API令牌服务
+	apiTokenService := services.NewAPITokenService(db)
+
 	// 初始化处理器
 	authHandler := handlers.NewAuthHandler(userService, appLogger)
 	userHandler := handlers.NewUserHandler(userService, userMgmtService, appLogger)
 	roleHandler := handlers.NewRoleHandler(roleMgmtService, appLogger)
 	mfaHandler := handlers.NewMFAHandler(mfaMgmtService, appLogger)
 	sessionHandler := handlers.NewSessionHandler(sessionMgmtService, appLogger)
+	ssoHandler := handlers.NewSSOHandler(ssoService, jwtService)
+	apiTokenHandler := handlers.NewAPITokenHandler(apiTokenService)
 
 	// 设置Gin路由
 	r := gin.New()
@@ -143,6 +151,15 @@ func main() {
 			auth.POST("/logout", authHandler.Logout)
 			auth.GET("/validate", authHandler.ValidateToken)
 			auth.POST("/mfa/verify", mfaHandler.VerifyMFA)
+		}
+
+		// SSO路由（部分需要认证）
+		sso := v1.Group("/sso")
+		{
+			// 公开SSO路由
+			sso.POST("/initiate", ssoHandler.InitiateSSO)
+			sso.POST("/complete", ssoHandler.CompleteSSO)
+			sso.GET("/providers/public", ssoHandler.GetSSOProviders) // 公开的提供商列表
 		}
 
 		// 用户路由（需要认证）
@@ -219,6 +236,29 @@ func main() {
 						Message: "获取权限列表成功",
 					})
 				})
+			}
+
+			// SSO管理（需要管理员权限）
+			ssoAdmin := protected.Group("/sso")
+			ssoAdmin.Use(middleware.RequireRole("admin"))
+			{
+				ssoAdmin.GET("/providers", ssoHandler.GetSSOProviders)
+				ssoAdmin.POST("/providers", ssoHandler.CreateSSOProvider)
+				ssoAdmin.GET("/providers/:id", ssoHandler.GetSSOProviderByID)
+				ssoAdmin.PUT("/providers/:id", ssoHandler.UpdateSSOProvider)
+				ssoAdmin.DELETE("/providers/:id", ssoHandler.DeleteSSOProvider)
+			}
+
+			// API令牌管理
+			tokens := protected.Group("/tokens")
+			{
+				tokens.GET("", apiTokenHandler.GetAPITokens)
+				tokens.POST("", apiTokenHandler.CreateAPIToken)
+				tokens.GET("/scopes", apiTokenHandler.GetAvailableScopes)
+				tokens.GET("/:id", apiTokenHandler.GetAPITokenByID)
+				tokens.PUT("/:id", apiTokenHandler.UpdateAPIToken)
+				tokens.POST("/:id/revoke", apiTokenHandler.RevokeAPIToken)
+				tokens.GET("/:id/stats", apiTokenHandler.GetTokenUsageStats)
 			}
 		}
 	}
