@@ -8,10 +8,14 @@ require (
 	github.com/gin-gonic/gin v1.9.1
 
 	// 数据验证
-	github.com/go-playground/validator/v10 v10.15.5 // indirect
+	github.com/go-playground/validator/v10 v10.15.5
 	github.com/golang-jwt/jwt/v5 v5.0.0
 	github.com/google/uuid v1.3.1
 	github.com/lib/pq v1.10.9
+	
+	// MFA和安全
+	github.com/pquerna/otp v1.4.0
+	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
 
 	// 日志
 	github.com/spf13/viper v1.17.0

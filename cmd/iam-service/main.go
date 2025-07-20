@@ -88,8 +88,27 @@ func main() {
 		LockoutDuration:   cfg.Auth.LockoutDuration,
 	})
 
+	// 初始化用户管理服务
+	userMgmtService := services.NewUserManagementService(db)
+
+	// 初始化角色管理服务
+	roleMgmtService := services.NewRoleManagementService(db)
+
+	// 初始化MFA服务
+	mfaService := auth.NewMFAService(auth.MFAConfig{
+		Issuer: "Collaborative Platform",
+	})
+	mfaMgmtService := services.NewMFAManagementService(db, mfaService)
+
+	// 初始化会话管理服务
+	sessionMgmtService := services.NewSessionManagementService(db)
+
 	// 初始化处理器
 	authHandler := handlers.NewAuthHandler(userService, appLogger)
+	userHandler := handlers.NewUserHandler(userService, userMgmtService, appLogger)
+	roleHandler := handlers.NewRoleHandler(roleMgmtService, appLogger)
+	mfaHandler := handlers.NewMFAHandler(mfaMgmtService, appLogger)
+	sessionHandler := handlers.NewSessionHandler(sessionMgmtService, appLogger)
 
 	// 设置Gin路由
 	r := gin.New()
@@ -123,6 +142,7 @@ func main() {
 			auth.POST("/refresh", authHandler.RefreshToken)
 			auth.POST("/logout", authHandler.Logout)
 			auth.GET("/validate", authHandler.ValidateToken)
+			auth.POST("/mfa/verify", mfaHandler.VerifyMFA)
 		}
 
 		// 用户路由（需要认证）
@@ -134,26 +154,71 @@ func main() {
 			protected.PUT("/auth/profile", authHandler.UpdateProfile)
 			protected.POST("/auth/change-password", authHandler.ChangePassword)
 
+			// MFA多因子认证
+			mfa := protected.Group("/auth/mfa")
+			{
+				mfa.POST("/enable", mfaHandler.EnableMFA)
+				mfa.POST("/verify-setup", mfaHandler.VerifyMFASetup)
+				mfa.GET("/devices", mfaHandler.GetMFADevices)
+				mfa.DELETE("/disable", mfaHandler.DisableMFA)
+			}
+
+			// 会话管理
+			sessions := protected.Group("/auth/sessions")
+			{
+				sessions.GET("", sessionHandler.GetSessions)
+				sessions.DELETE("/:id", sessionHandler.RevokeSession)
+				sessions.DELETE("", sessionHandler.RevokeAllSessions)
+			}
+
 			// 用户管理（需要管理员权限）
 			users := protected.Group("/users")
 			users.Use(middleware.RequireRole("admin", "manager"))
 			{
-				users.GET("", handleGetUsers)
-				users.POST("", handleCreateUser)
-				users.GET("/:id", handleGetUser)
-				users.PUT("/:id", handleUpdateUser)
-				users.DELETE("/:id", handleDeleteUser)
+				users.GET("", userHandler.GetUsers)
+				users.POST("", userHandler.CreateUser)
+				users.GET("/:id", userHandler.GetUser)
+				users.PUT("/:id", userHandler.UpdateUser)
+				users.DELETE("/:id", userHandler.DeleteUser)
+				
+				// 管理员会话管理
+				users.DELETE("/:user_id/sessions", sessionHandler.AdminRevokeUserSessions)
+			}
+
+			// 管理员统计功能
+			admin := protected.Group("/admin")
+			admin.Use(middleware.RequireRole("admin"))
+			{
+				admin.GET("/sessions/stats", sessionHandler.GetSessionStats)
 			}
 
 			// 角色管理（需要管理员权限）
 			roles := protected.Group("/roles")
 			roles.Use(middleware.RequireRole("admin"))
 			{
-				roles.GET("", handleGetRoles)
-				roles.POST("", handleCreateRole)
-				roles.GET("/:id", handleGetRole)
-				roles.PUT("/:id", handleUpdateRole)
-				roles.DELETE("/:id", handleDeleteRole)
+				roles.GET("", roleHandler.GetRoles)
+				roles.POST("", roleHandler.CreateRole)
+				roles.GET("/:id", roleHandler.GetRole)
+				roles.PUT("/:id", roleHandler.UpdateRole)
+				roles.DELETE("/:id", roleHandler.DeleteRole)
+				
+				// 获取可用权限列表
+				roles.GET("/permissions", func(c *gin.Context) {
+					permissions, err := roleMgmtService.GetAvailablePermissions(c.Request.Context())
+					if err != nil {
+						c.JSON(http.StatusInternalServerError, handlers.StandardResponse{
+							Success: false,
+							Error:   err.Error(),
+							Code:    "GET_PERMISSIONS_FAILED",
+						})
+						return
+					}
+					c.JSON(http.StatusOK, handlers.StandardResponse{
+						Success: true,
+						Data:    permissions,
+						Message: "获取权限列表成功",
+					})
+				})
 			}
 		}
 	}
@@ -189,46 +254,4 @@ func main() {
 	}
 
 	appLogger.Info("Server exited gracefully")
-}
-
-// TODO: 实现用户管理和角色管理处理函数
-
-func handleGetUsers(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"message": "get users endpoint - TODO"})
-}
-
-func handleCreateUser(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"message": "create user endpoint - TODO"})
-}
-
-func handleGetUser(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"message": "get user endpoint - TODO"})
-}
-
-func handleUpdateUser(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"message": "update user endpoint - TODO"})
-}
-
-func handleDeleteUser(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"message": "delete user endpoint - TODO"})
-}
-
-func handleGetRoles(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"message": "get roles endpoint - TODO"})
-}
-
-func handleCreateRole(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"message": "create role endpoint - TODO"})
-}
-
-func handleGetRole(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"message": "get role endpoint - TODO"})
-}
-
-func handleUpdateRole(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"message": "update role endpoint - TODO"})
-}
-
-func handleDeleteRole(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"message": "delete role endpoint - TODO"})
 }
