@@ -32,13 +32,13 @@ type PasswordPolicy struct {
 
 // PasswordValidationResult 密码验证结果
 type PasswordValidationResult struct {
-	IsValid          bool              `json:"is_valid"`
-	Score            int               `json:"score"`
-	MaxScore         int               `json:"max_score"`
-	Strength         string            `json:"strength"`
-	Errors           []string          `json:"errors"`
-	Warnings         []string          `json:"warnings"`
-	Suggestions      []string          `json:"suggestions"`
+	IsValid             bool           `json:"is_valid"`
+	Score               int            `json:"score"`
+	MaxScore            int            `json:"max_score"`
+	Strength            string         `json:"strength"`
+	Errors              []string       `json:"errors"`
+	Warnings            []string       `json:"warnings"`
+	Suggestions         []string       `json:"suggestions"`
 	ComplexityBreakdown map[string]int `json:"complexity_breakdown"`
 }
 
@@ -89,11 +89,11 @@ func NewPasswordPolicyService(policy PasswordPolicy) *PasswordPolicyService {
 	// 默认禁用模式
 	if len(policy.ForbiddenPatterns) == 0 {
 		policy.ForbiddenPatterns = []string{
-			`^(.)\1{2,}$`,          // 重复字符 (aaa, 111)
-			`^(.)(?:(?!\1).){0,2}\1`, // 模式重复 (aba, 121)
+			`^(.)\1{2,}$`,             // 重复字符 (aaa, 111)
+			`^(.)(?:(?!\1).){0,2}\1`,  // 模式重复 (aba, 121)
 			`(?i)^(qwerty|asdf|zxcv)`, // 键盘模式
-			`^\d+$`,                 // 纯数字
-			`^[a-zA-Z]+$`,          // 纯字母
+			`^\d+$`,                   // 纯数字
+			`^[a-zA-Z]+$`,             // 纯字母
 		}
 	}
 
@@ -104,7 +104,7 @@ func NewPasswordPolicyService(policy PasswordPolicy) *PasswordPolicyService {
 func (s *PasswordPolicyService) ValidatePassword(password, username, email string) *PasswordValidationResult {
 	result := &PasswordValidationResult{
 		ComplexityBreakdown: make(map[string]int),
-		MaxScore: 100,
+		MaxScore:            100,
 	}
 
 	// 基本长度检查
@@ -269,21 +269,21 @@ func (s *PasswordPolicyService) calculateUniquenessScore(password string) int {
 // calculatePatternScore 计算模式分数（反向评分，越少模式越高分）
 func (s *PasswordPolicyService) calculatePatternScore(password string) int {
 	score := 15 // 基础分数
-	
+
 	// 检查常见模式并扣分
 	patterns := []string{
-		`(.)\1{2,}`,      // 重复字符
+		`(.)\1{2,}`, // 重复字符
 		`0123|1234|2345|3456|4567|5678|6789|7890`, // 连续数字
 		`abcd|bcde|cdef|defg|efgh|fghi|ghij`,      // 连续字母
 		`qwer|wert|erty|rtyu|tyui|yuio|uiop`,      // 键盘模式
 	}
-	
+
 	for _, pattern := range patterns {
 		if matched, _ := regexp.MatchString(`(?i)`+pattern, password); matched {
 			score -= 3
 		}
 	}
-	
+
 	if score < 0 {
 		score = 0
 	}
@@ -295,10 +295,10 @@ func (s *PasswordPolicyService) findMaxConsecutiveChars(password string) int {
 	if len(password) <= 1 {
 		return len(password)
 	}
-	
+
 	maxCount := 1
 	currentCount := 1
-	
+
 	for i := 1; i < len(password); i++ {
 		if password[i] == password[i-1]+1 || password[i] == password[i-1]-1 {
 			currentCount++
@@ -309,11 +309,11 @@ func (s *PasswordPolicyService) findMaxConsecutiveChars(password string) int {
 			currentCount = 1
 		}
 	}
-	
+
 	if currentCount > maxCount {
 		maxCount = currentCount
 	}
-	
+
 	return maxCount
 }
 
@@ -322,10 +322,10 @@ func (s *PasswordPolicyService) findMaxRepeatingChars(password string) int {
 	if len(password) <= 1 {
 		return len(password)
 	}
-	
+
 	maxCount := 1
 	currentCount := 1
-	
+
 	for i := 1; i < len(password); i++ {
 		if password[i] == password[i-1] {
 			currentCount++
@@ -336,11 +336,11 @@ func (s *PasswordPolicyService) findMaxRepeatingChars(password string) int {
 			currentCount = 1
 		}
 	}
-	
+
 	if currentCount > maxCount {
 		maxCount = currentCount
 	}
-	
+
 	return maxCount
 }
 
@@ -363,20 +363,20 @@ func (s *PasswordPolicyService) getPasswordStrength(score int) string {
 // generateSuggestions 生成密码改进建议
 func (s *PasswordPolicyService) generateSuggestions(password string, result *PasswordValidationResult) []string {
 	var suggestions []string
-	
+
 	if len(password) < s.policy.MinLength {
 		suggestions = append(suggestions, fmt.Sprintf("增加密码长度至%d个字符", s.policy.MinLength))
 	}
-	
+
 	if result.ComplexityBreakdown["character_variety"] < 20 {
 		suggestions = append(suggestions, "使用大写字母、小写字母、数字和特殊字符的组合")
 	}
-	
+
 	if result.Score < s.policy.PasswordComplexityScore {
 		suggestions = append(suggestions, "避免使用常见词汇、连续字符或重复字符")
 		suggestions = append(suggestions, "考虑使用密码短语或随机生成的密码")
 	}
-	
+
 	return suggestions
 }
 

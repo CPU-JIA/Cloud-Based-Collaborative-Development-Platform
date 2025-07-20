@@ -17,13 +17,13 @@ type Logger interface {
 	Warn(args ...interface{})
 	Error(args ...interface{})
 	Fatal(args ...interface{})
-	
+
 	Debugf(format string, args ...interface{})
 	Infof(format string, args ...interface{})
 	Warnf(format string, args ...interface{})
 	Errorf(format string, args ...interface{})
 	Fatalf(format string, args ...interface{})
-	
+
 	WithField(key string, value interface{}) Logger
 	WithFields(fields map[string]interface{}) Logger
 	WithContext(ctx context.Context) Logger
@@ -32,12 +32,12 @@ type Logger interface {
 // Config 日志配置
 type Config struct {
 	Level      string `json:"level" yaml:"level"`
-	Format     string `json:"format" yaml:"format"`         // json, text
-	Output     string `json:"output" yaml:"output"`         // stdout, file
+	Format     string `json:"format" yaml:"format"` // json, text
+	Output     string `json:"output" yaml:"output"` // stdout, file
 	FilePath   string `json:"file_path" yaml:"file_path"`
-	MaxSize    int    `json:"max_size" yaml:"max_size"`     // MB
+	MaxSize    int    `json:"max_size" yaml:"max_size"` // MB
 	MaxBackups int    `json:"max_backups" yaml:"max_backups"`
-	MaxAge     int    `json:"max_age" yaml:"max_age"`       // 天
+	MaxAge     int    `json:"max_age" yaml:"max_age"` // 天
 	Compress   bool   `json:"compress" yaml:"compress"`
 }
 
@@ -49,7 +49,7 @@ type zapLogger struct {
 // NewZapLogger 创建Zap日志实例
 func NewZapLogger(config Config) (Logger, error) {
 	level := parseLogLevel(config.Level)
-	
+
 	// 配置编码器
 	var encoderConfig zapcore.EncoderConfig
 	if config.Format == "json" {
@@ -57,14 +57,14 @@ func NewZapLogger(config Config) (Logger, error) {
 	} else {
 		encoderConfig = zap.NewDevelopmentEncoderConfig()
 	}
-	
+
 	encoderConfig.TimeKey = "timestamp"
 	encoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
 	encoderConfig.LevelKey = "level"
 	encoderConfig.EncodeLevel = zapcore.LowercaseLevelEncoder
 	encoderConfig.CallerKey = "caller"
 	encoderConfig.EncodeCaller = zapcore.ShortCallerEncoder
-	
+
 	// 创建编码器
 	var encoder zapcore.Encoder
 	if config.Format == "json" {
@@ -72,7 +72,7 @@ func NewZapLogger(config Config) (Logger, error) {
 	} else {
 		encoder = zapcore.NewConsoleEncoder(encoderConfig)
 	}
-	
+
 	// 配置输出
 	var writeSyncer zapcore.WriteSyncer
 	if config.Output == "file" && config.FilePath != "" {
@@ -85,13 +85,13 @@ func NewZapLogger(config Config) (Logger, error) {
 	} else {
 		writeSyncer = zapcore.AddSync(os.Stdout)
 	}
-	
+
 	// 创建核心
 	core := zapcore.NewCore(encoder, writeSyncer, level)
-	
+
 	// 创建logger
 	logger := zap.New(core, zap.AddCaller(), zap.AddCallerSkip(1))
-	
+
 	return &zapLogger{
 		logger: logger.Sugar(),
 	}, nil
@@ -167,7 +167,6 @@ func (l *zapLogger) WithContext(ctx context.Context) Logger {
 	return l
 }
 
-
 // 辅助函数
 func parseLogLevel(level string) zapcore.Level {
 	switch strings.ToLower(level) {
@@ -185,7 +184,6 @@ func parseLogLevel(level string) zapcore.Level {
 		return zapcore.InfoLevel
 	}
 }
-
 
 func getTraceIDFromContext(ctx context.Context) string {
 	// 这里可以集成OpenTelemetry来获取trace ID

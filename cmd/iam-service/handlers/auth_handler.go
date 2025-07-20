@@ -1,13 +1,13 @@
 package handlers
 
 import (
-	"net/http"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 
 	"github.com/cloud-platform/collaborative-dev/cmd/iam-service/services"
+	"github.com/cloud-platform/collaborative-dev/shared/api"
 	"github.com/cloud-platform/collaborative-dev/shared/logger"
 )
 
@@ -15,6 +15,7 @@ import (
 type AuthHandler struct {
 	userService *services.UserService
 	logger      logger.Logger
+	respHandler *api.ResponseHandler
 }
 
 // NewAuthHandler 创建认证处理器实例
@@ -22,16 +23,8 @@ func NewAuthHandler(userService *services.UserService, logger logger.Logger) *Au
 	return &AuthHandler{
 		userService: userService,
 		logger:      logger,
+		respHandler: api.NewResponseHandler(),
 	}
-}
-
-// StandardResponse 标准API响应格式
-type StandardResponse struct {
-	Success bool        `json:"success"`
-	Data    interface{} `json:"data,omitempty"`
-	Error   string      `json:"error,omitempty"`
-	Code    string      `json:"code,omitempty"`
-	Message string      `json:"message,omitempty"`
 }
 
 // Login 用户登录
@@ -50,11 +43,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	var req services.LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		h.logger.Warn("登录请求参数无效", "error", err)
-		c.JSON(http.StatusBadRequest, StandardResponse{
-			Success: false,
-			Error:   "请求参数无效",
-			Code:    "INVALID_REQUEST",
-		})
+		h.respHandler.BadRequest(c, "请求参数无效", nil)
 		return
 	}
 
@@ -66,20 +55,12 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	loginResp, err := h.userService.Login(c.Request.Context(), &req, clientIP, userAgent)
 	if err != nil {
 		h.logger.Error("用户登录失败", "email", req.Email, "error", err)
-		c.JSON(http.StatusUnauthorized, StandardResponse{
-			Success: false,
-			Error:   err.Error(),
-			Code:    "LOGIN_FAILED",
-		})
+		h.respHandler.Unauthorized(c, err.Error())
 		return
 	}
 
 	h.logger.Info("用户登录成功", "email", req.Email, "user_id", loginResp.User["id"])
-	c.JSON(http.StatusOK, StandardResponse{
-		Success: true,
-		Data:    loginResp,
-		Message: "登录成功",
-	})
+	h.respHandler.OK(c, "登录成功", loginResp)
 }
 
 // Register 用户注册
@@ -98,11 +79,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	var req services.RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		h.logger.Warn("注册请求参数无效", "error", err)
-		c.JSON(http.StatusBadRequest, StandardResponse{
-			Success: false,
-			Error:   "请求参数无效",
-			Code:    "INVALID_REQUEST",
-		})
+		h.respHandler.BadRequest(c, "请求参数无效", nil)
 		return
 	}
 
@@ -110,32 +87,17 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	user, err := h.userService.Register(c.Request.Context(), &req)
 	if err != nil {
 		h.logger.Error("用户注册失败", "email", req.Email, "error", err)
-		
-		var statusCode int
-		var errorCode string
-		
+
 		if strings.Contains(err.Error(), "已被注册") || strings.Contains(err.Error(), "已被使用") {
-			statusCode = http.StatusConflict
-			errorCode = "USER_EXISTS"
+			h.respHandler.Conflict(c, err.Error())
 		} else {
-			statusCode = http.StatusInternalServerError
-			errorCode = "REGISTRATION_FAILED"
+			h.respHandler.InternalServerError(c, err.Error())
 		}
-		
-		c.JSON(statusCode, StandardResponse{
-			Success: false,
-			Error:   err.Error(),
-			Code:    errorCode,
-		})
 		return
 	}
 
 	h.logger.Info("用户注册成功", "email", req.Email, "user_id", user.ID)
-	c.JSON(http.StatusCreated, StandardResponse{
-		Success: true,
-		Data:    user.ToPublicUser(),
-		Message: "注册成功",
-	})
+	h.respHandler.Created(c, "注册成功", user.ToPublicUser())
 }
 
 // RefreshToken 刷新令牌
@@ -154,21 +116,13 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 	var req map[string]string
 	if err := c.ShouldBindJSON(&req); err != nil {
 		h.logger.Warn("刷新令牌请求参数无效", "error", err)
-		c.JSON(http.StatusBadRequest, StandardResponse{
-			Success: false,
-			Error:   "请求参数无效",
-			Code:    "INVALID_REQUEST",
-		})
+		h.respHandler.BadRequest(c, "请求参数无效", nil)
 		return
 	}
 
 	refreshToken, exists := req["refresh_token"]
 	if !exists || refreshToken == "" {
-		c.JSON(http.StatusBadRequest, StandardResponse{
-			Success: false,
-			Error:   "刷新令牌不能为空",
-			Code:    "MISSING_REFRESH_TOKEN",
-		})
+		h.respHandler.BadRequest(c, "刷新令牌不能为空", nil)
 		return
 	}
 
@@ -176,20 +130,12 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 	tokenPair, err := h.userService.RefreshToken(c.Request.Context(), refreshToken)
 	if err != nil {
 		h.logger.Error("刷新令牌失败", "error", err)
-		c.JSON(http.StatusUnauthorized, StandardResponse{
-			Success: false,
-			Error:   err.Error(),
-			Code:    "REFRESH_FAILED",
-		})
+		h.respHandler.Unauthorized(c, err.Error())
 		return
 	}
 
 	h.logger.Info("令牌刷新成功")
-	c.JSON(http.StatusOK, StandardResponse{
-		Success: true,
-		Data:    tokenPair,
-		Message: "令牌刷新成功",
-	})
+	h.respHandler.OK(c, "令牌刷新成功", tokenPair)
 }
 
 // Logout 用户登出
@@ -207,21 +153,13 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 	var req map[string]string
 	if err := c.ShouldBindJSON(&req); err != nil {
 		h.logger.Warn("登出请求参数无效", "error", err)
-		c.JSON(http.StatusBadRequest, StandardResponse{
-			Success: false,
-			Error:   "请求参数无效",
-			Code:    "INVALID_REQUEST",
-		})
+		h.respHandler.BadRequest(c, "请求参数无效", nil)
 		return
 	}
 
 	refreshToken, exists := req["refresh_token"]
 	if !exists || refreshToken == "" {
-		c.JSON(http.StatusBadRequest, StandardResponse{
-			Success: false,
-			Error:   "刷新令牌不能为空",
-			Code:    "MISSING_REFRESH_TOKEN",
-		})
+		h.respHandler.BadRequest(c, "刷新令牌不能为空", nil)
 		return
 	}
 
@@ -229,19 +167,12 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 	err := h.userService.Logout(c.Request.Context(), refreshToken)
 	if err != nil {
 		h.logger.Error("用户登出失败", "error", err)
-		c.JSON(http.StatusInternalServerError, StandardResponse{
-			Success: false,
-			Error:   err.Error(),
-			Code:    "LOGOUT_FAILED",
-		})
+		h.respHandler.InternalServerError(c, err.Error())
 		return
 	}
 
 	h.logger.Info("用户登出成功")
-	c.JSON(http.StatusOK, StandardResponse{
-		Success: true,
-		Message: "登出成功",
-	})
+	h.respHandler.OK(c, "登出成功", nil)
 }
 
 // ValidateToken 验证令牌
@@ -259,11 +190,7 @@ func (h *AuthHandler) ValidateToken(c *gin.Context) {
 	// 从请求头获取令牌
 	tokenString := h.extractTokenFromHeader(c)
 	if tokenString == "" {
-		c.JSON(http.StatusUnauthorized, StandardResponse{
-			Success: false,
-			Error:   "缺少访问令牌",
-			Code:    "MISSING_TOKEN",
-		})
+		h.respHandler.Unauthorized(c, "缺少访问令牌")
 		return
 	}
 
@@ -271,20 +198,12 @@ func (h *AuthHandler) ValidateToken(c *gin.Context) {
 	user, err := h.userService.ValidateToken(c.Request.Context(), tokenString)
 	if err != nil {
 		h.logger.Error("令牌验证失败", "error", err)
-		c.JSON(http.StatusUnauthorized, StandardResponse{
-			Success: false,
-			Error:   err.Error(),
-			Code:    "INVALID_TOKEN",
-		})
+		h.respHandler.Unauthorized(c, err.Error())
 		return
 	}
 
 	h.logger.Info("令牌验证成功", "user_id", user.ID)
-	c.JSON(http.StatusOK, StandardResponse{
-		Success: true,
-		Data:    user.ToPublicUser(),
-		Message: "令牌有效",
-	})
+	h.respHandler.OK(c, "令牌有效", user.ToPublicUser())
 }
 
 // GetProfile 获取当前用户信息
@@ -302,42 +221,26 @@ func (h *AuthHandler) GetProfile(c *gin.Context) {
 	// 从上下文获取用户信息（由JWT中间件设置）
 	userID, exists := c.Get("user_id")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, StandardResponse{
-			Success: false,
-			Error:   "用户信息不存在",
-			Code:    "USER_NOT_FOUND",
-		})
+		h.respHandler.Unauthorized(c, "用户信息不存在")
 		return
 	}
 
 	tenantID, exists := c.Get("tenant_id")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, StandardResponse{
-			Success: false,
-			Error:   "租户信息不存在",
-			Code:    "TENANT_NOT_FOUND",
-		})
+		h.respHandler.Unauthorized(c, "租户信息不存在")
 		return
 	}
 
 	// 类型转换
 	userUUID, ok := userID.(uuid.UUID)
 	if !ok {
-		c.JSON(http.StatusInternalServerError, StandardResponse{
-			Success: false,
-			Error:   "用户ID格式错误",
-			Code:    "INVALID_USER_ID",
-		})
+		h.respHandler.InternalServerError(c, "用户ID格式错误")
 		return
 	}
 
 	tenantUUID, ok := tenantID.(uuid.UUID)
 	if !ok {
-		c.JSON(http.StatusInternalServerError, StandardResponse{
-			Success: false,
-			Error:   "租户ID格式错误",
-			Code:    "INVALID_TENANT_ID",
-		})
+		h.respHandler.InternalServerError(c, "租户ID格式错误")
 		return
 	}
 
@@ -345,19 +248,11 @@ func (h *AuthHandler) GetProfile(c *gin.Context) {
 	user, err := h.userService.GetUserByID(c.Request.Context(), userUUID, tenantUUID)
 	if err != nil {
 		h.logger.Error("获取用户信息失败", "user_id", userUUID, "error", err)
-		c.JSON(http.StatusInternalServerError, StandardResponse{
-			Success: false,
-			Error:   err.Error(),
-			Code:    "GET_USER_FAILED",
-		})
+		h.respHandler.InternalServerError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, StandardResponse{
-		Success: true,
-		Data:    user.ToPublicUser(),
-		Message: "获取用户信息成功",
-	})
+	h.respHandler.OK(c, "获取用户信息成功", user.ToPublicUser())
 }
 
 // UpdateProfile 更新用户信息
@@ -377,18 +272,14 @@ func (h *AuthHandler) UpdateProfile(c *gin.Context) {
 	var req services.UpdateUserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		h.logger.Warn("更新用户信息请求参数无效", "error", err)
-		c.JSON(http.StatusBadRequest, StandardResponse{
-			Success: false,
-			Error:   "请求参数无效",
-			Code:    "INVALID_REQUEST",
-		})
+		h.respHandler.BadRequest(c, "请求参数无效", nil)
 		return
 	}
 
 	// 从上下文获取用户信息
 	userID, _ := c.Get("user_id")
 	tenantID, _ := c.Get("tenant_id")
-	
+
 	userUUID := userID.(uuid.UUID)
 	tenantUUID := tenantID.(uuid.UUID)
 
@@ -396,20 +287,12 @@ func (h *AuthHandler) UpdateProfile(c *gin.Context) {
 	user, err := h.userService.UpdateUser(c.Request.Context(), userUUID, tenantUUID, &req)
 	if err != nil {
 		h.logger.Error("更新用户信息失败", "user_id", userUUID, "error", err)
-		c.JSON(http.StatusInternalServerError, StandardResponse{
-			Success: false,
-			Error:   err.Error(),
-			Code:    "UPDATE_USER_FAILED",
-		})
+		h.respHandler.InternalServerError(c, err.Error())
 		return
 	}
 
 	h.logger.Info("用户信息更新成功", "user_id", userUUID)
-	c.JSON(http.StatusOK, StandardResponse{
-		Success: true,
-		Data:    user.ToPublicUser(),
-		Message: "用户信息更新成功",
-	})
+	h.respHandler.OK(c, "用户信息更新成功", user.ToPublicUser())
 }
 
 // ChangePassword 修改密码
@@ -429,18 +312,14 @@ func (h *AuthHandler) ChangePassword(c *gin.Context) {
 	var req services.ChangePasswordRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		h.logger.Warn("修改密码请求参数无效", "error", err)
-		c.JSON(http.StatusBadRequest, StandardResponse{
-			Success: false,
-			Error:   "请求参数无效",
-			Code:    "INVALID_REQUEST",
-		})
+		h.respHandler.BadRequest(c, "请求参数无效", nil)
 		return
 	}
 
 	// 从上下文获取用户信息
 	userID, _ := c.Get("user_id")
 	tenantID, _ := c.Get("tenant_id")
-	
+
 	userUUID := userID.(uuid.UUID)
 	tenantUUID := tenantID.(uuid.UUID)
 
@@ -448,27 +327,17 @@ func (h *AuthHandler) ChangePassword(c *gin.Context) {
 	err := h.userService.ChangePassword(c.Request.Context(), userUUID, tenantUUID, &req)
 	if err != nil {
 		h.logger.Error("修改密码失败", "user_id", userUUID, "error", err)
-		
-		var statusCode int
+
 		if strings.Contains(err.Error(), "当前密码错误") {
-			statusCode = http.StatusBadRequest
+			h.respHandler.BadRequest(c, err.Error(), nil)
 		} else {
-			statusCode = http.StatusInternalServerError
+			h.respHandler.InternalServerError(c, err.Error())
 		}
-		
-		c.JSON(statusCode, StandardResponse{
-			Success: false,
-			Error:   err.Error(),
-			Code:    "CHANGE_PASSWORD_FAILED",
-		})
 		return
 	}
 
 	h.logger.Info("密码修改成功", "user_id", userUUID)
-	c.JSON(http.StatusOK, StandardResponse{
-		Success: true,
-		Message: "密码修改成功，请重新登录",
-	})
+	h.respHandler.OK(c, "密码修改成功，请重新登录", nil)
 }
 
 // 辅助方法
@@ -481,11 +350,11 @@ func (h *AuthHandler) getClientIP(c *gin.Context) string {
 		ips := strings.Split(ip, ",")
 		return strings.TrimSpace(ips[0])
 	}
-	
+
 	if ip := c.GetHeader("X-Real-IP"); ip != "" {
 		return ip
 	}
-	
+
 	// 从连接中获取IP
 	return c.ClientIP()
 }

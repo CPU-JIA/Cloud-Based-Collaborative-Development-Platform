@@ -114,7 +114,7 @@ func (p *PostgresDB) WithUser(ctx context.Context, userID uuid.UUID) *gorm.DB {
 // WithContext 设置完整上下文（租户+用户）- 优化版本，减少SQL调用
 func (p *PostgresDB) WithContext(ctx context.Context, tenantCtx TenantContext) *gorm.DB {
 	db := p.DB.WithContext(ctx)
-	
+
 	// 批量设置配置参数，减少SQL调用次数
 	if tenantCtx.TenantID != uuid.Nil && tenantCtx.UserID != uuid.Nil {
 		// 一次性设置两个参数
@@ -130,7 +130,7 @@ func (p *PostgresDB) WithContext(ctx context.Context, tenantCtx TenantContext) *
 		// 只设置用户ID
 		db = db.Exec("SELECT set_config('app.current_user_id', ?, true)", tenantCtx.UserID.String())
 	}
-	
+
 	return db
 }
 

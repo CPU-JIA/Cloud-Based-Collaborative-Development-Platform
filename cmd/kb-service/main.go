@@ -9,10 +9,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	"github.com/cloud-platform/collaborative-dev/shared/config"
 	"github.com/cloud-platform/collaborative-dev/shared/logger"
 	"github.com/cloud-platform/collaborative-dev/shared/middleware"
+	"github.com/gin-gonic/gin"
 )
 
 func main() {
@@ -31,7 +31,7 @@ func main() {
 		MaxAge     int    `json:"max_age" yaml:"max_age"`
 		Compress   bool   `json:"compress" yaml:"compress"`
 	})
-	
+
 	// 简化logger初始化，直接使用NewZapLogger
 	appLogger, err := logger.NewZapLogger(struct {
 		Level      string `json:"level" yaml:"level"`
@@ -58,11 +58,11 @@ func main() {
 	// }
 
 	r := gin.New()
-	
-	r.Use(middleware.CORS())
+
+	r.Use(middleware.CORS(cfg.Security.CorsAllowedOrigins))
 	r.Use(middleware.Logger(appLogger))
 	r.Use(middleware.SecurityHeaders())
-	r.Use(middleware.Timeout(30*time.Second))
+	r.Use(middleware.Timeout(30 * time.Second))
 
 	v1 := r.Group("/api/v1")
 	{

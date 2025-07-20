@@ -10,17 +10,24 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+
+	"github.com/cloud-platform/collaborative-dev/cmd/tenant-service/internal/handlers"
+	"github.com/cloud-platform/collaborative-dev/cmd/tenant-service/internal/repository"
+	"github.com/cloud-platform/collaborative-dev/cmd/tenant-service/internal/services"
 	"github.com/cloud-platform/collaborative-dev/shared/config"
+	"github.com/cloud-platform/collaborative-dev/shared/database"
 	"github.com/cloud-platform/collaborative-dev/shared/logger"
 	"github.com/cloud-platform/collaborative-dev/shared/middleware"
 )
 
 func main() {
+	// 1. 配置加载
 	cfg, err := config.Load()
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
 	}
 
+	// 2. Logger初始化
 	loggerCfg := cfg.Log.ToLoggerConfig().(struct {
 		Level      string `json:"level" yaml:"level"`
 		Format     string `json:"format" yaml:"format"`
@@ -31,8 +38,7 @@ func main() {
 		MaxAge     int    `json:"max_age" yaml:"max_age"`
 		Compress   bool   `json:"compress" yaml:"compress"`
 	})
-	
-	// 简化logger初始化，直接使用NewZapLogger
+
 	appLogger, err := logger.NewZapLogger(struct {
 		Level      string `json:"level" yaml:"level"`
 		Format     string `json:"format" yaml:"format"`
@@ -51,21 +57,44 @@ func main() {
 		log.Fatalf("Failed to initialize logger: %v", err)
 	}
 
-	// 暂时跳过数据库连接以专注修复编译问题
-	// db, err := database.NewPostgresDB(cfg.Database.ToDBConfig())
-	// if err != nil {
-	//     appLogger.Fatal("Failed to connect to database:", err)
-	// }
+	// 3. 数据库连接
+	dbConfig := cfg.Database.ToDBConfig().(database.Config)
+	db, err := database.NewPostgresDB(dbConfig)
+	if err != nil {
+		appLogger.Fatal("Failed to connect to database", "error", err)
+	}
+	defer db.Close()
 
+	// 4. Repository层初始化
+	tenantRepo := repository.NewTenantRepository(db)
+	configRepo := repository.NewConfigRepository(db)
+	subscriptionRepo := repository.NewSubscriptionRepository(db)
+	brandingRepo := repository.NewBrandingRepository(db)
+
+	// 5. Service层初始化
+	tenantService := services.NewTenantService(
+		tenantRepo,
+		configRepo,
+		subscriptionRepo,
+		brandingRepo,
+	)
+
+	// 6. Handler层初始化
+	tenantHandler := handlers.NewTenantHandler(tenantService, appLogger)
+
+	// 7. 路由设置
 	r := gin.New()
-	
-	r.Use(middleware.CORS())
+
+	// 全局中间件
+	r.Use(middleware.CORS(cfg.Security.CorsAllowedOrigins))
 	r.Use(middleware.Logger(appLogger))
 	r.Use(middleware.SecurityHeaders())
-	r.Use(middleware.Timeout(30*time.Second))
+	r.Use(middleware.Timeout(30 * time.Second))
 
+	// API路由组
 	v1 := r.Group("/api/v1")
 	{
+		// 健康检查
 		v1.GET("/health", func(c *gin.Context) {
 			c.JSON(http.StatusOK, gin.H{
 				"service": "tenant-service",
@@ -74,43 +103,46 @@ func main() {
 			})
 		})
 
-		auth := v1.Group("/auth")
+		// 租户管理路由
+		tenants := v1.Group("/tenants")
 		{
-			auth.POST("/login", handleLogin)
-			auth.POST("/logout", handleLogout)
-			auth.POST("/refresh", handleRefresh)
-		}
+			// 公开接口
+			tenants.GET("/by-domain", tenantHandler.GetTenantByDomain)
+			tenants.GET("/stats", tenantHandler.GetTenantStats)
+			tenants.GET("/search", tenantHandler.SearchTenants)
 
-		users := v1.Group("/users")
-		users.Use(middleware.JWTAuth(cfg.Auth.JWTSecret))
-		{
-			users.GET("", handleGetUsers)
-			users.POST("", handleCreateUser)
-			users.GET("/:id", handleGetUser)
-			users.PUT("/:id", handleUpdateUser)
-			users.DELETE("/:id", handleDeleteUser)
-		}
+			// 需要认证的接口
+			authenticated := tenants.Group("")
+			authenticated.Use(middleware.JWTAuth(cfg.Auth.JWTSecret))
+			{
+				// CRUD操作
+				authenticated.POST("", tenantHandler.CreateTenant)
+				authenticated.GET("", tenantHandler.ListTenants)
+				authenticated.GET("/:id", tenantHandler.GetTenant)
+				authenticated.PUT("/:id", tenantHandler.UpdateTenant)
+				authenticated.DELETE("/:id", tenantHandler.DeleteTenant)
 
-		roles := v1.Group("/roles")
-		roles.Use(middleware.JWTAuth(cfg.Auth.JWTSecret))
-		{
-			roles.GET("", handleGetRoles)
-			roles.POST("", handleCreateRole)
-			roles.GET("/:id", handleGetRole)
-			roles.PUT("/:id", handleUpdateRole)
-			roles.DELETE("/:id", handleDeleteRole)
+				// 租户状态管理
+				authenticated.POST("/:id/activate", tenantHandler.ActivateTenant)
+				authenticated.POST("/:id/suspend", tenantHandler.SuspendTenant)
+
+				// 租户完整信息
+				authenticated.GET("/:id/with-config", tenantHandler.GetTenantWithConfig)
+				authenticated.GET("/:id/complete", tenantHandler.GetTenantWithAll)
+			}
 		}
 	}
 
+	// 8. 服务器配置和启动
 	srv := &http.Server{
 		Addr:    cfg.Server.Address(),
 		Handler: r,
 	}
 
 	go func() {
-		appLogger.Info("Starting Tenant service on", cfg.Server.Address())
+		appLogger.Info("Starting Tenant service", "address", cfg.Server.Address())
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			appLogger.Fatal("Failed to start server:", err)
+			appLogger.Fatal("Failed to start server", "error", err)
 		}
 	}()
 
@@ -128,56 +160,4 @@ func main() {
 	}
 
 	appLogger.Info("Server exited")
-}
-
-func handleLogin(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"message": "login endpoint"})
-}
-
-func handleLogout(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"message": "logout endpoint"})
-}
-
-func handleRefresh(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"message": "refresh endpoint"})
-}
-
-func handleGetUsers(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"message": "get users endpoint"})
-}
-
-func handleCreateUser(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"message": "create user endpoint"})
-}
-
-func handleGetUser(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"message": "get user endpoint"})
-}
-
-func handleUpdateUser(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"message": "update user endpoint"})
-}
-
-func handleDeleteUser(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"message": "delete user endpoint"})
-}
-
-func handleGetRoles(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"message": "get roles endpoint"})
-}
-
-func handleCreateRole(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"message": "create role endpoint"})
-}
-
-func handleGetRole(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"message": "get role endpoint"})
-}
-
-func handleUpdateRole(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"message": "update role endpoint"})
-}
-
-func handleDeleteRole(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"message": "delete role endpoint"})
 }

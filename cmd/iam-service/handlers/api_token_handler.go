@@ -9,17 +9,22 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 
-	"github.com/example/cloud-platform/cmd/iam-service/services"
-	"github.com/example/cloud-platform/shared/models"
+	"github.com/cloud-platform/collaborative-dev/cmd/iam-service/services"
+	"github.com/cloud-platform/collaborative-dev/shared/api"
+	"github.com/cloud-platform/collaborative-dev/shared/logger"
 )
 
 type APITokenHandler struct {
 	tokenService *services.APITokenService
+	logger       logger.Logger
+	respHandler  *api.ResponseHandler
 }
 
-func NewAPITokenHandler(tokenService *services.APITokenService) *APITokenHandler {
+func NewAPITokenHandler(tokenService *services.APITokenService, logger logger.Logger) *APITokenHandler {
 	return &APITokenHandler{
 		tokenService: tokenService,
+		logger:       logger,
+		respHandler:  api.NewResponseHandler(),
 	}
 }
 
@@ -63,29 +68,20 @@ type CreateAPITokenResponse struct {
 func (h *APITokenHandler) CreateAPIToken(c *gin.Context) {
 	var req services.CreateAPITokenRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error:   "Invalid request",
-			Message: err.Error(),
-		})
+		h.respHandler.BadRequest(c, "请求参数无效", nil)
 		return
 	}
 
 	// Get user and tenant from context
 	userID, exists := c.Get("user_id")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, ErrorResponse{
-			Error:   "Unauthorized",
-			Message: "User ID not found in context",
-		})
+		h.respHandler.Unauthorized(c, "用户未认证")
 		return
 	}
 
 	tenantID, exists := c.Get("tenant_id")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, ErrorResponse{
-			Error:   "Unauthorized",
-			Message: "Tenant ID not found in context",
-		})
+		h.respHandler.BadRequest(c, "缺少租户信息", nil)
 		return
 	}
 
@@ -102,17 +98,14 @@ func (h *APITokenHandler) CreateAPIToken(c *gin.Context) {
 		&req,
 	)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, ErrorResponse{
-			Error:   "Failed to create API token",
-			Message: err.Error(),
-		})
+		h.respHandler.InternalServerError(c, "创建API令牌失败")
 		return
 	}
 
 	// Parse scopes and permissions for response
 	var scopes []string
 	json.Unmarshal(token.Scopes, &scopes)
-	
+
 	var permissions []string
 	json.Unmarshal(token.Permissions, &permissions)
 
@@ -136,7 +129,7 @@ func (h *APITokenHandler) CreateAPIToken(c *gin.Context) {
 		Token: tokenString,
 	}
 
-	c.JSON(http.StatusCreated, response)
+	h.respHandler.Created(c, "API令牌创建成功", response)
 }
 
 // GetAPITokens retrieves all API tokens for the current user
@@ -153,19 +146,13 @@ func (h *APITokenHandler) CreateAPIToken(c *gin.Context) {
 func (h *APITokenHandler) GetAPITokens(c *gin.Context) {
 	userID, exists := c.Get("user_id")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, ErrorResponse{
-			Error:   "Unauthorized",
-			Message: "User ID not found in context",
-		})
+		h.respHandler.Unauthorized(c, "用户未认证")
 		return
 	}
 
 	tenantID, exists := c.Get("tenant_id")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, ErrorResponse{
-			Error:   "Unauthorized",
-			Message: "Tenant ID not found in context",
-		})
+		h.respHandler.Unauthorized(c, "租户信息缺失")
 		return
 	}
 
@@ -175,10 +162,7 @@ func (h *APITokenHandler) GetAPITokens(c *gin.Context) {
 		userID.(uuid.UUID),
 	)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, ErrorResponse{
-			Error:   "Failed to retrieve API tokens",
-			Message: err.Error(),
-		})
+		h.respHandler.InternalServerError(c, "获取API令牌列表失败")
 		return
 	}
 
@@ -187,7 +171,7 @@ func (h *APITokenHandler) GetAPITokens(c *gin.Context) {
 	for _, token := range tokens {
 		var scopes []string
 		json.Unmarshal(token.Scopes, &scopes)
-		
+
 		var permissions []string
 		json.Unmarshal(token.Permissions, &permissions)
 
@@ -209,7 +193,7 @@ func (h *APITokenHandler) GetAPITokens(c *gin.Context) {
 		})
 	}
 
-	c.JSON(http.StatusOK, response)
+	h.respHandler.OK(c, "获取API令牌列表成功", response)
 }
 
 // GetAPITokenByID retrieves a specific API token
@@ -229,19 +213,13 @@ func (h *APITokenHandler) GetAPITokenByID(c *gin.Context) {
 	tokenIDStr := c.Param("id")
 	tokenID, err := uuid.Parse(tokenIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error:   "Invalid token ID",
-			Message: "Token ID must be a valid UUID",
-		})
+		h.respHandler.BadRequest(c, "令牌ID格式无效", nil)
 		return
 	}
 
 	tenantID, exists := c.Get("tenant_id")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, ErrorResponse{
-			Error:   "Unauthorized",
-			Message: "Tenant ID not found in context",
-		})
+		h.respHandler.Unauthorized(c, "租户信息缺失")
 		return
 	}
 
@@ -251,17 +229,14 @@ func (h *APITokenHandler) GetAPITokenByID(c *gin.Context) {
 		tokenID,
 	)
 	if err != nil {
-		c.JSON(http.StatusNotFound, ErrorResponse{
-			Error:   "API token not found",
-			Message: err.Error(),
-		})
+		h.respHandler.NotFound(c, "API令牌不存在")
 		return
 	}
 
 	// Parse scopes and permissions for response
 	var scopes []string
 	json.Unmarshal(token.Scopes, &scopes)
-	
+
 	var permissions []string
 	json.Unmarshal(token.Permissions, &permissions)
 
@@ -282,7 +257,7 @@ func (h *APITokenHandler) GetAPITokenByID(c *gin.Context) {
 		UpdatedAt:    token.UpdatedAt,
 	}
 
-	c.JSON(http.StatusOK, response)
+	h.respHandler.OK(c, "获取API令牌详情成功", response)
 }
 
 // UpdateAPIToken updates an existing API token
@@ -304,28 +279,19 @@ func (h *APITokenHandler) UpdateAPIToken(c *gin.Context) {
 	tokenIDStr := c.Param("id")
 	tokenID, err := uuid.Parse(tokenIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error:   "Invalid token ID",
-			Message: "Token ID must be a valid UUID",
-		})
+		h.respHandler.BadRequest(c, "令牌ID格式无效", nil)
 		return
 	}
 
 	var req services.UpdateAPITokenRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error:   "Invalid request",
-			Message: err.Error(),
-		})
+		h.respHandler.BadRequest(c, "请求参数无效", nil)
 		return
 	}
 
 	tenantID, exists := c.Get("tenant_id")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, ErrorResponse{
-			Error:   "Unauthorized",
-			Message: "Tenant ID not found in context",
-		})
+		h.respHandler.Unauthorized(c, "租户信息缺失")
 		return
 	}
 
@@ -336,10 +302,7 @@ func (h *APITokenHandler) UpdateAPIToken(c *gin.Context) {
 		tokenID,
 		&req,
 	); err != nil {
-		c.JSON(http.StatusInternalServerError, ErrorResponse{
-			Error:   "Failed to update API token",
-			Message: err.Error(),
-		})
+		h.respHandler.InternalServerError(c, "更新API令牌失败")
 		return
 	}
 
@@ -350,17 +313,14 @@ func (h *APITokenHandler) UpdateAPIToken(c *gin.Context) {
 		tokenID,
 	)
 	if err != nil {
-		c.JSON(http.StatusNotFound, ErrorResponse{
-			Error:   "API token not found",
-			Message: err.Error(),
-		})
+		h.respHandler.NotFound(c, "API令牌不存在")
 		return
 	}
 
 	// Parse scopes and permissions for response
 	var scopes []string
 	json.Unmarshal(token.Scopes, &scopes)
-	
+
 	var permissions []string
 	json.Unmarshal(token.Permissions, &permissions)
 
@@ -381,7 +341,7 @@ func (h *APITokenHandler) UpdateAPIToken(c *gin.Context) {
 		UpdatedAt:    token.UpdatedAt,
 	}
 
-	c.JSON(http.StatusOK, response)
+	h.respHandler.OK(c, "更新API令牌成功", response)
 }
 
 // RevokeAPIToken revokes an API token
@@ -401,28 +361,19 @@ func (h *APITokenHandler) RevokeAPIToken(c *gin.Context) {
 	tokenIDStr := c.Param("id")
 	tokenID, err := uuid.Parse(tokenIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error:   "Invalid token ID",
-			Message: "Token ID must be a valid UUID",
-		})
+		h.respHandler.BadRequest(c, "令牌ID格式无效", nil)
 		return
 	}
 
 	userID, exists := c.Get("user_id")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, ErrorResponse{
-			Error:   "Unauthorized",
-			Message: "User ID not found in context",
-		})
+		h.respHandler.Unauthorized(c, "用户未认证")
 		return
 	}
 
 	tenantID, exists := c.Get("tenant_id")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, ErrorResponse{
-			Error:   "Unauthorized",
-			Message: "Tenant ID not found in context",
-		})
+		h.respHandler.Unauthorized(c, "租户信息缺失")
 		return
 	}
 
@@ -432,10 +383,7 @@ func (h *APITokenHandler) RevokeAPIToken(c *gin.Context) {
 		tokenID,
 		userID.(uuid.UUID),
 	); err != nil {
-		c.JSON(http.StatusInternalServerError, ErrorResponse{
-			Error:   "Failed to revoke API token",
-			Message: err.Error(),
-		})
+		h.respHandler.InternalServerError(c, "撤销API令牌失败")
 		return
 	}
 
@@ -460,19 +408,13 @@ func (h *APITokenHandler) GetTokenUsageStats(c *gin.Context) {
 	tokenIDStr := c.Param("id")
 	tokenID, err := uuid.Parse(tokenIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error:   "Invalid token ID",
-			Message: "Token ID must be a valid UUID",
-		})
+		h.respHandler.BadRequest(c, "令牌ID格式无效", nil)
 		return
 	}
 
 	tenantID, exists := c.Get("tenant_id")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, ErrorResponse{
-			Error:   "Unauthorized",
-			Message: "Tenant ID not found in context",
-		})
+		h.respHandler.Unauthorized(c, "租户信息缺失")
 		return
 	}
 
@@ -491,14 +433,11 @@ func (h *APITokenHandler) GetTokenUsageStats(c *gin.Context) {
 		days,
 	)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, ErrorResponse{
-			Error:   "Failed to retrieve token usage stats",
-			Message: err.Error(),
-		})
+		h.respHandler.InternalServerError(c, "获取令牌使用统计失败")
 		return
 	}
 
-	c.JSON(http.StatusOK, stats)
+	h.respHandler.OK(c, "获取令牌使用统计成功", stats)
 }
 
 // GetAvailableScopes retrieves all available API scopes
@@ -515,14 +454,11 @@ func (h *APITokenHandler) GetTokenUsageStats(c *gin.Context) {
 func (h *APITokenHandler) GetAvailableScopes(c *gin.Context) {
 	scopes, err := h.tokenService.GetAvailableScopes(c.Request.Context())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, ErrorResponse{
-			Error:   "Failed to retrieve available scopes",
-			Message: err.Error(),
-		})
+		h.respHandler.InternalServerError(c, "获取可用权限范围失败")
 		return
 	}
 
-	c.JSON(http.StatusOK, scopes)
+	h.respHandler.OK(c, "获取可用权限范围成功", scopes)
 }
 
 // ValidateToken validates an API token (internal use)
@@ -540,19 +476,13 @@ func (h *APITokenHandler) GetAvailableScopes(c *gin.Context) {
 func (h *APITokenHandler) ValidateToken(c *gin.Context) {
 	tokenString := c.Query("token")
 	if tokenString == "" {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error:   "Invalid request",
-			Message: "Token parameter is required",
-		})
+		h.respHandler.BadRequest(c, "令牌参数必填", nil)
 		return
 	}
 
 	token, err := h.tokenService.ValidateAPIToken(c.Request.Context(), tokenString)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, ErrorResponse{
-			Error:   "Invalid token",
-			Message: err.Error(),
-		})
+		h.respHandler.Unauthorized(c, "无效的令牌")
 		return
 	}
 
@@ -560,5 +490,5 @@ func (h *APITokenHandler) ValidateToken(c *gin.Context) {
 	clientIP := c.ClientIP()
 	h.tokenService.UpdateTokenUsage(c.Request.Context(), token.ID, clientIP)
 
-	c.JSON(http.StatusOK, token)
+	h.respHandler.OK(c, "令牌验证成功", token)
 }

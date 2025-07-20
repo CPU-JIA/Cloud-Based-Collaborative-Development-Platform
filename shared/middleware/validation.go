@@ -21,21 +21,21 @@ type ValidationError struct {
 
 // ErrorResponse 统一错误响应格式
 type ErrorResponse struct {
-	Success     bool              `json:"success"`
-	Error       string            `json:"error"`
-	Code        string            `json:"code"`
-	Message     string            `json:"message,omitempty"`
-	Details     []ValidationError `json:"details,omitempty"`
-	RequestID   string            `json:"request_id,omitempty"`
-	Timestamp   string            `json:"timestamp"`
-	Path        string            `json:"path"`
+	Success   bool              `json:"success"`
+	Error     string            `json:"error"`
+	Code      string            `json:"code"`
+	Message   string            `json:"message,omitempty"`
+	Details   []ValidationError `json:"details,omitempty"`
+	RequestID string            `json:"request_id,omitempty"`
+	Timestamp string            `json:"timestamp"`
+	Path      string            `json:"path"`
 }
 
 var validate *validator.Validate
 
 func init() {
 	validate = validator.New()
-	
+
 	// 注册自定义验证标签
 	validate.RegisterValidation("password", validatePassword)
 	validate.RegisterValidation("username", validateUsername)
@@ -54,7 +54,7 @@ func ValidateRequest() gin.HandlerFunc {
 // handleValidationError 处理验证错误
 func handleValidationError(c *gin.Context, err error) {
 	var validationErrors []ValidationError
-	
+
 	if ve, ok := err.(validator.ValidationErrors); ok {
 		for _, fe := range ve {
 			validationErrors = append(validationErrors, ValidationError{
@@ -65,9 +65,9 @@ func handleValidationError(c *gin.Context, err error) {
 			})
 		}
 	}
-	
+
 	requestID := c.GetString("request_id")
-	
+
 	c.JSON(http.StatusBadRequest, ErrorResponse{
 		Success:   false,
 		Error:     "请求参数验证失败",
@@ -82,20 +82,20 @@ func handleValidationError(c *gin.Context, err error) {
 // getFieldName 获取字段名称（优先使用json标签）
 func getFieldName(fe validator.FieldError) string {
 	field := fe.Field()
-	
+
 	// 如果有structTag，尝试获取json标签
 	if fe.StructNamespace() != "" {
 		// 这里可以通过反射获取json标签，简化处理直接返回字段名
 		return strings.ToLower(field)
 	}
-	
+
 	return strings.ToLower(field)
 }
 
 // getValidationMessage 获取验证错误消息
 func getValidationMessage(fe validator.FieldError) string {
 	field := getFieldName(fe)
-	
+
 	switch fe.Tag() {
 	case "required":
 		return fmt.Sprintf("%s 是必填字段", field)
@@ -135,11 +135,11 @@ func getValidationMessage(fe validator.FieldError) string {
 // validatePassword 密码验证
 func validatePassword(fl validator.FieldLevel) bool {
 	password := fl.Field().String()
-	
+
 	if len(password) < 8 {
 		return false
 	}
-	
+
 	var hasUpper, hasLower, hasDigit bool
 	for _, char := range password {
 		switch {
@@ -151,39 +151,39 @@ func validatePassword(fl validator.FieldLevel) bool {
 			hasDigit = true
 		}
 	}
-	
+
 	return hasUpper && hasLower && hasDigit
 }
 
 // validateUsername 用户名验证
 func validateUsername(fl validator.FieldLevel) bool {
 	username := fl.Field().String()
-	
+
 	if len(username) < 3 || len(username) > 50 {
 		return false
 	}
-	
+
 	for _, char := range username {
-		if !((char >= 'a' && char <= 'z') || 
-			 (char >= 'A' && char <= 'Z') || 
-			 (char >= '0' && char <= '9') || 
-			 char == '_' || char == '-') {
+		if !((char >= 'a' && char <= 'z') ||
+			(char >= 'A' && char <= 'Z') ||
+			(char >= '0' && char <= '9') ||
+			char == '_' || char == '-') {
 			return false
 		}
 	}
-	
+
 	return true
 }
 
 // validatePhone 手机号验证
 func validatePhone(fl validator.FieldLevel) bool {
 	phone := fl.Field().String()
-	
+
 	// 简单的手机号验证（可根据需要扩展）
 	if len(phone) < 10 || len(phone) > 15 {
 		return false
 	}
-	
+
 	// 检查是否都是数字（可能包含+和-）
 	for i, char := range phone {
 		if i == 0 && char == '+' {
@@ -196,7 +196,7 @@ func validatePhone(fl validator.FieldLevel) bool {
 			return false
 		}
 	}
-	
+
 	return true
 }
 
@@ -213,17 +213,17 @@ func Paginate(c *gin.Context) (page, limit, offset int, err error) {
 	if err != nil || page < 1 {
 		return 0, 0, 0, fmt.Errorf("页码必须是大于0的整数")
 	}
-	
+
 	// 获取每页数量
 	limitStr := c.DefaultQuery("limit", "20")
 	limit, err = strconv.Atoi(limitStr)
 	if err != nil || limit < 1 || limit > 100 {
 		return 0, 0, 0, fmt.Errorf("每页数量必须是1-100之间的整数")
 	}
-	
+
 	// 计算偏移量
 	offset = (page - 1) * limit
-	
+
 	return page, limit, offset, nil
 }
 
@@ -237,7 +237,7 @@ func ValidateJSON(target interface{}) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if err := c.ShouldBindJSON(target); err != nil {
 			requestID := c.GetString("request_id")
-			
+
 			// 检查是否为验证错误
 			if ve, ok := err.(validator.ValidationErrors); ok {
 				var validationErrors []ValidationError
@@ -249,7 +249,7 @@ func ValidateJSON(target interface{}) gin.HandlerFunc {
 						Message: getValidationMessage(fe),
 					})
 				}
-				
+
 				c.JSON(http.StatusBadRequest, ErrorResponse{
 					Success:   false,
 					Error:     "请求参数验证失败",
@@ -270,11 +270,11 @@ func ValidateJSON(target interface{}) gin.HandlerFunc {
 					Path:      c.Request.URL.Path,
 				})
 			}
-			
+
 			c.Abort()
 			return
 		}
-		
+
 		// 将验证通过的数据设置到上下文
 		c.Set("validated_data", target)
 		c.Next()
@@ -285,13 +285,13 @@ func ValidateJSON(target interface{}) gin.HandlerFunc {
 func ValidateQueryParams(params map[string]string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var errors []ValidationError
-		
+
 		for param, validation := range params {
 			value := c.Query(param)
 			if value == "" {
 				continue // 可选参数跳过
 			}
-			
+
 			switch validation {
 			case "uuid":
 				if !isValidUUID(value) {
@@ -322,7 +322,7 @@ func ValidateQueryParams(params map[string]string) gin.HandlerFunc {
 				}
 			}
 		}
-		
+
 		if len(errors) > 0 {
 			requestID := c.GetString("request_id")
 			c.JSON(http.StatusBadRequest, ErrorResponse{
@@ -337,7 +337,7 @@ func ValidateQueryParams(params map[string]string) gin.HandlerFunc {
 			c.Abort()
 			return
 		}
-		
+
 		c.Next()
 	}
 }
@@ -347,7 +347,7 @@ func isValidUUID(str string) bool {
 	if len(str) != 36 {
 		return false
 	}
-	
+
 	for i, char := range str {
 		if i == 8 || i == 13 || i == 18 || i == 23 {
 			if char != '-' {
@@ -355,13 +355,13 @@ func isValidUUID(str string) bool {
 			}
 		} else {
 			if !((char >= '0' && char <= '9') ||
-				 (char >= 'a' && char <= 'f') ||
-				 (char >= 'A' && char <= 'F')) {
+				(char >= 'a' && char <= 'f') ||
+				(char >= 'A' && char <= 'F')) {
 				return false
 			}
 		}
 	}
-	
+
 	return true
 }
 
@@ -369,12 +369,12 @@ func isValidUUID(str string) bool {
 func ErrorHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Next()
-		
+
 		// 检查是否有错误
 		if len(c.Errors) > 0 {
 			err := c.Errors.Last()
 			requestID := c.GetString("request_id")
-			
+
 			// 根据错误类型返回相应的状态码和消息
 			switch err.Type {
 			case gin.ErrorTypeBind:

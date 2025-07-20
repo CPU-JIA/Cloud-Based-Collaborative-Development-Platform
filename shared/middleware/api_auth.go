@@ -7,7 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 
-	"github.com/example/cloud-platform/cmd/iam-service/services"
+	"github.com/cloud-platform/collaborative-dev/cmd/iam-service/services"
 )
 
 // APIAuthMiddleware creates middleware for API token authentication

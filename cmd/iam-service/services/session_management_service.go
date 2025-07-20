@@ -33,24 +33,24 @@ type CreateSessionRequest struct {
 
 // SessionInfo 会话信息
 type SessionInfo struct {
-	ID           uuid.UUID  `json:"id"`
-	UserID       uuid.UUID  `json:"user_id"`
-	IPAddress    string     `json:"ip_address"`
-	UserAgent    string     `json:"user_agent"`
-	DeviceInfo   string     `json:"device_info"`
-	Location     string     `json:"location,omitempty"`
-	IsActive     bool       `json:"is_active"`
-	IsCurrent    bool       `json:"is_current"`
-	LastActivity time.Time  `json:"last_activity"`
-	CreatedAt    time.Time  `json:"created_at"`
-	ExpiresAt    time.Time  `json:"expires_at"`
+	ID           uuid.UUID `json:"id"`
+	UserID       uuid.UUID `json:"user_id"`
+	IPAddress    string    `json:"ip_address"`
+	UserAgent    string    `json:"user_agent"`
+	DeviceInfo   string    `json:"device_info"`
+	Location     string    `json:"location,omitempty"`
+	IsActive     bool      `json:"is_active"`
+	IsCurrent    bool      `json:"is_current"`
+	LastActivity time.Time `json:"last_activity"`
+	CreatedAt    time.Time `json:"created_at"`
+	ExpiresAt    time.Time `json:"expires_at"`
 }
 
 // GetUserSessionsRequest 获取用户会话请求
 type GetUserSessionsRequest struct {
-	UserID   uuid.UUID `json:"user_id" binding:"required"`
-	TenantID uuid.UUID `json:"tenant_id" binding:"required"`
-	OnlyActive bool    `json:"only_active"`
+	UserID     uuid.UUID `json:"user_id" binding:"required"`
+	TenantID   uuid.UUID `json:"tenant_id" binding:"required"`
+	OnlyActive bool      `json:"only_active"`
 }
 
 // NewSessionManagementService 创建会话管理服务
@@ -60,7 +60,7 @@ func NewSessionManagementService(db *database.PostgresDB) *SessionManagementServ
 
 // CreateSession 创建用户会话
 func (s *SessionManagementService) CreateSession(ctx context.Context, req *CreateSessionRequest) (*models.UserSession, error) {
-	tx := s.db.GetDB().WithContext(ctx).Begin()
+	tx := s.db.DB.WithContext(ctx).Begin()
 	defer func() {
 		if r := recover(); r != nil {
 			tx.Rollback()
@@ -71,7 +71,7 @@ func (s *SessionManagementService) CreateSession(ctx context.Context, req *Creat
 	maxSessions := 5 // 每个用户最多5个并发会话
 	var activeSessionCount int64
 	err := tx.Model(&models.UserSession{}).
-		Where("user_id = ? AND tenant_id = ? AND is_active = true AND expires_at > ?", 
+		Where("user_id = ? AND tenant_id = ? AND is_active = true AND expires_at > ?",
 			req.UserID, req.TenantID, time.Now()).
 		Count(&activeSessionCount).Error
 	if err != nil {
@@ -88,8 +88,8 @@ func (s *SessionManagementService) CreateSession(ctx context.Context, req *Creat
 		if err == nil {
 			// 删除最旧的会话
 			err = tx.Model(&oldestSession).Updates(map[string]interface{}{
-				"is_active":   false,
-				"revoked_at":  time.Now(),
+				"is_active":     false,
+				"revoked_at":    time.Now(),
 				"revoke_reason": "exceeded_max_sessions",
 			}).Error
 			if err != nil {
@@ -142,9 +142,9 @@ func (s *SessionManagementService) CreateSession(ctx context.Context, req *Creat
 // ValidateSession 验证会话
 func (s *SessionManagementService) ValidateSession(ctx context.Context, accessToken string, userID, tenantID uuid.UUID) (*models.UserSession, error) {
 	hashedToken := s.hashToken(accessToken)
-	
+
 	var session models.UserSession
-	err := s.db.GetDB().WithContext(ctx).
+	err := s.db.DB.WithContext(ctx).
 		Where("session_token = ? AND user_id = ? AND tenant_id = ? AND is_active = true AND expires_at > ?",
 			hashedToken, userID, tenantID, time.Now()).
 		First(&session).Error
@@ -157,7 +157,7 @@ func (s *SessionManagementService) ValidateSession(ctx context.Context, accessTo
 
 	// 更新最后活动时间
 	now := time.Now()
-	err = s.db.GetDB().WithContext(ctx).Model(&session).
+	err = s.db.DB.WithContext(ctx).Model(&session).
 		Update("last_activity", now).Error
 	if err != nil {
 		return nil, fmt.Errorf("更新会话活动时间失败: %w", err)
@@ -170,9 +170,9 @@ func (s *SessionManagementService) ValidateSession(ctx context.Context, accessTo
 // RefreshSession 刷新会话
 func (s *SessionManagementService) RefreshSession(ctx context.Context, refreshToken string, newAccessToken, newRefreshToken string, newExpiresAt time.Time) error {
 	hashedRefreshToken := s.hashToken(refreshToken)
-	
+
 	var session models.UserSession
-	err := s.db.GetDB().WithContext(ctx).
+	err := s.db.DB.WithContext(ctx).
 		Where("refresh_token = ? AND is_active = true AND expires_at > ?",
 			hashedRefreshToken, time.Now()).
 		First(&session).Error
@@ -185,13 +185,13 @@ func (s *SessionManagementService) RefreshSession(ctx context.Context, refreshTo
 
 	// 更新会话令牌
 	updates := map[string]interface{}{
-		"session_token":  s.hashToken(newAccessToken),
-		"refresh_token":  s.hashToken(newRefreshToken),
-		"last_activity":  time.Now(),
-		"expires_at":     newExpiresAt,
+		"session_token": s.hashToken(newAccessToken),
+		"refresh_token": s.hashToken(newRefreshToken),
+		"last_activity": time.Now(),
+		"expires_at":    newExpiresAt,
 	}
 
-	err = s.db.GetDB().WithContext(ctx).Model(&session).Updates(updates).Error
+	err = s.db.DB.WithContext(ctx).Model(&session).Updates(updates).Error
 	if err != nil {
 		return fmt.Errorf("更新会话失败: %w", err)
 	}
@@ -207,7 +207,7 @@ func (s *SessionManagementService) RevokeSession(ctx context.Context, sessionID 
 		"revoke_reason": reason,
 	}
 
-	err := s.db.GetDB().WithContext(ctx).Model(&models.UserSession{}).
+	err := s.db.DB.WithContext(ctx).Model(&models.UserSession{}).
 		Where("id = ? AND user_id = ? AND tenant_id = ?", sessionID, userID, tenantID).
 		Updates(updates).Error
 	if err != nil {
@@ -219,7 +219,7 @@ func (s *SessionManagementService) RevokeSession(ctx context.Context, sessionID 
 
 // RevokeUserSessions 撤销用户所有会话
 func (s *SessionManagementService) RevokeUserSessions(ctx context.Context, userID, tenantID uuid.UUID, excludeSessionID *uuid.UUID, reason string) error {
-	query := s.db.GetDB().WithContext(ctx).Model(&models.UserSession{}).
+	query := s.db.DB.WithContext(ctx).Model(&models.UserSession{}).
 		Where("user_id = ? AND tenant_id = ? AND is_active = true", userID, tenantID)
 
 	if excludeSessionID != nil {
@@ -242,7 +242,7 @@ func (s *SessionManagementService) RevokeUserSessions(ctx context.Context, userI
 
 // GetUserSessions 获取用户会话列表
 func (s *SessionManagementService) GetUserSessions(ctx context.Context, req *GetUserSessionsRequest, currentSessionToken string) ([]SessionInfo, error) {
-	query := s.db.GetDB().WithContext(ctx).Model(&models.UserSession{}).
+	query := s.db.DB.WithContext(ctx).Model(&models.UserSession{}).
 		Where("user_id = ? AND tenant_id = ?", req.UserID, req.TenantID)
 
 	if req.OnlyActive {
@@ -289,7 +289,7 @@ func (s *SessionManagementService) CleanupExpiredSessions(ctx context.Context) e
 		"revoke_reason": "expired",
 	}
 
-	err := s.db.GetDB().WithContext(ctx).Model(&models.UserSession{}).
+	err := s.db.DB.WithContext(ctx).Model(&models.UserSession{}).
 		Where("is_active = true AND expires_at <= ?", time.Now()).
 		Updates(updates).Error
 	if err != nil {
@@ -305,7 +305,7 @@ func (s *SessionManagementService) GetSessionStats(ctx context.Context, tenantID
 
 	// 总会话数
 	var totalSessions int64
-	err := s.db.GetDB().WithContext(ctx).Model(&models.UserSession{}).
+	err := s.db.DB.WithContext(ctx).Model(&models.UserSession{}).
 		Where("tenant_id = ? AND created_at BETWEEN ? AND ?", tenantID, startTime, endTime).
 		Count(&totalSessions).Error
 	if err != nil {
@@ -315,7 +315,7 @@ func (s *SessionManagementService) GetSessionStats(ctx context.Context, tenantID
 
 	// 活跃会话数
 	var activeSessions int64
-	err = s.db.GetDB().WithContext(ctx).Model(&models.UserSession{}).
+	err = s.db.DB.WithContext(ctx).Model(&models.UserSession{}).
 		Where("tenant_id = ? AND is_active = true AND expires_at > ?", tenantID, time.Now()).
 		Count(&activeSessions).Error
 	if err != nil {
@@ -325,7 +325,7 @@ func (s *SessionManagementService) GetSessionStats(ctx context.Context, tenantID
 
 	// 唯一用户数
 	var uniqueUsers int64
-	err = s.db.GetDB().WithContext(ctx).Model(&models.UserSession{}).
+	err = s.db.DB.WithContext(ctx).Model(&models.UserSession{}).
 		Where("tenant_id = ? AND created_at BETWEEN ? AND ?", tenantID, startTime, endTime).
 		Distinct("user_id").Count(&uniqueUsers).Error
 	if err != nil {
@@ -338,7 +338,7 @@ func (s *SessionManagementService) GetSessionStats(ctx context.Context, tenantID
 		AvgDuration float64 `json:"avg_duration"`
 	}
 	var avgDuration SessionDuration
-	err = s.db.GetDB().WithContext(ctx).Model(&models.UserSession{}).
+	err = s.db.DB.WithContext(ctx).Model(&models.UserSession{}).
 		Where("tenant_id = ? AND created_at BETWEEN ? AND ? AND revoked_at IS NOT NULL", tenantID, startTime, endTime).
 		Select("AVG(EXTRACT(EPOCH FROM (revoked_at - created_at))/60) as avg_duration").
 		Scan(&avgDuration).Error

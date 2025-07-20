@@ -8,20 +8,26 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 
-	"github.com/example/cloud-platform/cmd/iam-service/services"
-	"github.com/example/cloud-platform/shared/auth"
-	"github.com/example/cloud-platform/shared/models"
+	"github.com/cloud-platform/collaborative-dev/cmd/iam-service/services"
+	"github.com/cloud-platform/collaborative-dev/shared/api"
+	"github.com/cloud-platform/collaborative-dev/shared/auth"
+	"github.com/cloud-platform/collaborative-dev/shared/logger"
+	"github.com/cloud-platform/collaborative-dev/shared/models"
 )
 
 type SSOHandler struct {
-	ssoService *services.SSOService
-	jwtManager *auth.JWTManager
+	ssoService  *services.SSOService
+	jwtService  *auth.JWTService
+	logger      logger.Logger
+	respHandler *api.ResponseHandler
 }
 
-func NewSSOHandler(ssoService *services.SSOService, jwtManager *auth.JWTManager) *SSOHandler {
+func NewSSOHandler(ssoService *services.SSOService, jwtService *auth.JWTService, logger logger.Logger) *SSOHandler {
 	return &SSOHandler{
-		ssoService: ssoService,
-		jwtManager: jwtManager,
+		ssoService:  ssoService,
+		jwtService:  jwtService,
+		logger:      logger,
+		respHandler: api.NewResponseHandler(),
 	}
 }
 
@@ -51,10 +57,10 @@ type InitiateSSORequest struct {
 
 // InitiateSSOResponse represents the response for SSO initiation
 type InitiateSSOResponse struct {
-	SessionID       uuid.UUID `json:"session_id"`
-	AuthorizationURL string   `json:"authorization_url"`
-	State           string    `json:"state"`
-	ExpiresAt       time.Time `json:"expires_at"`
+	SessionID        uuid.UUID `json:"session_id"`
+	AuthorizationURL string    `json:"authorization_url"`
+	State            string    `json:"state"`
+	ExpiresAt        time.Time `json:"expires_at"`
 }
 
 // CompleteSSORequest represents the request to complete SSO
@@ -65,11 +71,11 @@ type CompleteSSORequest struct {
 
 // CompleteSSOResponse represents the response for SSO completion
 type CompleteSSOResponse struct {
-	AccessToken  string    `json:"access_token"`
-	RefreshToken string    `json:"refresh_token"`
-	TokenType    string    `json:"token_type"`
-	ExpiresIn    int       `json:"expires_in"`
-	User         UserInfo  `json:"user"`
+	AccessToken  string   `json:"access_token"`
+	RefreshToken string   `json:"refresh_token"`
+	TokenType    string   `json:"token_type"`
+	ExpiresIn    int      `json:"expires_in"`
+	User         UserInfo `json:"user"`
 }
 
 type UserInfo struct {
@@ -303,7 +309,7 @@ func (h *SSOHandler) CompleteSSO(c *gin.Context) {
 	}
 
 	// Generate JWT tokens
-	accessToken, err := h.jwtManager.GenerateAccessToken(user.ID, user.TenantID, user.Username)
+	tokenPair, err := h.jwtService.GenerateTokenPair(user.ID, user.TenantID, user.Email, "user", []string{})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, ErrorResponse{
 			Error:   "Failed to generate access token",
@@ -312,27 +318,18 @@ func (h *SSOHandler) CompleteSSO(c *gin.Context) {
 		return
 	}
 
-	refreshToken, err := h.jwtManager.GenerateRefreshToken(user.ID, user.TenantID)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, ErrorResponse{
-			Error:   "Failed to generate refresh token",
-			Message: err.Error(),
-		})
-		return
-	}
-
 	response := CompleteSSOResponse{
-		AccessToken:  accessToken,
-		RefreshToken: refreshToken,
-		TokenType:    "Bearer",
-		ExpiresIn:    int(time.Hour.Seconds()), // 1 hour
+		AccessToken:  tokenPair.AccessToken,
+		RefreshToken: tokenPair.RefreshToken,
+		TokenType:    tokenPair.TokenType,
+		ExpiresIn:    int(time.Until(tokenPair.ExpiresAt).Seconds()),
 		User: UserInfo{
 			ID:        user.ID,
 			Email:     user.Email,
 			Username:  user.Username,
 			FirstName: user.FirstName,
 			LastName:  user.LastName,
-			Status:    user.Status,
+			Status:    getUserStatus(user.IsActive),
 		},
 	}
 
@@ -559,6 +556,14 @@ func (h *SSOHandler) DeleteSSOProvider(c *gin.Context) {
 
 	// Note: In a real implementation, you would have a DeleteSSOProvider method
 	// that marks the provider as deleted
-	
+
 	c.Status(http.StatusNoContent)
+}
+
+// getUserStatus 根据用户激活状态返回状态字符串
+func getUserStatus(isActive bool) string {
+	if isActive {
+		return "active"
+	}
+	return "inactive"
 }

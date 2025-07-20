@@ -9,14 +9,15 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/gin-gonic/gin"
+	"github.com/cloud-platform/collaborative-dev/cmd/iam-service/handlers"
+	"github.com/cloud-platform/collaborative-dev/cmd/iam-service/services"
+	"github.com/cloud-platform/collaborative-dev/shared/api"
 	"github.com/cloud-platform/collaborative-dev/shared/auth"
 	"github.com/cloud-platform/collaborative-dev/shared/config"
 	"github.com/cloud-platform/collaborative-dev/shared/database"
 	"github.com/cloud-platform/collaborative-dev/shared/logger"
 	"github.com/cloud-platform/collaborative-dev/shared/middleware"
-	"github.com/cloud-platform/collaborative-dev/cmd/iam-service/handlers"
-	"github.com/cloud-platform/collaborative-dev/cmd/iam-service/services"
+	"github.com/gin-gonic/gin"
 )
 
 func main() {
@@ -36,7 +37,7 @@ func main() {
 		MaxAge     int    `json:"max_age" yaml:"max_age"`
 		Compress   bool   `json:"compress" yaml:"compress"`
 	})
-	
+
 	appLogger, err := logger.NewZapLogger(struct {
 		Level      string `json:"level" yaml:"level"`
 		Format     string `json:"format" yaml:"format"`
@@ -104,10 +105,10 @@ func main() {
 	sessionMgmtService := services.NewSessionManagementService(db)
 
 	// 初始化SSO服务
-	ssoService := services.NewSSOService(db)
+	ssoService := services.NewSSOService(db.DB)
 
 	// 初始化API令牌服务
-	apiTokenService := services.NewAPITokenService(db)
+	apiTokenService := services.NewAPITokenService(db.DB)
 
 	// 初始化处理器
 	authHandler := handlers.NewAuthHandler(userService, appLogger)
@@ -115,19 +116,19 @@ func main() {
 	roleHandler := handlers.NewRoleHandler(roleMgmtService, appLogger)
 	mfaHandler := handlers.NewMFAHandler(mfaMgmtService, appLogger)
 	sessionHandler := handlers.NewSessionHandler(sessionMgmtService, appLogger)
-	ssoHandler := handlers.NewSSOHandler(ssoService, jwtService)
-	apiTokenHandler := handlers.NewAPITokenHandler(apiTokenService)
+	ssoHandler := handlers.NewSSOHandler(ssoService, jwtService, appLogger)
+	apiTokenHandler := handlers.NewAPITokenHandler(apiTokenService, appLogger)
 
 	// 设置Gin路由
 	r := gin.New()
-	
+
 	// 全局中间件
 	r.Use(middleware.CORS(cfg.Security.CorsAllowedOrigins))
 	r.Use(middleware.RequestID())
 	r.Use(middleware.Logger(appLogger))
 	r.Use(middleware.Recovery(appLogger))
 	r.Use(middleware.SecurityHeaders())
-	r.Use(middleware.Timeout(30*time.Second))
+	r.Use(middleware.Timeout(30 * time.Second))
 
 	// API路由
 	v1 := r.Group("/api/v1")
@@ -197,7 +198,7 @@ func main() {
 				users.GET("/:id", userHandler.GetUser)
 				users.PUT("/:id", userHandler.UpdateUser)
 				users.DELETE("/:id", userHandler.DeleteUser)
-				
+
 				// 管理员会话管理
 				users.DELETE("/:user_id/sessions", sessionHandler.AdminRevokeUserSessions)
 			}
@@ -218,23 +219,16 @@ func main() {
 				roles.GET("/:id", roleHandler.GetRole)
 				roles.PUT("/:id", roleHandler.UpdateRole)
 				roles.DELETE("/:id", roleHandler.DeleteRole)
-				
+
 				// 获取可用权限列表
 				roles.GET("/permissions", func(c *gin.Context) {
+					respHandler := api.NewResponseHandler()
 					permissions, err := roleMgmtService.GetAvailablePermissions(c.Request.Context())
 					if err != nil {
-						c.JSON(http.StatusInternalServerError, handlers.StandardResponse{
-							Success: false,
-							Error:   err.Error(),
-							Code:    "GET_PERMISSIONS_FAILED",
-						})
+						respHandler.InternalServerError(c, err.Error())
 						return
 					}
-					c.JSON(http.StatusOK, handlers.StandardResponse{
-						Success: true,
-						Data:    permissions,
-						Message: "获取权限列表成功",
-					})
+					respHandler.OK(c, "获取权限列表成功", permissions)
 				})
 			}
 

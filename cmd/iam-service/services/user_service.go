@@ -35,10 +35,10 @@ type LoginRequest struct {
 
 // LoginResponse 登录响应
 type LoginResponse struct {
-	User         map[string]interface{} `json:"user"`
-	TokenPair    *auth.TokenPair        `json:"tokens"`
-	RequiresMFA  bool                   `json:"requires_mfa"`
-	SessionID    uuid.UUID              `json:"session_id"`
+	User        map[string]interface{} `json:"user"`
+	TokenPair   *auth.TokenPair        `json:"tokens"`
+	RequiresMFA bool                   `json:"requires_mfa"`
+	SessionID   uuid.UUID              `json:"session_id"`
 }
 
 // RegisterRequest 注册请求
@@ -77,7 +77,7 @@ func NewUserService(db *database.PostgresDB, jwtService *auth.JWTService, config
 // Login 用户登录
 func (s *UserService) Login(ctx context.Context, req *LoginRequest, clientIP, userAgent string) (*LoginResponse, error) {
 	tenantCtx := database.TenantContext{} // 登录时暂不设置租户上下文
-	
+
 	// 查找用户
 	var user models.User
 	err := s.db.WithContext(ctx, tenantCtx).
@@ -85,7 +85,7 @@ func (s *UserService) Login(ctx context.Context, req *LoginRequest, clientIP, us
 		Preload("Roles.Permissions").
 		Where("email = ? AND is_active = ?", req.Email, true).
 		First(&user).Error
-	
+
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, fmt.Errorf("用户不存在或未激活")
@@ -102,15 +102,15 @@ func (s *UserService) Login(ctx context.Context, req *LoginRequest, clientIP, us
 	if !user.CheckPassword(req.Password) {
 		// 增加失败登录次数
 		user.IncrementFailedLogin()
-		
+
 		// 检查是否需要锁定账户
 		if user.FailedLoginCount >= s.config.MaxLoginAttempts {
 			user.Lock(s.config.LockoutDuration)
 		}
-		
+
 		// 更新用户信息
 		s.db.WithContext(ctx, tenantCtx).Save(&user)
-		
+
 		return nil, fmt.Errorf("密码错误")
 	}
 
@@ -120,7 +120,7 @@ func (s *UserService) Login(ctx context.Context, req *LoginRequest, clientIP, us
 
 	// 重置失败登录次数
 	user.UpdateLastLogin()
-	
+
 	// 更新用户信息
 	err = s.db.WithContext(ctx, tenantCtx).Save(&user).Error
 	if err != nil {
@@ -155,7 +155,7 @@ func (s *UserService) Login(ctx context.Context, req *LoginRequest, clientIP, us
 	session := &models.UserSession{
 		UserID:       user.ID,
 		TenantID:     user.TenantID,
-		TokenID:      uuid.New().String(),
+		SessionToken: tokenPair.AccessToken,
 		RefreshToken: tokenPair.RefreshToken,
 		UserAgent:    userAgent,
 		IPAddress:    clientIP,
@@ -187,7 +187,7 @@ func (s *UserService) Register(ctx context.Context, req *RegisterRequest) (*mode
 	err := s.db.WithContext(ctx, tenantCtx).
 		Where("email = ?", req.Email).
 		First(&existingUser).Error
-	
+
 	if err == nil {
 		return nil, fmt.Errorf("邮箱已被注册")
 	} else if err != gorm.ErrRecordNotFound {
@@ -198,7 +198,7 @@ func (s *UserService) Register(ctx context.Context, req *RegisterRequest) (*mode
 	err = s.db.WithContext(ctx, tenantCtx).
 		Where("username = ?", req.Username).
 		First(&existingUser).Error
-	
+
 	if err == nil {
 		return nil, fmt.Errorf("用户名已被使用")
 	} else if err != gorm.ErrRecordNotFound {
@@ -254,7 +254,7 @@ func (s *UserService) GetUserByID(ctx context.Context, userID, tenantID uuid.UUI
 		Preload("Roles.Permissions").
 		Where("id = ? AND tenant_id = ?", userID, tenantID).
 		First(&user).Error
-	
+
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, fmt.Errorf("用户不存在")
@@ -377,7 +377,7 @@ func (s *UserService) RefreshToken(ctx context.Context, refreshToken string) (*a
 			"expires_at":    tokenPair.ExpiresAt,
 			"updated_at":    time.Now(),
 		}).Error
-	
+
 	if err != nil {
 		return nil, fmt.Errorf("更新会话失败: %w", err)
 	}
@@ -395,7 +395,7 @@ func (s *UserService) Logout(ctx context.Context, refreshToken string) error {
 			"is_active":  false,
 			"revoked_at": time.Now(),
 		}).Error
-	
+
 	if err != nil {
 		return fmt.Errorf("撤销会话失败: %w", err)
 	}
@@ -451,7 +451,7 @@ func (s *UserService) assignDefaultRole(ctx context.Context, userID, tenantID uu
 	err := s.db.WithContext(ctx, tenantCtx).
 		Where("tenant_id = ? AND name = ?", tenantID, "user").
 		First(&defaultRole).Error
-	
+
 	if err != nil {
 		return fmt.Errorf("查找默认角色失败: %w", err)
 	}
@@ -485,6 +485,6 @@ func (s *UserService) revokeAllUserSessions(ctx context.Context, userID, tenantI
 			"is_active":  false,
 			"revoked_at": time.Now(),
 		}).Error
-	
+
 	return err
 }

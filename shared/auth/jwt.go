@@ -10,19 +10,19 @@ import (
 
 // JWTService JWT认证服务
 type JWTService struct {
-	secretKey        []byte
-	tokenExpiration  time.Duration
+	secretKey         []byte
+	tokenExpiration   time.Duration
 	refreshExpiration time.Duration
 }
 
 // Claims JWT声明结构
 type Claims struct {
-	UserID     uuid.UUID `json:"user_id"`
-	TenantID   uuid.UUID `json:"tenant_id"`
-	Email      string    `json:"email"`
-	Role       string    `json:"role"`
-	Permissions []string `json:"permissions"`
-	TokenType  string    `json:"token_type"` // "access" or "refresh"
+	UserID      uuid.UUID `json:"user_id"`
+	TenantID    uuid.UUID `json:"tenant_id"`
+	Email       string    `json:"email"`
+	Role        string    `json:"role"`
+	Permissions []string  `json:"permissions"`
+	TokenType   string    `json:"token_type"` // "access" or "refresh"
 	jwt.RegisteredClaims
 }
 
@@ -46,7 +46,7 @@ func NewJWTService(secretKey string, tokenExpiration, refreshExpiration time.Dur
 // GenerateTokenPair 生成访问令牌和刷新令牌对
 func (j *JWTService) GenerateTokenPair(userID, tenantID uuid.UUID, email, role string, permissions []string) (*TokenPair, error) {
 	now := time.Now()
-	
+
 	// 生成访问令牌
 	accessClaims := &Claims{
 		UserID:      userID,
@@ -232,7 +232,7 @@ func (j *JWTService) validateClaims(claims *Claims) error {
 // GeneratePasswordResetToken 生成密码重置令牌
 func (j *JWTService) GeneratePasswordResetToken(userID uuid.UUID, email string) (string, error) {
 	now := time.Now()
-	
+
 	claims := &Claims{
 		UserID:    userID,
 		Email:     email,

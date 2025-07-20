@@ -7,17 +7,18 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
-	"github.com/golang-jwt/jwt/v5"
+	"github.com/cloud-platform/collaborative-dev/shared/auth"
 	"github.com/cloud-platform/collaborative-dev/shared/logger"
+	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 )
 
 // CORS 跨域中间件
 func CORS(allowedOrigins []string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		origin := c.Request.Header.Get("Origin")
-		
+
 		// 检查是否在允许列表中
 		allowed := false
 		for _, allowedOrigin := range allowedOrigins {
@@ -26,11 +27,11 @@ func CORS(allowedOrigins []string) gin.HandlerFunc {
 				break
 			}
 		}
-		
+
 		if allowed {
 			c.Header("Access-Control-Allow-Origin", origin)
 		}
-		
+
 		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
 		c.Header("Access-Control-Allow-Headers", "Origin, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, X-Tenant-ID, X-Request-ID")
 		c.Header("Access-Control-Expose-Headers", "Content-Length, X-Request-ID")
@@ -54,11 +55,11 @@ func RequestID() gin.HandlerFunc {
 		if requestID == "" {
 			requestID = uuid.New().String()
 		}
-		
+
 		// 设置到上下文和响应头
 		c.Set("request_id", requestID)
 		c.Header("X-Request-ID", requestID)
-		
+
 		c.Next()
 	}
 }
@@ -78,12 +79,12 @@ func Logger(log logger.Logger) gin.HandlerFunc {
 			"body_size":     param.BodySize,
 			"user_agent":    param.Request.UserAgent(),
 		}
-		
+
 		// 添加请求ID
 		if requestID := param.Keys["request_id"]; requestID != nil {
 			fields["request_id"] = requestID
 		}
-		
+
 		// 根据状态码选择日志级别
 		switch {
 		case param.StatusCode >= 500:
@@ -93,7 +94,7 @@ func Logger(log logger.Logger) gin.HandlerFunc {
 		default:
 			log.WithFields(fields).Info("HTTP请求")
 		}
-		
+
 		return ""
 	})
 }
@@ -102,14 +103,14 @@ func Logger(log logger.Logger) gin.HandlerFunc {
 func Recovery(log logger.Logger) gin.HandlerFunc {
 	return gin.CustomRecovery(func(c *gin.Context, recovered interface{}) {
 		requestID := c.GetString("request_id")
-		
+
 		log.WithFields(map[string]interface{}{
 			"request_id": requestID,
 			"panic":      recovered,
 			"path":       c.Request.URL.Path,
 			"method":     c.Request.Method,
 		}).Error("服务器内部错误")
-		
+
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error":      "内部服务器错误",
 			"request_id": requestID,
@@ -120,7 +121,7 @@ func Recovery(log logger.Logger) gin.HandlerFunc {
 // RateLimit 限流中间件配置
 type RateLimitConfig struct {
 	RequestsPerMinute int
-	BurstSize        int
+	BurstSize         int
 }
 
 // TenantMiddleware 租户中间件
@@ -135,7 +136,7 @@ func TenantMiddleware() gin.HandlerFunc {
 			c.Abort()
 			return
 		}
-		
+
 		// 验证租户ID格式
 		if _, err := uuid.Parse(tenantID); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{
@@ -144,7 +145,7 @@ func TenantMiddleware() gin.HandlerFunc {
 			c.Abort()
 			return
 		}
-		
+
 		// 设置到上下文
 		c.Set("tenant_id", tenantID)
 		c.Next()
@@ -152,15 +153,8 @@ func TenantMiddleware() gin.HandlerFunc {
 }
 
 // JWTClaims JWT声明
-type JWTClaims struct {
-	UserID      uuid.UUID `json:"user_id"`
-	TenantID    uuid.UUID `json:"tenant_id"`
-	Email       string    `json:"email"`
-	Role        string    `json:"role"`
-	Permissions []string  `json:"permissions"`
-	TokenType   string    `json:"token_type"`
-	jwt.RegisteredClaims
-}
+// JWTClaims 使用shared/auth包中的Claims类型
+// 避免重复定义，保持一致性
 
 // JWTAuth JWT认证中间件
 func JWTAuth(secretKey string) gin.HandlerFunc {
@@ -175,7 +169,7 @@ func JWTAuth(secretKey string) gin.HandlerFunc {
 			c.Abort()
 			return
 		}
-		
+
 		// 验证Bearer前缀
 		const bearerPrefix = "Bearer "
 		if !strings.HasPrefix(authHeader, bearerPrefix) {
@@ -186,19 +180,19 @@ func JWTAuth(secretKey string) gin.HandlerFunc {
 			c.Abort()
 			return
 		}
-		
+
 		// 提取token
 		tokenString := authHeader[len(bearerPrefix):]
-		
+
 		// 解析和验证token
-		token, err := jwt.ParseWithClaims(tokenString, &JWTClaims{}, func(token *jwt.Token) (interface{}, error) {
+		token, err := jwt.ParseWithClaims(tokenString, &auth.Claims{}, func(token *jwt.Token) (interface{}, error) {
 			// 验证签名方法
 			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 				return nil, fmt.Errorf("无效的签名方法: %v", token.Header["alg"])
 			}
 			return []byte(secretKey), nil
 		})
-		
+
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{
 				"error": "无效的认证令牌",
@@ -207,7 +201,7 @@ func JWTAuth(secretKey string) gin.HandlerFunc {
 			c.Abort()
 			return
 		}
-		
+
 		// 验证token有效性
 		if !token.Valid {
 			c.JSON(http.StatusUnauthorized, gin.H{
@@ -217,9 +211,9 @@ func JWTAuth(secretKey string) gin.HandlerFunc {
 			c.Abort()
 			return
 		}
-		
+
 		// 获取声明
-		claims, ok := token.Claims.(*JWTClaims)
+		claims, ok := token.Claims.(*auth.Claims)
 		if !ok {
 			c.JSON(http.StatusUnauthorized, gin.H{
 				"error": "无效的令牌声明",
@@ -228,7 +222,7 @@ func JWTAuth(secretKey string) gin.HandlerFunc {
 			c.Abort()
 			return
 		}
-		
+
 		// 验证令牌类型（必须是访问令牌）
 		if claims.TokenType != "access" {
 			c.JSON(http.StatusUnauthorized, gin.H{
@@ -238,7 +232,7 @@ func JWTAuth(secretKey string) gin.HandlerFunc {
 			c.Abort()
 			return
 		}
-		
+
 		// 验证发行者
 		if claims.Issuer != "collaborative-platform" {
 			c.JSON(http.StatusUnauthorized, gin.H{
@@ -248,7 +242,7 @@ func JWTAuth(secretKey string) gin.HandlerFunc {
 			c.Abort()
 			return
 		}
-		
+
 		// 设置用户信息到上下文
 		c.Set("user_id", claims.UserID)
 		c.Set("tenant_id", claims.TenantID)
@@ -256,7 +250,7 @@ func JWTAuth(secretKey string) gin.HandlerFunc {
 		c.Set("user_role", claims.Role)
 		c.Set("user_permissions", claims.Permissions)
 		c.Set("token_type", claims.TokenType)
-		
+
 		c.Next()
 	}
 }
@@ -272,7 +266,7 @@ func RequireRole(requiredRoles ...string) gin.HandlerFunc {
 			c.Abort()
 			return
 		}
-		
+
 		role, ok := userRole.(string)
 		if !ok {
 			c.JSON(http.StatusForbidden, gin.H{
@@ -281,7 +275,7 @@ func RequireRole(requiredRoles ...string) gin.HandlerFunc {
 			c.Abort()
 			return
 		}
-		
+
 		// 检查角色权限
 		hasPermission := false
 		for _, requiredRole := range requiredRoles {
@@ -290,7 +284,7 @@ func RequireRole(requiredRoles ...string) gin.HandlerFunc {
 				break
 			}
 		}
-		
+
 		if !hasPermission {
 			c.JSON(http.StatusForbidden, gin.H{
 				"error": "权限不足",
@@ -298,7 +292,7 @@ func RequireRole(requiredRoles ...string) gin.HandlerFunc {
 			c.Abort()
 			return
 		}
-		
+
 		c.Next()
 	}
 }
@@ -314,7 +308,7 @@ func SecurityHeaders() gin.HandlerFunc {
 		c.Header("Content-Security-Policy", "default-src 'self'")
 		c.Header("Referrer-Policy", "strict-origin-when-cross-origin")
 		c.Header("Permissions-Policy", "geolocation=(), microphone=(), camera=()")
-		
+
 		c.Next()
 	}
 }
@@ -325,16 +319,16 @@ func Timeout(timeout time.Duration) gin.HandlerFunc {
 		// 设置超时上下文
 		ctx, cancel := context.WithTimeout(c.Request.Context(), timeout)
 		defer cancel()
-		
+
 		c.Request = c.Request.WithContext(ctx)
-		
+
 		// 监听超时
 		done := make(chan struct{})
 		go func() {
 			c.Next()
 			done <- struct{}{}
 		}()
-		
+
 		select {
 		case <-done:
 			return

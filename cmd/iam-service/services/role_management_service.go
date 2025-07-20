@@ -23,7 +23,7 @@ type CreateRoleRequest struct {
 	Name            string    `json:"name" binding:"required,min=2,max=100"`
 	DisplayName     string    `json:"display_name" binding:"required,min=2,max=200"`
 	Description     string    `json:"description"`
-	IsActive        *bool     `json:"is_active"` // 可选，默认true
+	IsActive        *bool     `json:"is_active"`        // 可选，默认true
 	PermissionNames []string  `json:"permission_names"` // 分配的权限名称列表
 }
 

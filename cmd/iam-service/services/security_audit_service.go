@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"gorm.io/gorm"
 
 	"github.com/cloud-platform/collaborative-dev/shared/database"
 	"github.com/cloud-platform/collaborative-dev/shared/models"
@@ -74,17 +73,17 @@ type GetLoginAttemptsRequest struct {
 
 // SecurityMetrics 安全指标
 type SecurityMetrics struct {
-	TotalLoginAttempts   int64                  `json:"total_login_attempts"`
-	SuccessfulLogins     int64                  `json:"successful_logins"`
-	FailedLogins         int64                  `json:"failed_logins"`
-	SuccessRate          float64                `json:"success_rate"`
-	UniqueUsers          int64                  `json:"unique_users"`
-	UniqueIPs            int64                  `json:"unique_ips"`
-	MFAUsage             int64                  `json:"mfa_usage"`
-	TotalAuditLogs       int64                  `json:"total_audit_logs"`
-	TopFailReasons       []FailReasonCount      `json:"top_fail_reasons"`
-	HourlyLoginPattern   []HourlyCount          `json:"hourly_login_pattern"`
-	SuspiciousActivities []SuspiciousActivity   `json:"suspicious_activities"`
+	TotalLoginAttempts   int64                `json:"total_login_attempts"`
+	SuccessfulLogins     int64                `json:"successful_logins"`
+	FailedLogins         int64                `json:"failed_logins"`
+	SuccessRate          float64              `json:"success_rate"`
+	UniqueUsers          int64                `json:"unique_users"`
+	UniqueIPs            int64                `json:"unique_ips"`
+	MFAUsage             int64                `json:"mfa_usage"`
+	TotalAuditLogs       int64                `json:"total_audit_logs"`
+	TopFailReasons       []FailReasonCount    `json:"top_fail_reasons"`
+	HourlyLoginPattern   []HourlyCount        `json:"hourly_login_pattern"`
+	SuspiciousActivities []SuspiciousActivity `json:"suspicious_activities"`
 }
 
 // FailReasonCount 失败原因统计
@@ -101,11 +100,11 @@ type HourlyCount struct {
 
 // SuspiciousActivity 可疑活动
 type SuspiciousActivity struct {
-	Type        string    `json:"type"`
-	Description string    `json:"description"`
-	Count       int64     `json:"count"`
-	LastSeen    time.Time `json:"last_seen"`
-	IPAddress   string    `json:"ip_address,omitempty"`
+	Type        string     `json:"type"`
+	Description string     `json:"description"`
+	Count       int64      `json:"count"`
+	LastSeen    time.Time  `json:"last_seen"`
+	IPAddress   string     `json:"ip_address,omitempty"`
 	UserID      *uuid.UUID `json:"user_id,omitempty"`
 }
 
@@ -139,7 +138,7 @@ func (s *SecurityAuditService) LogAuditEvent(ctx context.Context, req *AuditLogR
 		Metadata:     metadataJSON,
 	}
 
-	err := s.db.GetDB().WithContext(ctx).Create(&auditLog).Error
+	err := s.db.DB.WithContext(ctx).Create(&auditLog).Error
 	if err != nil {
 		return fmt.Errorf("记录审计日志失败: %w", err)
 	}
@@ -161,7 +160,7 @@ func (s *SecurityAuditService) LogLoginAttempt(ctx context.Context, req *LoginAt
 		MFASuccess:  req.MFASuccess,
 	}
 
-	err := s.db.GetDB().WithContext(ctx).Create(&loginAttempt).Error
+	err := s.db.DB.WithContext(ctx).Create(&loginAttempt).Error
 	if err != nil {
 		return fmt.Errorf("记录登录尝试失败: %w", err)
 	}
@@ -196,7 +195,7 @@ func (s *SecurityAuditService) LogLoginAttempt(ctx context.Context, req *LoginAt
 
 // GetAuditLogs 获取审计日志
 func (s *SecurityAuditService) GetAuditLogs(ctx context.Context, req *GetAuditLogsRequest) ([]models.SecurityAuditLog, int64, error) {
-	query := s.db.GetDB().WithContext(ctx).Model(&models.SecurityAuditLog{}).
+	query := s.db.DB.WithContext(ctx).Model(&models.SecurityAuditLog{}).
 		Where("tenant_id = ?", req.TenantID)
 
 	// 添加过滤条件
@@ -242,7 +241,7 @@ func (s *SecurityAuditService) GetAuditLogs(ctx context.Context, req *GetAuditLo
 
 // GetLoginAttempts 获取登录尝试记录
 func (s *SecurityAuditService) GetLoginAttempts(ctx context.Context, req *GetLoginAttemptsRequest) ([]models.LoginAttempt, int64, error) {
-	query := s.db.GetDB().WithContext(ctx).Model(&models.LoginAttempt{}).
+	query := s.db.DB.WithContext(ctx).Model(&models.LoginAttempt{}).
 		Where("tenant_id = ?", req.TenantID)
 
 	// 添加过滤条件
@@ -288,7 +287,7 @@ func (s *SecurityAuditService) GetLoginAttempts(ctx context.Context, req *GetLog
 
 // GetSecurityMetrics 获取安全指标
 func (s *SecurityAuditService) GetSecurityMetrics(ctx context.Context, tenantID uuid.UUID, startTime, endTime time.Time) (*SecurityMetrics, error) {
-	db := s.db.GetDB().WithContext(ctx)
+	db := s.db.DB.WithContext(ctx)
 	metrics := &SecurityMetrics{}
 
 	// 基础登录统计
@@ -370,7 +369,7 @@ func (s *SecurityAuditService) GetSecurityMetrics(ctx context.Context, tenantID 
 // detectSuspiciousActivities 检测可疑活动
 func (s *SecurityAuditService) detectSuspiciousActivities(ctx context.Context, tenantID uuid.UUID, startTime, endTime time.Time) ([]SuspiciousActivity, error) {
 	var activities []SuspiciousActivity
-	db := s.db.GetDB().WithContext(ctx)
+	db := s.db.DB.WithContext(ctx)
 
 	// 检测暴力破解攻击（同一IP短时间内大量失败登录）
 	type IPFailCount struct {
@@ -421,9 +420,9 @@ func (s *SecurityAuditService) detectSuspiciousActivities(ctx context.Context, t
 
 	// 检测多地登录（同一用户在短时间内来自不同IP）
 	type UserMultiIP struct {
-		UserID    uuid.UUID `json:"user_id"`
-		IPCount   int64     `json:"ip_count"`
-		LastSeen  time.Time `json:"last_seen"`
+		UserID   uuid.UUID `json:"user_id"`
+		IPCount  int64     `json:"ip_count"`
+		LastSeen time.Time `json:"last_seen"`
 	}
 
 	var multiIPUsers []UserMultiIP
@@ -453,9 +452,9 @@ func (s *SecurityAuditService) detectSuspiciousActivities(ctx context.Context, t
 // CleanupOldLogs 清理旧日志（数据保留策略）
 func (s *SecurityAuditService) CleanupOldLogs(ctx context.Context, retentionDays int) error {
 	cutoffTime := time.Now().AddDate(0, 0, -retentionDays)
-	
+
 	// 清理旧的审计日志
-	err := s.db.GetDB().WithContext(ctx).
+	err := s.db.DB.WithContext(ctx).
 		Where("created_at < ?", cutoffTime).
 		Delete(&models.SecurityAuditLog{}).Error
 	if err != nil {
@@ -463,7 +462,7 @@ func (s *SecurityAuditService) CleanupOldLogs(ctx context.Context, retentionDays
 	}
 
 	// 清理旧的登录尝试记录
-	err = s.db.GetDB().WithContext(ctx).
+	err = s.db.DB.WithContext(ctx).
 		Where("created_at < ?", cutoffTime).
 		Delete(&models.LoginAttempt{}).Error
 	if err != nil {
@@ -471,7 +470,7 @@ func (s *SecurityAuditService) CleanupOldLogs(ctx context.Context, retentionDays
 	}
 
 	// 清理旧的MFA尝试记录
-	err = s.db.GetDB().WithContext(ctx).
+	err = s.db.DB.WithContext(ctx).
 		Where("created_at < ?", cutoffTime).
 		Delete(&models.MFAAttempt{}).Error
 	if err != nil {

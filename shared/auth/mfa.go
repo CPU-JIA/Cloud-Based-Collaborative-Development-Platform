@@ -12,12 +12,12 @@ import (
 
 // MFAService MFA多因子认证服务
 type MFAService struct {
-	issuer      string
-	keySize     uint
-	digits      otp.Digits
-	algorithm   otp.Algorithm
-	period      uint
-	skew        uint
+	issuer    string
+	keySize   uint
+	digits    otp.Digits
+	algorithm otp.Algorithm
+	period    uint
+	skew      uint
 }
 
 // MFAConfig MFA配置
@@ -101,12 +101,13 @@ func (m *MFAService) GenerateSecret(userEmail string) (*QRCodeInfo, error) {
 
 // ValidateCode 验证TOTP代码
 func (m *MFAService) ValidateCode(secret, code string) bool {
-	return totp.ValidateCustom(code, secret, time.Now(), totp.ValidateOpts{
+	valid, _ := totp.ValidateCustom(code, secret, time.Now(), totp.ValidateOpts{
 		Period:    m.period,
 		Skew:      m.skew,
 		Digits:    m.digits,
 		Algorithm: m.algorithm,
 	})
+	return valid
 }
 
 // GenerateBackupCodes 生成备用验证码
@@ -167,13 +168,13 @@ func (m *MFAService) IsValidBackupCode(code string) bool {
 	if len(code) != 8 {
 		return false
 	}
-	
+
 	for _, char := range code {
 		if char < '0' || char > '9' {
 			return false
 		}
 	}
-	
+
 	return true
 }
 
@@ -181,7 +182,7 @@ func (m *MFAService) IsValidBackupCode(code string) bool {
 func (m *MFAService) GetTimeWindow() map[string]interface{} {
 	now := time.Now()
 	currentWindow := now.Unix() / int64(m.period)
-	
+
 	return map[string]interface{}{
 		"current_time":   now.Unix(),
 		"current_window": currentWindow,

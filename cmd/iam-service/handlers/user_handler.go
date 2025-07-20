@@ -1,13 +1,13 @@
 package handlers
 
 import (
-	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 
 	"github.com/cloud-platform/collaborative-dev/cmd/iam-service/services"
+	"github.com/cloud-platform/collaborative-dev/shared/api"
 	"github.com/cloud-platform/collaborative-dev/shared/logger"
 )
 
@@ -16,6 +16,7 @@ type UserHandler struct {
 	userService     *services.UserService
 	userMgmtService *services.UserManagementService
 	logger          logger.Logger
+	respHandler     *api.ResponseHandler
 }
 
 // NewUserHandler 创建用户管理处理器实例
@@ -24,6 +25,7 @@ func NewUserHandler(userService *services.UserService, userMgmtService *services
 		userService:     userService,
 		userMgmtService: userMgmtService,
 		logger:          logger,
+		respHandler:     api.NewResponseHandler(),
 	}
 }
 
@@ -47,11 +49,7 @@ func (h *UserHandler) GetUsers(c *gin.Context) {
 	// 从上下文获取租户信息
 	tenantID, exists := c.Get("tenant_id")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, StandardResponse{
-			Success: false,
-			Error:   "租户信息不存在",
-			Code:    "TENANT_NOT_FOUND",
-		})
+		h.respHandler.Unauthorized(c, "租户信息不存在")
 		return
 	}
 
@@ -62,7 +60,7 @@ func (h *UserHandler) GetUsers(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
 	search := c.Query("search")
 	isActiveStr := c.Query("is_active")
-	
+
 	var isActive *bool
 	if isActiveStr != "" {
 		if activeVal, err := strconv.ParseBool(isActiveStr); err == nil {
@@ -83,19 +81,11 @@ func (h *UserHandler) GetUsers(c *gin.Context) {
 	result, err := h.userMgmtService.GetUsers(c.Request.Context(), req)
 	if err != nil {
 		h.logger.Error("获取用户列表失败", "tenant_id", tenantUUID, "error", err)
-		c.JSON(http.StatusInternalServerError, StandardResponse{
-			Success: false,
-			Error:   err.Error(),
-			Code:    "GET_USERS_FAILED",
-		})
+		h.respHandler.InternalServerError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, StandardResponse{
-		Success: true,
-		Data:    result,
-		Message: "获取用户列表成功",
-	})
+	h.respHandler.OK(c, "获取用户列表成功", result)
 }
 
 // CreateUser 创建用户
@@ -116,11 +106,7 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 	var req services.CreateUserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		h.logger.Warn("创建用户请求参数无效", "error", err)
-		c.JSON(http.StatusBadRequest, StandardResponse{
-			Success: false,
-			Error:   "请求参数无效",
-			Code:    "INVALID_REQUEST",
-		})
+		h.respHandler.BadRequest(c, "请求参数无效", nil)
 		return
 	}
 
@@ -133,32 +119,17 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 	user, err := h.userMgmtService.CreateUser(c.Request.Context(), &req)
 	if err != nil {
 		h.logger.Error("创建用户失败", "email", req.Email, "error", err)
-		
-		var statusCode int
-		var errorCode string
-		
+
 		if contains(err.Error(), "已被注册") || contains(err.Error(), "已被使用") {
-			statusCode = http.StatusConflict
-			errorCode = "USER_EXISTS"
+			h.respHandler.Conflict(c, err.Error())
 		} else {
-			statusCode = http.StatusInternalServerError
-			errorCode = "CREATE_USER_FAILED"
+			h.respHandler.InternalServerError(c, err.Error())
 		}
-		
-		c.JSON(statusCode, StandardResponse{
-			Success: false,
-			Error:   err.Error(),
-			Code:    errorCode,
-		})
 		return
 	}
 
 	h.logger.Info("用户创建成功", "email", req.Email, "user_id", user.ID)
-	c.JSON(http.StatusCreated, StandardResponse{
-		Success: true,
-		Data:    user.ToPublicUser(),
-		Message: "用户创建成功",
-	})
+	h.respHandler.Created(c, "用户创建成功", user.ToPublicUser())
 }
 
 // GetUser 获取单个用户
@@ -180,11 +151,7 @@ func (h *UserHandler) GetUser(c *gin.Context) {
 	userIDStr := c.Param("id")
 	userID, err := uuid.Parse(userIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, StandardResponse{
-			Success: false,
-			Error:   "用户ID格式错误",
-			Code:    "INVALID_USER_ID",
-		})
+		h.respHandler.BadRequest(c, "用户ID格式错误", nil)
 		return
 	}
 
@@ -196,31 +163,16 @@ func (h *UserHandler) GetUser(c *gin.Context) {
 	user, err := h.userService.GetUserByID(c.Request.Context(), userID, tenantUUID)
 	if err != nil {
 		h.logger.Error("获取用户信息失败", "user_id", userID, "error", err)
-		
-		var statusCode int
-		var errorCode string
-		
+
 		if contains(err.Error(), "不存在") {
-			statusCode = http.StatusNotFound
-			errorCode = "USER_NOT_FOUND"
+			h.respHandler.NotFound(c, err.Error())
 		} else {
-			statusCode = http.StatusInternalServerError
-			errorCode = "GET_USER_FAILED"
+			h.respHandler.InternalServerError(c, err.Error())
 		}
-		
-		c.JSON(statusCode, StandardResponse{
-			Success: false,
-			Error:   err.Error(),
-			Code:    errorCode,
-		})
 		return
 	}
 
-	c.JSON(http.StatusOK, StandardResponse{
-		Success: true,
-		Data:    user.ToPublicUser(),
-		Message: "获取用户信息成功",
-	})
+	h.respHandler.OK(c, "获取用户信息成功", user.ToPublicUser())
 }
 
 // UpdateUser 更新用户
@@ -243,22 +195,14 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 	userIDStr := c.Param("id")
 	userID, err := uuid.Parse(userIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, StandardResponse{
-			Success: false,
-			Error:   "用户ID格式错误",
-			Code:    "INVALID_USER_ID",
-		})
+		h.respHandler.BadRequest(c, "用户ID格式错误", nil)
 		return
 	}
 
 	var req services.AdminUpdateUserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		h.logger.Warn("更新用户请求参数无效", "error", err)
-		c.JSON(http.StatusBadRequest, StandardResponse{
-			Success: false,
-			Error:   "请求参数无效",
-			Code:    "INVALID_REQUEST",
-		})
+		h.respHandler.BadRequest(c, "请求参数无效", nil)
 		return
 	}
 
@@ -270,32 +214,17 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 	user, err := h.userMgmtService.UpdateUser(c.Request.Context(), userID, tenantUUID, &req)
 	if err != nil {
 		h.logger.Error("更新用户信息失败", "user_id", userID, "error", err)
-		
-		var statusCode int
-		var errorCode string
-		
+
 		if contains(err.Error(), "不存在") {
-			statusCode = http.StatusNotFound
-			errorCode = "USER_NOT_FOUND"
+			h.respHandler.NotFound(c, err.Error())
 		} else {
-			statusCode = http.StatusInternalServerError
-			errorCode = "UPDATE_USER_FAILED"
+			h.respHandler.InternalServerError(c, err.Error())
 		}
-		
-		c.JSON(statusCode, StandardResponse{
-			Success: false,
-			Error:   err.Error(),
-			Code:    errorCode,
-		})
 		return
 	}
 
 	h.logger.Info("用户信息更新成功", "user_id", userID)
-	c.JSON(http.StatusOK, StandardResponse{
-		Success: true,
-		Data:    user.ToPublicUser(),
-		Message: "用户信息更新成功",
-	})
+	h.respHandler.OK(c, "用户信息更新成功", user.ToPublicUser())
 }
 
 // DeleteUser 删除用户
@@ -317,28 +246,20 @@ func (h *UserHandler) DeleteUser(c *gin.Context) {
 	userIDStr := c.Param("id")
 	userID, err := uuid.Parse(userIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, StandardResponse{
-			Success: false,
-			Error:   "用户ID格式错误",
-			Code:    "INVALID_USER_ID",
-		})
+		h.respHandler.BadRequest(c, "用户ID格式错误", nil)
 		return
 	}
 
 	// 从上下文获取租户信息和当前用户信息
 	tenantID, _ := c.Get("tenant_id")
 	currentUserID, _ := c.Get("user_id")
-	
+
 	tenantUUID := tenantID.(uuid.UUID)
 	currentUserUUID := currentUserID.(uuid.UUID)
 
 	// 不能删除自己
 	if userID == currentUserUUID {
-		c.JSON(http.StatusBadRequest, StandardResponse{
-			Success: false,
-			Error:   "不能删除自己的账户",
-			Code:    "CANNOT_DELETE_SELF",
-		})
+		h.respHandler.BadRequest(c, "不能删除自己的账户", nil)
 		return
 	}
 
@@ -346,38 +267,24 @@ func (h *UserHandler) DeleteUser(c *gin.Context) {
 	err = h.userMgmtService.DeleteUser(c.Request.Context(), userID, tenantUUID)
 	if err != nil {
 		h.logger.Error("删除用户失败", "user_id", userID, "error", err)
-		
-		var statusCode int
-		var errorCode string
-		
+
 		if contains(err.Error(), "不存在") {
-			statusCode = http.StatusNotFound
-			errorCode = "USER_NOT_FOUND"
+			h.respHandler.NotFound(c, err.Error())
 		} else {
-			statusCode = http.StatusInternalServerError
-			errorCode = "DELETE_USER_FAILED"
+			h.respHandler.InternalServerError(c, err.Error())
 		}
-		
-		c.JSON(statusCode, StandardResponse{
-			Success: false,
-			Error:   err.Error(),
-			Code:    errorCode,
-		})
 		return
 	}
 
 	h.logger.Info("用户删除成功", "user_id", userID)
-	c.JSON(http.StatusOK, StandardResponse{
-		Success: true,
-		Message: "用户删除成功",
-	})
+	h.respHandler.OK(c, "用户删除成功", nil)
 }
 
 // 辅助函数
 func contains(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || 
-		(len(s) > len(substr) && 
-			(s[:len(substr)] == substr || s[len(s)-len(substr):] == substr || 
+	return len(s) >= len(substr) && (s == substr ||
+		(len(s) > len(substr) &&
+			(s[:len(substr)] == substr || s[len(s)-len(substr):] == substr ||
 				indexOf(s, substr) >= 0)))
 }
 

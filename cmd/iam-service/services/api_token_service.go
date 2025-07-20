@@ -13,7 +13,7 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 
-	"github.com/example/cloud-platform/shared/models"
+	"github.com/cloud-platform/collaborative-dev/shared/models"
 )
 
 type APITokenService struct {
@@ -31,27 +31,27 @@ func (s *APITokenService) CreateAPIToken(ctx context.Context, tenantID, userID u
 	if _, err := rand.Read(tokenBytes); err != nil {
 		return nil, "", fmt.Errorf("failed to generate token: %w", err)
 	}
-	
+
 	// Create token string with prefix
 	tokenString := fmt.Sprintf("cdt_%s", hex.EncodeToString(tokenBytes))
 	tokenPrefix := tokenString[:10] // First 10 characters for display
-	
+
 	// Hash the token for storage
 	hash := sha256.Sum256([]byte(tokenString))
 	tokenHash := hex.EncodeToString(hash[:])
-	
+
 	// Convert scopes to JSON
 	scopesJSON, err := json.Marshal(req.Scopes)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to serialize scopes: %w", err)
 	}
-	
+
 	// Convert permissions to JSON
 	permissionsJSON, err := json.Marshal(req.Permissions)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to serialize permissions: %w", err)
 	}
-	
+
 	// Create token record
 	token := &models.APIToken{
 		ID:           uuid.New(),
@@ -69,16 +69,16 @@ func (s *APITokenService) CreateAPIToken(ctx context.Context, tenantID, userID u
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),
 	}
-	
+
 	// Start transaction
 	tx := s.db.WithContext(ctx).Begin()
-	
+
 	// Create token
 	if err := tx.Create(token).Error; err != nil {
 		tx.Rollback()
 		return nil, "", fmt.Errorf("failed to create API token: %w", err)
 	}
-	
+
 	// Create token-scope relationships
 	for _, scopeName := range req.Scopes {
 		var scope models.APIScope
@@ -90,7 +90,7 @@ func (s *APITokenService) CreateAPIToken(ctx context.Context, tenantID, userID u
 			tx.Rollback()
 			return nil, "", fmt.Errorf("failed to find scope: %w", err)
 		}
-		
+
 		tokenScope := &models.APITokenScope{
 			ID:        uuid.New(),
 			TenantID:  tenantID,
@@ -98,42 +98,42 @@ func (s *APITokenService) CreateAPIToken(ctx context.Context, tenantID, userID u
 			ScopeID:   scope.ID,
 			GrantedAt: time.Now(),
 		}
-		
+
 		if err := tx.Create(tokenScope).Error; err != nil {
 			tx.Rollback()
 			return nil, "", fmt.Errorf("failed to create token scope: %w", err)
 		}
 	}
-	
+
 	tx.Commit()
-	
+
 	return token, tokenString, nil
 }
 
 // GetAPITokens retrieves API tokens for a user
 func (s *APITokenService) GetAPITokens(ctx context.Context, tenantID, userID uuid.UUID) ([]models.APIToken, error) {
 	var tokens []models.APIToken
-	
+
 	err := s.db.WithContext(ctx).
 		Where("tenant_id = ? AND user_id = ? AND status != ?", tenantID, userID, "deleted").
 		Order("created_at DESC").
 		Find(&tokens).Error
-	
+
 	return tokens, err
 }
 
 // GetAPITokenByID retrieves a specific API token
 func (s *APITokenService) GetAPITokenByID(ctx context.Context, tenantID, tokenID uuid.UUID) (*models.APIToken, error) {
 	var token models.APIToken
-	
+
 	err := s.db.WithContext(ctx).
 		Where("id = ? AND tenant_id = ? AND status != ?", tokenID, tenantID, "deleted").
 		First(&token).Error
-	
+
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return &token, nil
 }
 
@@ -142,43 +142,43 @@ func (s *APITokenService) ValidateAPIToken(ctx context.Context, tokenString stri
 	if !strings.HasPrefix(tokenString, "cdt_") {
 		return nil, fmt.Errorf("invalid token format")
 	}
-	
+
 	// Hash the provided token
 	hash := sha256.Sum256([]byte(tokenString))
 	tokenHash := hex.EncodeToString(hash[:])
-	
+
 	var token models.APIToken
 	err := s.db.WithContext(ctx).
 		Preload("User").
 		Where("token_hash = ? AND status = ?", tokenHash, "active").
 		First(&token).Error
-	
+
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, fmt.Errorf("invalid token")
 		}
 		return nil, fmt.Errorf("failed to validate token: %w", err)
 	}
-	
+
 	// Check if token is expired
 	if token.ExpiresAt != nil && token.ExpiresAt.Before(time.Now()) {
 		return nil, fmt.Errorf("token expired")
 	}
-	
+
 	return &token, nil
 }
 
 // UpdateTokenUsage updates token usage statistics
 func (s *APITokenService) UpdateTokenUsage(ctx context.Context, tokenID uuid.UUID, ipAddress string) error {
 	now := time.Now()
-	
+
 	updates := map[string]interface{}{
 		"last_used_at": now,
 		"last_used_ip": ipAddress,
 		"use_count":    gorm.Expr("use_count + 1"),
 		"updated_at":   now,
 	}
-	
+
 	return s.db.WithContext(ctx).
 		Model(&models.APIToken{}).
 		Where("id = ?", tokenID).
@@ -188,14 +188,14 @@ func (s *APITokenService) UpdateTokenUsage(ctx context.Context, tokenID uuid.UUI
 // RevokeAPIToken revokes an API token
 func (s *APITokenService) RevokeAPIToken(ctx context.Context, tenantID, tokenID, revokedBy uuid.UUID) error {
 	now := time.Now()
-	
+
 	updates := map[string]interface{}{
 		"status":     "revoked",
 		"revoked_at": now,
 		"revoked_by": revokedBy,
 		"updated_at": now,
 	}
-	
+
 	return s.db.WithContext(ctx).
 		Model(&models.APIToken{}).
 		Where("id = ? AND tenant_id = ?", tokenID, tenantID).
@@ -207,23 +207,23 @@ func (s *APITokenService) UpdateAPIToken(ctx context.Context, tenantID, tokenID 
 	updates := map[string]interface{}{
 		"updated_at": time.Now(),
 	}
-	
+
 	if req.Name != "" {
 		updates["name"] = req.Name
 	}
-	
+
 	if req.Description != "" {
 		updates["description"] = req.Description
 	}
-	
+
 	if req.RateLimitRPS > 0 {
 		updates["rate_limit_rps"] = req.RateLimitRPS
 	}
-	
+
 	if req.ExpiresAt != nil {
 		updates["expires_at"] = req.ExpiresAt
 	}
-	
+
 	return s.db.WithContext(ctx).
 		Model(&models.APIToken{}).
 		Where("id = ? AND tenant_id = ?", tokenID, tenantID).
@@ -236,12 +236,12 @@ func (s *APITokenService) GetTokenScopes(ctx context.Context, tokenID uuid.UUID)
 	if err := s.db.WithContext(ctx).Where("id = ?", tokenID).First(&token).Error; err != nil {
 		return nil, err
 	}
-	
+
 	var scopes []string
 	if err := json.Unmarshal(token.Scopes, &scopes); err != nil {
 		return nil, fmt.Errorf("failed to parse token scopes: %w", err)
 	}
-	
+
 	return scopes, nil
 }
 
@@ -251,20 +251,20 @@ func (s *APITokenService) CheckTokenPermission(ctx context.Context, tokenID uuid
 	if err != nil {
 		return false, err
 	}
-	
+
 	// Check if token has required scope
 	requiredScope := fmt.Sprintf("%s:%s", resource, action)
 	for _, scope := range scopes {
 		if scope == requiredScope || scope == fmt.Sprintf("%s:admin", resource) {
 			return true, nil
 		}
-		
+
 		// Check wildcard permissions
 		if strings.HasSuffix(scope, ":admin") && strings.HasPrefix(scope, resource) {
 			return true, nil
 		}
 	}
-	
+
 	return false, nil
 }
 
@@ -272,16 +272,16 @@ func (s *APITokenService) CheckTokenPermission(ctx context.Context, tokenID uuid
 func (s *APITokenService) LogTokenUsage(ctx context.Context, usage *models.APITokenUsage) error {
 	usage.ID = uuid.New()
 	usage.CreatedAt = time.Now()
-	
+
 	return s.db.WithContext(ctx).Create(usage).Error
 }
 
 // GetTokenUsageStats retrieves usage statistics for a token
 func (s *APITokenService) GetTokenUsageStats(ctx context.Context, tenantID, tokenID uuid.UUID, days int) (*TokenUsageStats, error) {
 	startDate := time.Now().AddDate(0, 0, -days)
-	
+
 	var stats TokenUsageStats
-	
+
 	// Total requests
 	err := s.db.WithContext(ctx).
 		Model(&models.APITokenUsage{}).
@@ -290,7 +290,7 @@ func (s *APITokenService) GetTokenUsageStats(ctx context.Context, tenantID, toke
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Successful requests
 	err = s.db.WithContext(ctx).
 		Model(&models.APITokenUsage{}).
@@ -299,10 +299,10 @@ func (s *APITokenService) GetTokenUsageStats(ctx context.Context, tenantID, toke
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Error requests
 	stats.ErrorRequests = stats.TotalRequests - stats.SuccessfulRequests
-	
+
 	// Average response time
 	var avgResponseTime float64
 	err = s.db.WithContext(ctx).
@@ -314,7 +314,7 @@ func (s *APITokenService) GetTokenUsageStats(ctx context.Context, tenantID, toke
 		return nil, err
 	}
 	stats.AvgResponseTime = int64(avgResponseTime)
-	
+
 	// Most used endpoints
 	var endpoints []EndpointUsage
 	err = s.db.WithContext(ctx).
@@ -329,7 +329,7 @@ func (s *APITokenService) GetTokenUsageStats(ctx context.Context, tenantID, toke
 		return nil, err
 	}
 	stats.TopEndpoints = endpoints
-	
+
 	return &stats, nil
 }
 
@@ -339,14 +339,14 @@ func (s *APITokenService) CheckRateLimit(ctx context.Context, tokenID uuid.UUID)
 	if err := s.db.WithContext(ctx).Where("id = ?", tokenID).First(&token).Error; err != nil {
 		return false, err
 	}
-	
+
 	windowStart := time.Now().Truncate(time.Minute)
-	
+
 	var rateLimit models.APIRateLimit
 	err := s.db.WithContext(ctx).
 		Where("token_id = ? AND window_start = ?", tokenID, windowStart).
 		First(&rateLimit).Error
-	
+
 	if err == gorm.ErrRecordNotFound {
 		// Create new rate limit window
 		rateLimit = models.APIRateLimit{
@@ -364,35 +364,35 @@ func (s *APITokenService) CheckRateLimit(ctx context.Context, tokenID uuid.UUID)
 	} else if err != nil {
 		return false, err
 	}
-	
+
 	// Check if rate limit exceeded
 	if rateLimit.RequestCount >= token.RateLimitRPS*60 { // RPS * 60 seconds
 		return false, nil // Rate limit exceeded
 	}
-	
+
 	// Increment request count
 	s.db.WithContext(ctx).
 		Model(&rateLimit).
 		UpdateColumn("request_count", gorm.Expr("request_count + 1"))
-	
+
 	return true, nil // Rate limit OK
 }
 
 // GetAvailableScopes retrieves all available API scopes
 func (s *APITokenService) GetAvailableScopes(ctx context.Context) ([]models.APIScope, error) {
 	var scopes []models.APIScope
-	
+
 	err := s.db.WithContext(ctx).
 		Order("category, name").
 		Find(&scopes).Error
-	
+
 	return scopes, err
 }
 
 // CleanupExpiredTokens removes expired and revoked tokens
 func (s *APITokenService) CleanupExpiredTokens(ctx context.Context) (int64, error) {
 	now := time.Now()
-	
+
 	// Mark expired tokens
 	result := s.db.WithContext(ctx).
 		Model(&models.APIToken{}).
@@ -401,23 +401,23 @@ func (s *APITokenService) CleanupExpiredTokens(ctx context.Context) (int64, erro
 			"status":     "expired",
 			"updated_at": now,
 		})
-	
+
 	if result.Error != nil {
 		return 0, result.Error
 	}
-	
+
 	// Clean up old token usage records (older than 90 days)
 	oldDate := now.AddDate(0, 0, -90)
 	s.db.WithContext(ctx).
 		Where("created_at < ?", oldDate).
 		Delete(&models.APITokenUsage{})
-	
+
 	// Clean up old rate limit records (older than 1 day)
 	oldRateDate := now.AddDate(0, 0, -1)
 	s.db.WithContext(ctx).
 		Where("created_at < ?", oldRateDate).
 		Delete(&models.APIRateLimit{})
-	
+
 	return result.RowsAffected, nil
 }
 

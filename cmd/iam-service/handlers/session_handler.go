@@ -1,13 +1,13 @@
 package handlers
 
 import (
-	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 
 	"github.com/cloud-platform/collaborative-dev/cmd/iam-service/services"
+	"github.com/cloud-platform/collaborative-dev/shared/api"
 	"github.com/cloud-platform/collaborative-dev/shared/logger"
 )
 
@@ -15,6 +15,7 @@ import (
 type SessionHandler struct {
 	sessionService *services.SessionManagementService
 	logger         logger.Logger
+	respHandler    *api.ResponseHandler
 }
 
 // NewSessionHandler 创建会话处理器
@@ -22,6 +23,7 @@ func NewSessionHandler(sessionService *services.SessionManagementService, logger
 	return &SessionHandler{
 		sessionService: sessionService,
 		logger:         logger,
+		respHandler:    api.NewResponseHandler(),
 	}
 }
 
@@ -30,21 +32,13 @@ func (h *SessionHandler) GetSessions(c *gin.Context) {
 	// 获取当前用户信息
 	userID, exists := c.Get("user_id")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, StandardResponse{
-			Success: false,
-			Error:   "用户未认证",
-			Code:    "UNAUTHORIZED",
-		})
+		h.respHandler.Unauthorized(c, "用户未认证")
 		return
 	}
 
 	tenantID, exists := c.Get("tenant_id")
 	if !exists {
-		c.JSON(http.StatusBadRequest, StandardResponse{
-			Success: false,
-			Error:   "缺少租户信息",
-			Code:    "MISSING_TENANT",
-		})
+		h.respHandler.BadRequest(c, "缺少租户信息", nil)
 		return
 	}
 
@@ -72,20 +66,11 @@ func (h *SessionHandler) GetSessions(c *gin.Context) {
 			"error":     err.Error(),
 		}).Error("获取用户会话失败")
 
-		c.JSON(http.StatusInternalServerError, StandardResponse{
-			Success: false,
-			Error:   "获取会话列表失败",
-			Code:    "GET_SESSIONS_FAILED",
-			Message: err.Error(),
-		})
+		h.respHandler.InternalServerError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, StandardResponse{
-		Success: true,
-		Data:    sessions,
-		Message: "获取会话列表成功",
-	})
+	h.respHandler.OK(c, "获取会话列表成功", sessions)
 }
 
 // RevokeSession 撤销单个会话
@@ -93,32 +78,20 @@ func (h *SessionHandler) RevokeSession(c *gin.Context) {
 	sessionIDStr := c.Param("id")
 	sessionID, err := uuid.Parse(sessionIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, StandardResponse{
-			Success: false,
-			Error:   "无效的会话ID",
-			Code:    "INVALID_SESSION_ID",
-		})
+		h.respHandler.BadRequest(c, "无效的会话ID", nil)
 		return
 	}
 
 	// 获取当前用户信息
 	userID, exists := c.Get("user_id")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, StandardResponse{
-			Success: false,
-			Error:   "用户未认证",
-			Code:    "UNAUTHORIZED",
-		})
+		h.respHandler.Unauthorized(c, "用户未认证")
 		return
 	}
 
 	tenantID, exists := c.Get("tenant_id")
 	if !exists {
-		c.JSON(http.StatusBadRequest, StandardResponse{
-			Success: false,
-			Error:   "缺少租户信息",
-			Code:    "MISSING_TENANT",
-		})
+		h.respHandler.BadRequest(c, "缺少租户信息", nil)
 		return
 	}
 
@@ -131,12 +104,7 @@ func (h *SessionHandler) RevokeSession(c *gin.Context) {
 			"error":      err.Error(),
 		}).Error("撤销会话失败")
 
-		c.JSON(http.StatusInternalServerError, StandardResponse{
-			Success: false,
-			Error:   "撤销会话失败",
-			Code:    "REVOKE_SESSION_FAILED",
-			Message: err.Error(),
-		})
+		h.respHandler.InternalServerError(c, err.Error())
 		return
 	}
 
@@ -146,10 +114,7 @@ func (h *SessionHandler) RevokeSession(c *gin.Context) {
 		"session_id": sessionID,
 	}).Info("会话撤销成功")
 
-	c.JSON(http.StatusOK, StandardResponse{
-		Success: true,
-		Message: "会话已撤销",
-	})
+	h.respHandler.OK(c, "会话已撤销", nil)
 }
 
 // RevokeAllSessions 撤销用户所有其他会话
@@ -157,21 +122,13 @@ func (h *SessionHandler) RevokeAllSessions(c *gin.Context) {
 	// 获取当前用户信息
 	userID, exists := c.Get("user_id")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, StandardResponse{
-			Success: false,
-			Error:   "用户未认证",
-			Code:    "UNAUTHORIZED",
-		})
+		h.respHandler.Unauthorized(c, "用户未认证")
 		return
 	}
 
 	tenantID, exists := c.Get("tenant_id")
 	if !exists {
-		c.JSON(http.StatusBadRequest, StandardResponse{
-			Success: false,
-			Error:   "缺少租户信息",
-			Code:    "MISSING_TENANT",
-		})
+		h.respHandler.BadRequest(c, "缺少租户信息", nil)
 		return
 	}
 
@@ -200,12 +157,7 @@ func (h *SessionHandler) RevokeAllSessions(c *gin.Context) {
 			"error":     err.Error(),
 		}).Error("撤销所有会话失败")
 
-		c.JSON(http.StatusInternalServerError, StandardResponse{
-			Success: false,
-			Error:   "撤销所有会话失败",
-			Code:    "REVOKE_ALL_SESSIONS_FAILED",
-			Message: err.Error(),
-		})
+		h.respHandler.InternalServerError(c, err.Error())
 		return
 	}
 
@@ -215,10 +167,7 @@ func (h *SessionHandler) RevokeAllSessions(c *gin.Context) {
 		"exclude_current": req.ExcludeCurrent,
 	}).Info("所有会话撤销成功")
 
-	c.JSON(http.StatusOK, StandardResponse{
-		Success: true,
-		Message: "所有其他会话已撤销",
-	})
+	h.respHandler.OK(c, "所有其他会话已撤销", nil)
 }
 
 // GetSessionStats 获取会话统计信息（管理员功能）
@@ -226,21 +175,13 @@ func (h *SessionHandler) GetSessionStats(c *gin.Context) {
 	// 检查管理员权限
 	userRole, exists := c.Get("user_role")
 	if !exists || userRole != "admin" {
-		c.JSON(http.StatusForbidden, StandardResponse{
-			Success: false,
-			Error:   "权限不足",
-			Code:    "INSUFFICIENT_PERMISSIONS",
-		})
+		h.respHandler.Forbidden(c, "权限不足")
 		return
 	}
 
 	tenantID, exists := c.Get("tenant_id")
 	if !exists {
-		c.JSON(http.StatusBadRequest, StandardResponse{
-			Success: false,
-			Error:   "缺少租户信息",
-			Code:    "MISSING_TENANT",
-		})
+		h.respHandler.BadRequest(c, "缺少租户信息", nil)
 		return
 	}
 
@@ -254,11 +195,7 @@ func (h *SessionHandler) GetSessionStats(c *gin.Context) {
 	if startTimeStr != "" {
 		startTime, err = time.Parse(time.RFC3339, startTimeStr)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, StandardResponse{
-				Success: false,
-				Error:   "开始时间格式无效",
-				Code:    "INVALID_START_TIME",
-			})
+			h.respHandler.BadRequest(c, "开始时间格式无效", nil)
 			return
 		}
 	} else {
@@ -268,11 +205,7 @@ func (h *SessionHandler) GetSessionStats(c *gin.Context) {
 	if endTimeStr != "" {
 		endTime, err = time.Parse(time.RFC3339, endTimeStr)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, StandardResponse{
-				Success: false,
-				Error:   "结束时间格式无效",
-				Code:    "INVALID_END_TIME",
-			})
+			h.respHandler.BadRequest(c, "结束时间格式无效", nil)
 			return
 		}
 	} else {
@@ -288,20 +221,11 @@ func (h *SessionHandler) GetSessionStats(c *gin.Context) {
 			"error":      err.Error(),
 		}).Error("获取会话统计失败")
 
-		c.JSON(http.StatusInternalServerError, StandardResponse{
-			Success: false,
-			Error:   "获取会话统计失败",
-			Code:    "GET_SESSION_STATS_FAILED",
-			Message: err.Error(),
-		})
+		h.respHandler.InternalServerError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, StandardResponse{
-		Success: true,
-		Data:    stats,
-		Message: "获取会话统计成功",
-	})
+	h.respHandler.OK(c, "获取会话统计成功", stats)
 }
 
 // AdminRevokeUserSessions 管理员强制撤销用户会话
@@ -309,32 +233,20 @@ func (h *SessionHandler) AdminRevokeUserSessions(c *gin.Context) {
 	// 检查管理员权限
 	userRole, exists := c.Get("user_role")
 	if !exists || userRole != "admin" {
-		c.JSON(http.StatusForbidden, StandardResponse{
-			Success: false,
-			Error:   "权限不足",
-			Code:    "INSUFFICIENT_PERMISSIONS",
-		})
+		h.respHandler.Forbidden(c, "权限不足")
 		return
 	}
 
 	targetUserIDStr := c.Param("user_id")
 	targetUserID, err := uuid.Parse(targetUserIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, StandardResponse{
-			Success: false,
-			Error:   "无效的用户ID",
-			Code:    "INVALID_USER_ID",
-		})
+		h.respHandler.BadRequest(c, "无效的用户ID", nil)
 		return
 	}
 
 	tenantID, exists := c.Get("tenant_id")
 	if !exists {
-		c.JSON(http.StatusBadRequest, StandardResponse{
-			Success: false,
-			Error:   "缺少租户信息",
-			Code:    "MISSING_TENANT",
-		})
+		h.respHandler.BadRequest(c, "缺少租户信息", nil)
 		return
 	}
 
@@ -349,12 +261,7 @@ func (h *SessionHandler) AdminRevokeUserSessions(c *gin.Context) {
 			"error":          err.Error(),
 		}).Error("管理员撤销用户会话失败")
 
-		c.JSON(http.StatusInternalServerError, StandardResponse{
-			Success: false,
-			Error:   "撤销用户会话失败",
-			Code:    "ADMIN_REVOKE_SESSIONS_FAILED",
-			Message: err.Error(),
-		})
+		h.respHandler.InternalServerError(c, err.Error())
 		return
 	}
 
@@ -364,8 +271,5 @@ func (h *SessionHandler) AdminRevokeUserSessions(c *gin.Context) {
 		"tenant_id":      tenantID,
 	}).Info("管理员强制撤销用户会话成功")
 
-	c.JSON(http.StatusOK, StandardResponse{
-		Success: true,
-		Message: "用户所有会话已撤销",
-	})
+	h.respHandler.OK(c, "用户所有会话已撤销", nil)
 }

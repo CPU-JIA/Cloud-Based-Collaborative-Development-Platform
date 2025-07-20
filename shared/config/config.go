@@ -97,14 +97,14 @@ type KafkaConfig struct {
 
 // AuthConfig 认证配置
 type AuthConfig struct {
-	JWTSecret           string        `mapstructure:"jwt_secret"`
-	JWTExpiration       time.Duration `mapstructure:"jwt_expiration" default:"24h"`
-	RefreshTokenExpiry  time.Duration `mapstructure:"refresh_token_expiry" default:"168h"` // 7天
-	PasswordMinLength   int           `mapstructure:"password_min_length" default:"8"`
-	MaxLoginAttempts    int           `mapstructure:"max_login_attempts" default:"5"`
-	LockoutDuration     time.Duration `mapstructure:"lockout_duration" default:"15m"`
-	SessionTimeout      time.Duration `mapstructure:"session_timeout" default:"30m"`
-	TwoFactorEnabled    bool          `mapstructure:"two_factor_enabled" default:"false"`
+	JWTSecret          string        `mapstructure:"jwt_secret"`
+	JWTExpiration      time.Duration `mapstructure:"jwt_expiration" default:"24h"`
+	RefreshTokenExpiry time.Duration `mapstructure:"refresh_token_expiry" default:"168h"` // 7天
+	PasswordMinLength  int           `mapstructure:"password_min_length" default:"8"`
+	MaxLoginAttempts   int           `mapstructure:"max_login_attempts" default:"5"`
+	LockoutDuration    time.Duration `mapstructure:"lockout_duration" default:"15m"`
+	SessionTimeout     time.Duration `mapstructure:"session_timeout" default:"30m"`
+	TwoFactorEnabled   bool          `mapstructure:"two_factor_enabled" default:"false"`
 }
 
 // LogConfig 日志配置
@@ -112,9 +112,9 @@ type LogConfig struct {
 	Level      string `mapstructure:"level" default:"info"`
 	Format     string `mapstructure:"format" default:"json"`
 	Output     string `mapstructure:"output" default:"stdout"`
-	MaxSize    int    `mapstructure:"max_size" default:"100"`    // MB
+	MaxSize    int    `mapstructure:"max_size" default:"100"` // MB
 	MaxBackups int    `mapstructure:"max_backups" default:"3"`
-	MaxAge     int    `mapstructure:"max_age" default:"28"`      // 天
+	MaxAge     int    `mapstructure:"max_age" default:"28"` // 天
 	Compress   bool   `mapstructure:"compress" default:"true"`
 }
 
@@ -143,11 +143,11 @@ func (l *LogConfig) ToLoggerConfig() interface{} {
 
 // MonitorConfig 监控配置
 type MonitorConfig struct {
-	Enabled           bool   `mapstructure:"enabled" default:"true"`
-	MetricsPort       int    `mapstructure:"metrics_port" default:"9090"`
-	TracingEnabled    bool   `mapstructure:"tracing_enabled" default:"true"`
-	TracingEndpoint   string `mapstructure:"tracing_endpoint"`
-	SamplingRate      float64 `mapstructure:"sampling_rate" default:"0.1"`
+	Enabled         bool    `mapstructure:"enabled" default:"true"`
+	MetricsPort     int     `mapstructure:"metrics_port" default:"9090"`
+	TracingEnabled  bool    `mapstructure:"tracing_enabled" default:"true"`
+	TracingEndpoint string  `mapstructure:"tracing_endpoint"`
+	SamplingRate    float64 `mapstructure:"sampling_rate" default:"0.1"`
 }
 
 // SecurityConfig 安全配置

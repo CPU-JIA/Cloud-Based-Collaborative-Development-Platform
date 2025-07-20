@@ -33,21 +33,21 @@ type EnableMFARequest struct {
 
 // EnableMFAResponse 启用MFA响应
 type EnableMFAResponse struct {
-	DeviceID      uuid.UUID               `json:"device_id"`
-	Secret        string                  `json:"secret,omitempty"`
-	QRCodeB64     string                  `json:"qr_code_base64,omitempty"`
-	QRCodeURL     string                  `json:"qr_code_url,omitempty"`
-	BackupCodes   []string                `json:"backup_codes"`
-	SetupRequired bool                    `json:"setup_required"`
+	DeviceID      uuid.UUID `json:"device_id"`
+	Secret        string    `json:"secret,omitempty"`
+	QRCodeB64     string    `json:"qr_code_base64,omitempty"`
+	QRCodeURL     string    `json:"qr_code_url,omitempty"`
+	BackupCodes   []string  `json:"backup_codes"`
+	SetupRequired bool      `json:"setup_required"`
 }
 
 // VerifyMFARequest 验证MFA请求
 type VerifyMFARequest struct {
-	UserID   uuid.UUID `json:"user_id" binding:"required"`
-	TenantID uuid.UUID `json:"tenant_id" binding:"required"`
-	Code     string    `json:"code" binding:"required,min=6,max=8"`
-	DeviceID *uuid.UUID `json:"device_id,omitempty"`
-	IsBackupCode bool   `json:"is_backup_code,omitempty"`
+	UserID       uuid.UUID  `json:"user_id" binding:"required"`
+	TenantID     uuid.UUID  `json:"tenant_id" binding:"required"`
+	Code         string     `json:"code" binding:"required,min=6,max=8"`
+	DeviceID     *uuid.UUID `json:"device_id,omitempty"`
+	IsBackupCode bool       `json:"is_backup_code,omitempty"`
 }
 
 // MFADeviceInfo MFA设备信息
@@ -71,7 +71,7 @@ func NewMFAManagementService(db *database.PostgresDB, mfaService *auth.MFAServic
 
 // EnableMFA 启用MFA
 func (s *MFAManagementService) EnableMFA(ctx context.Context, req *EnableMFARequest, ipAddress, userAgent string) (*EnableMFAResponse, error) {
-	tx := s.db.GetDB().WithContext(ctx).Begin()
+	tx := s.db.DB.WithContext(ctx).Begin()
 	defer func() {
 		if r := recover(); r != nil {
 			tx.Rollback()
@@ -194,7 +194,7 @@ func (s *MFAManagementService) EnableMFA(ctx context.Context, req *EnableMFARequ
 
 // VerifyMFASetup 验证MFA设置
 func (s *MFAManagementService) VerifyMFASetup(ctx context.Context, req *VerifyMFARequest, ipAddress, userAgent string) error {
-	tx := s.db.GetDB().WithContext(ctx).Begin()
+	tx := s.db.DB.WithContext(ctx).Begin()
 	defer func() {
 		if r := recover(); r != nil {
 			tx.Rollback()
@@ -222,7 +222,7 @@ func (s *MFAManagementService) VerifyMFASetup(ctx context.Context, req *VerifyMF
 	}
 
 	var isValid bool
-	
+
 	if req.IsBackupCode {
 		// 验证备用码
 		isValid, err = s.validateBackupCode(tx, req.UserID, req.TenantID, req.Code)
@@ -275,7 +275,7 @@ func (s *MFAManagementService) VerifyMFASetup(ctx context.Context, req *VerifyMF
 
 // VerifyMFA 验证MFA（登录时使用）
 func (s *MFAManagementService) VerifyMFA(ctx context.Context, req *VerifyMFARequest, ipAddress, userAgent string) error {
-	tx := s.db.GetDB().WithContext(ctx).Begin()
+	tx := s.db.DB.WithContext(ctx).Begin()
 	defer func() {
 		if r := recover(); r != nil {
 			tx.Rollback()
@@ -303,7 +303,7 @@ func (s *MFAManagementService) VerifyMFA(ctx context.Context, req *VerifyMFARequ
 	}
 
 	var isValid bool
-	
+
 	if req.IsBackupCode {
 		// 验证备用码
 		isValid, err = s.validateBackupCode(tx, req.UserID, req.TenantID, req.Code)
@@ -349,7 +349,7 @@ func (s *MFAManagementService) VerifyMFA(ctx context.Context, req *VerifyMFARequ
 // GetUserMFADevices 获取用户MFA设备列表
 func (s *MFAManagementService) GetUserMFADevices(ctx context.Context, userID, tenantID uuid.UUID) ([]MFADeviceInfo, error) {
 	var devices []models.UserMFADevice
-	err := s.db.GetDB().WithContext(ctx).
+	err := s.db.DB.WithContext(ctx).
 		Where("user_id = ? AND tenant_id = ? AND is_active = true", userID, tenantID).
 		Order("is_primary DESC, created_at ASC").
 		Find(&devices).Error
@@ -375,7 +375,7 @@ func (s *MFAManagementService) GetUserMFADevices(ctx context.Context, userID, te
 
 // DisableMFA 禁用用户MFA
 func (s *MFAManagementService) DisableMFA(ctx context.Context, userID, tenantID uuid.UUID) error {
-	tx := s.db.GetDB().WithContext(ctx).Begin()
+	tx := s.db.DB.WithContext(ctx).Begin()
 	defer func() {
 		if r := recover(); r != nil {
 			tx.Rollback()
@@ -421,11 +421,11 @@ func (s *MFAManagementService) DisableMFA(ctx context.Context, userID, tenantID 
 func (s *MFAManagementService) validateTOTPCode(tx *gorm.DB, userID, tenantID uuid.UUID, code string, deviceID *uuid.UUID) (bool, error) {
 	var device models.UserMFADevice
 	query := tx.Where("user_id = ? AND tenant_id = ? AND device_type = 'totp' AND is_active = true", userID, tenantID)
-	
+
 	if deviceID != nil {
 		query = query.Where("id = ?", *deviceID)
 	}
-	
+
 	err := query.First(&device).Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -444,7 +444,7 @@ func (s *MFAManagementService) validateBackupCode(tx *gorm.DB, userID, tenantID 
 	}
 
 	hashedCode := s.hashBackupCode(code)
-	
+
 	var backupCode models.UserMFABackupCode
 	err := tx.Where("user_id = ? AND tenant_id = ? AND code = ? AND used = false", userID, tenantID, hashedCode).
 		First(&backupCode).Error

@@ -9,35 +9,35 @@ import (
 
 // User 用户模型
 type User struct {
-	ID                uuid.UUID  `json:"id" gorm:"type:uuid;primary_key;default:gen_random_uuid()"`
-	TenantID          uuid.UUID  `json:"tenant_id" gorm:"type:uuid;not null;index"`
-	Email             string     `json:"email" gorm:"type:varchar(255);uniqueIndex;not null"`
-	Username          string     `json:"username" gorm:"type:varchar(100);uniqueIndex;not null"`
-	PasswordHash      string     `json:"-" gorm:"type:varchar(255);not null"`
-	FirstName         string     `json:"first_name" gorm:"type:varchar(100)"`
-	LastName          string     `json:"last_name" gorm:"type:varchar(100)"`
-	Avatar            string     `json:"avatar" gorm:"type:text"`
-	Phone             string     `json:"phone" gorm:"type:varchar(20)"`
-	IsActive          bool       `json:"is_active" gorm:"default:true"`
-	IsEmailVerified   bool       `json:"is_email_verified" gorm:"default:false"`
-	EmailVerifiedAt   *time.Time `json:"email_verified_at"`
-	LastLoginAt       *time.Time `json:"last_login_at"`
-	FailedLoginCount  int        `json:"failed_login_count" gorm:"default:0"`
-	LockedUntil       *time.Time `json:"locked_until"`
-	TwoFactorEnabled  bool       `json:"two_factor_enabled" gorm:"default:false"`
-	TwoFactorSecret   string     `json:"-" gorm:"type:varchar(255)"`
-	PasswordResetAt   *time.Time `json:"password_reset_at"`
-	PasswordChangedAt *time.Time `json:"password_changed_at"`
-	MustChangePassword bool      `json:"must_change_password" gorm:"default:false"`
-	CreatedAt         time.Time  `json:"created_at"`
-	UpdatedAt         time.Time  `json:"updated_at"`
-	DeletedAt         *time.Time `json:"deleted_at" gorm:"index"`
+	ID                 uuid.UUID  `json:"id" gorm:"type:uuid;primary_key;default:gen_random_uuid()"`
+	TenantID           uuid.UUID  `json:"tenant_id" gorm:"type:uuid;not null;index"`
+	Email              string     `json:"email" gorm:"type:varchar(255);uniqueIndex;not null"`
+	Username           string     `json:"username" gorm:"type:varchar(100);uniqueIndex;not null"`
+	PasswordHash       string     `json:"-" gorm:"type:varchar(255);not null"`
+	FirstName          string     `json:"first_name" gorm:"type:varchar(100)"`
+	LastName           string     `json:"last_name" gorm:"type:varchar(100)"`
+	Avatar             string     `json:"avatar" gorm:"type:text"`
+	Phone              string     `json:"phone" gorm:"type:varchar(20)"`
+	IsActive           bool       `json:"is_active" gorm:"default:true"`
+	IsEmailVerified    bool       `json:"is_email_verified" gorm:"default:false"`
+	EmailVerifiedAt    *time.Time `json:"email_verified_at"`
+	LastLoginAt        *time.Time `json:"last_login_at"`
+	FailedLoginCount   int        `json:"failed_login_count" gorm:"default:0"`
+	LockedUntil        *time.Time `json:"locked_until"`
+	TwoFactorEnabled   bool       `json:"two_factor_enabled" gorm:"default:false"`
+	TwoFactorSecret    string     `json:"-" gorm:"type:varchar(255)"`
+	PasswordResetAt    *time.Time `json:"password_reset_at"`
+	PasswordChangedAt  *time.Time `json:"password_changed_at"`
+	MustChangePassword bool       `json:"must_change_password" gorm:"default:false"`
+	CreatedAt          time.Time  `json:"created_at"`
+	UpdatedAt          time.Time  `json:"updated_at"`
+	DeletedAt          *time.Time `json:"deleted_at" gorm:"index"`
 
 	// 关联
-	Tenant      Tenant       `json:"tenant,omitempty" gorm:"foreignKey:TenantID"`
-	UserRoles   []UserRole   `json:"user_roles,omitempty" gorm:"foreignKey:UserID"`
-	Roles       []Role       `json:"roles,omitempty" gorm:"many2many:user_roles;"`
-	Sessions    []UserSession `json:"sessions,omitempty" gorm:"foreignKey:UserID"`
+	Tenant    Tenant        `json:"tenant,omitempty" gorm:"foreignKey:TenantID"`
+	UserRoles []UserRole    `json:"user_roles,omitempty" gorm:"foreignKey:UserID"`
+	Roles     []Role        `json:"roles,omitempty" gorm:"many2many:user_roles;"`
+	Sessions  []UserSession `json:"sessions,omitempty" gorm:"foreignKey:UserID"`
 }
 
 // TableName 表名
@@ -99,8 +99,8 @@ type UserRole struct {
 	CreatedAt time.Time `json:"created_at"`
 
 	// 关联
-	User   User `json:"user,omitempty" gorm:"foreignKey:UserID"`
-	Role   Role `json:"role,omitempty" gorm:"foreignKey:RoleID"`
+	User   User   `json:"user,omitempty" gorm:"foreignKey:UserID"`
+	Role   Role   `json:"role,omitempty" gorm:"foreignKey:RoleID"`
 	Tenant Tenant `json:"tenant,omitempty" gorm:"foreignKey:TenantID"`
 }
 
@@ -155,19 +155,7 @@ func (UserSession) TableName() string {
 	return "user_sessions"
 }
 
-// Tenant 租户模型（简化版本，完整定义应该在tenant服务中）
-type Tenant struct {
-	ID        uuid.UUID `json:"id" gorm:"type:uuid;primary_key;default:gen_random_uuid()"`
-	Name      string    `json:"name" gorm:"type:varchar(200);not null"`
-	IsActive  bool      `json:"is_active" gorm:"default:true"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-}
-
-// TableName 表名
-func (Tenant) TableName() string {
-	return "tenants"
-}
+// 注意：Tenant模型的完整定义在tenant.go中
 
 // 用户方法
 

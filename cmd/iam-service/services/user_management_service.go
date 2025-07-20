@@ -20,16 +20,16 @@ type UserManagementService struct {
 
 // CreateUserRequest 创建用户请求（管理员使用）
 type CreateUserRequest struct {
-	TenantID         uuid.UUID `json:"tenant_id"`
-	Email            string    `json:"email" binding:"required,email"`
-	Username         string    `json:"username" binding:"required,min=3,max=50"`
-	Password         string    `json:"password" binding:"required,min=8"`
-	FirstName        string    `json:"first_name" binding:"required"`
-	LastName         string    `json:"last_name" binding:"required"`
-	Phone            string    `json:"phone"`
-	IsActive         *bool     `json:"is_active"` // 可选，默认true
-	IsEmailVerified  *bool     `json:"is_email_verified"` // 可选，默认false
-	RoleNames        []string  `json:"role_names"` // 分配的角色名称列表
+	TenantID        uuid.UUID `json:"tenant_id"`
+	Email           string    `json:"email" binding:"required,email"`
+	Username        string    `json:"username" binding:"required,min=3,max=50"`
+	Password        string    `json:"password" binding:"required,min=8"`
+	FirstName       string    `json:"first_name" binding:"required"`
+	LastName        string    `json:"last_name" binding:"required"`
+	Phone           string    `json:"phone"`
+	IsActive        *bool     `json:"is_active"`         // 可选，默认true
+	IsEmailVerified *bool     `json:"is_email_verified"` // 可选，默认false
+	RoleNames       []string  `json:"role_names"`        // 分配的角色名称列表
 }
 
 // AdminUpdateUserRequest 管理员更新用户请求
@@ -66,20 +66,20 @@ type UserListResponse struct {
 
 // UserWithRoles 用户信息（包含角色）
 type UserWithRoles struct {
-	ID              uuid.UUID `json:"id"`
-	TenantID        uuid.UUID `json:"tenant_id"`
-	Email           string    `json:"email"`
-	Username        string    `json:"username"`
-	FirstName       string    `json:"first_name"`
-	LastName        string    `json:"last_name"`
-	Avatar          string    `json:"avatar"`
-	Phone           string    `json:"phone"`
-	IsActive        bool      `json:"is_active"`
-	IsEmailVerified bool      `json:"is_email_verified"`
+	ID              uuid.UUID  `json:"id"`
+	TenantID        uuid.UUID  `json:"tenant_id"`
+	Email           string     `json:"email"`
+	Username        string     `json:"username"`
+	FirstName       string     `json:"first_name"`
+	LastName        string     `json:"last_name"`
+	Avatar          string     `json:"avatar"`
+	Phone           string     `json:"phone"`
+	IsActive        bool       `json:"is_active"`
+	IsEmailVerified bool       `json:"is_email_verified"`
 	LastLoginAt     *time.Time `json:"last_login_at"`
-	CreatedAt       time.Time `json:"created_at"`
-	UpdatedAt       time.Time `json:"updated_at"`
-	Roles           []string  `json:"roles"` // 角色名称列表
+	CreatedAt       time.Time  `json:"created_at"`
+	UpdatedAt       time.Time  `json:"updated_at"`
+	Roles           []string   `json:"roles"` // 角色名称列表
 }
 
 // NewUserManagementService 创建用户管理服务实例

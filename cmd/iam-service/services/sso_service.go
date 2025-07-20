@@ -12,7 +12,7 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 
-	"github.com/example/cloud-platform/shared/models"
+	"github.com/cloud-platform/collaborative-dev/shared/models"
 )
 
 type SSOService struct {
@@ -29,12 +29,12 @@ func (s *SSOService) CreateSSOProvider(ctx context.Context, tenantID uuid.UUID, 
 	provider.TenantID = tenantID
 	provider.CreatedAt = time.Now()
 	provider.UpdatedAt = time.Now()
-	
+
 	// Validate configuration based on provider type
 	if err := s.validateProviderConfiguration(provider); err != nil {
 		return fmt.Errorf("invalid provider configuration: %w", err)
 	}
-	
+
 	return s.db.WithContext(ctx).Create(provider).Error
 }
 
@@ -66,16 +66,16 @@ func (s *SSOService) InitiateSSO(ctx context.Context, tenantID, providerID uuid.
 	if err != nil {
 		return nil, "", fmt.Errorf("provider not found: %w", err)
 	}
-	
+
 	if provider.Status != "active" {
 		return nil, "", fmt.Errorf("provider is not active")
 	}
-	
+
 	// Generate state and nonce
 	state := s.generateSecureToken(32)
 	nonce := s.generateSecureToken(32)
 	codeChallenge := ""
-	
+
 	// Create SSO session
 	session := &models.SSOSession{
 		ID:            uuid.New(),
@@ -90,17 +90,17 @@ func (s *SSOService) InitiateSSO(ctx context.Context, tenantID, providerID uuid.
 		CreatedAt:     time.Now(),
 		UpdatedAt:     time.Now(),
 	}
-	
+
 	if err := s.db.WithContext(ctx).Create(session).Error; err != nil {
 		return nil, "", fmt.Errorf("failed to create SSO session: %w", err)
 	}
-	
+
 	// Generate authorization URL based on provider type
 	authURL, err := s.generateAuthorizationURL(provider, session)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to generate authorization URL: %w", err)
 	}
-	
+
 	return session, authURL, nil
 }
 
@@ -115,7 +115,7 @@ func (s *SSOService) CompleteSSO(ctx context.Context, state, code string) (*mode
 	if err != nil {
 		return nil, fmt.Errorf("invalid or expired SSO session: %w", err)
 	}
-	
+
 	// Exchange code for user information
 	userInfo, err := s.exchangeCodeForUserInfo(&session, code)
 	if err != nil {
@@ -126,7 +126,7 @@ func (s *SSOService) CompleteSSO(ctx context.Context, state, code string) (*mode
 		})
 		return nil, fmt.Errorf("failed to exchange code: %w", err)
 	}
-	
+
 	// Find or create user based on external user ID
 	user, err := s.findOrCreateUser(ctx, &session, userInfo)
 	if err != nil {
@@ -136,7 +136,7 @@ func (s *SSOService) CompleteSSO(ctx context.Context, state, code string) (*mode
 		})
 		return nil, fmt.Errorf("failed to find or create user: %w", err)
 	}
-	
+
 	// Update session with user ID and mark as completed
 	err = s.db.WithContext(ctx).Model(&session).Updates(map[string]interface{}{
 		"user_id":          user.ID,
@@ -147,19 +147,19 @@ func (s *SSOService) CompleteSSO(ctx context.Context, state, code string) (*mode
 	if err != nil {
 		return nil, fmt.Errorf("failed to update SSO session: %w", err)
 	}
-	
+
 	return user, nil
 }
 
 // UpdateUserMapping updates the mapping between external and internal users
 func (s *SSOService) UpdateUserMapping(ctx context.Context, tenantID, userID, providerID uuid.UUID, userInfo *ExternalUserInfo) error {
 	var mapping models.SSOUserMapping
-	
+
 	// Check if mapping already exists
 	err := s.db.WithContext(ctx).
 		Where("tenant_id = ? AND user_id = ? AND provider_id = ?", tenantID, userID, providerID).
 		First(&mapping).Error
-	
+
 	if err == gorm.ErrRecordNotFound {
 		// Create new mapping
 		mapping = models.SSOUserMapping{
@@ -173,29 +173,29 @@ func (s *SSOService) UpdateUserMapping(ctx context.Context, tenantID, userID, pr
 			CreatedAt:      time.Now(),
 			UpdatedAt:      time.Now(),
 		}
-		
+
 		if userInfo.Attributes != nil {
 			attributesJSON, _ := json.Marshal(userInfo.Attributes)
 			mapping.Attributes = attributesJSON
 		}
-		
+
 		return s.db.WithContext(ctx).Create(&mapping).Error
 	} else if err != nil {
 		return err
 	}
-	
+
 	// Update existing mapping
 	updates := map[string]interface{}{
 		"external_email": userInfo.Email,
 		"external_name":  userInfo.Name,
 		"updated_at":     time.Now(),
 	}
-	
+
 	if userInfo.Attributes != nil {
 		attributesJSON, _ := json.Marshal(userInfo.Attributes)
 		updates["attributes"] = attributesJSON
 	}
-	
+
 	return s.db.WithContext(ctx).Model(&mapping).Updates(updates).Error
 }
 
@@ -218,7 +218,7 @@ func (s *SSOService) generateSecureToken(length int) string {
 
 func (s *SSOService) generateCodeChallenge(codeVerifier string) string {
 	hash := sha256.Sum256([]byte(codeVerifier))
-	return base64.URLEncoding.WithoutPadding().EncodeToString(hash[:])
+	return base64.RawURLEncoding.EncodeToString(hash[:])
 }
 
 func (s *SSOService) validateProviderConfiguration(provider *models.SSOProvider) error {
@@ -271,7 +271,7 @@ func (s *SSOService) generateOAuth2AuthURL(provider *models.SSOProvider, session
 	if err := json.Unmarshal(provider.Configuration, &config); err != nil {
 		return "", err
 	}
-	
+
 	// Build OAuth2 authorization URL
 	authURL := fmt.Sprintf("%s?client_id=%s&response_type=code&redirect_uri=%s&state=%s",
 		config.AuthorizationURL,
@@ -279,11 +279,11 @@ func (s *SSOService) generateOAuth2AuthURL(provider *models.SSOProvider, session
 		config.RedirectURL,
 		session.State,
 	)
-	
+
 	if len(config.Scopes) > 0 {
 		authURL += "&scope=" + fmt.Sprintf("%v", config.Scopes)
 	}
-	
+
 	return authURL, nil
 }
 
@@ -292,7 +292,7 @@ func (s *SSOService) generateOIDCAuthURL(provider *models.SSOProvider, session *
 	if err := json.Unmarshal(provider.Configuration, &config); err != nil {
 		return "", err
 	}
-	
+
 	// Build OIDC authorization URL
 	authURL := fmt.Sprintf("%s/auth?client_id=%s&response_type=code&redirect_uri=%s&state=%s&nonce=%s",
 		config.IssuerURL,
@@ -301,11 +301,11 @@ func (s *SSOService) generateOIDCAuthURL(provider *models.SSOProvider, session *
 		session.State,
 		session.Nonce,
 	)
-	
+
 	if len(config.Scopes) > 0 {
 		authURL += "&scope=" + fmt.Sprintf("%v", config.Scopes)
 	}
-	
+
 	return authURL, nil
 }
 
@@ -314,14 +314,14 @@ func (s *SSOService) generateSAMLAuthURL(provider *models.SSOProvider, session *
 	if err := json.Unmarshal(provider.Configuration, &config); err != nil {
 		return "", err
 	}
-	
+
 	// For SAML, we would generate a SAML AuthnRequest
 	// This is a simplified version - in production, you'd use a SAML library
 	authURL := fmt.Sprintf("%s?SAMLRequest=<encoded_request>&RelayState=%s",
 		config.SSOURL,
 		session.State,
 	)
-	
+
 	return authURL, nil
 }
 
@@ -344,7 +344,7 @@ func (s *SSOService) exchangeOAuth2Code(session *models.SSOSession, code string)
 	// 1. Exchange code for access token
 	// 2. Use access token to get user info
 	// 3. Map attributes according to provider configuration
-	
+
 	return &ExternalUserInfo{
 		ExternalUserID: "oauth2_user_123",
 		Email:          "user@example.com",
@@ -361,7 +361,7 @@ func (s *SSOService) exchangeOIDCCode(session *models.SSOSession, code string) (
 	// 2. Validate ID token
 	// 3. Extract user claims from ID token
 	// 4. Optionally call UserInfo endpoint
-	
+
 	return &ExternalUserInfo{
 		ExternalUserID: "oidc_user_123",
 		Email:          "user@example.com",
@@ -377,7 +377,7 @@ func (s *SSOService) processSAMLResponse(session *models.SSOSession, samlRespons
 	// 1. Validate SAML response signature
 	// 2. Extract assertions
 	// 3. Map attributes according to provider configuration
-	
+
 	return &ExternalUserInfo{
 		ExternalUserID: "saml_user_123",
 		Email:          "user@example.com",
@@ -395,60 +395,60 @@ func (s *SSOService) findOrCreateUser(ctx context.Context, session *models.SSOSe
 		Where("tenant_id = ? AND provider_id = ? AND external_user_id = ?",
 			session.TenantID, session.ProviderID, userInfo.ExternalUserID).
 		First(&mapping).Error
-	
+
 	if err == nil {
 		// User mapping exists, update and return user
 		s.UpdateUserMapping(ctx, session.TenantID, mapping.UserID, session.ProviderID, userInfo)
 		return mapping.User, nil
 	}
-	
+
 	if err != gorm.ErrRecordNotFound {
 		return nil, err
 	}
-	
+
 	// Check if user exists by email
 	var existingUser models.User
 	err = s.db.WithContext(ctx).
 		Where("tenant_id = ? AND email = ?", session.TenantID, userInfo.Email).
 		First(&existingUser).Error
-	
+
 	if err == nil {
 		// User exists, create mapping
 		s.UpdateUserMapping(ctx, session.TenantID, existingUser.ID, session.ProviderID, userInfo)
 		return &existingUser, nil
 	}
-	
+
 	if err != gorm.ErrRecordNotFound {
 		return nil, err
 	}
-	
+
 	// Create new user
 	newUser := &models.User{
-		ID:          uuid.New(),
-		TenantID:    session.TenantID,
-		Email:       userInfo.Email,
-		Username:    userInfo.Email, // Use email as username for SSO users
-		FirstName:   userInfo.FirstName,
-		LastName:    userInfo.LastName,
-		Status:      "active",
+		ID:              uuid.New(),
+		TenantID:        session.TenantID,
+		Email:           userInfo.Email,
+		Username:        userInfo.Email, // Use email as username for SSO users
+		FirstName:       userInfo.FirstName,
+		LastName:        userInfo.LastName,
+		IsActive:        true,
 		IsEmailVerified: true, // SSO users are considered verified
-		CreatedAt:   time.Now(),
-		UpdatedAt:   time.Now(),
+		CreatedAt:       time.Now(),
+		UpdatedAt:       time.Now(),
 	}
-	
+
 	// Create user in transaction
 	tx := s.db.WithContext(ctx).Begin()
 	if err := tx.Create(newUser).Error; err != nil {
 		tx.Rollback()
 		return nil, err
 	}
-	
+
 	// Create user mapping
 	if err := s.updateUserMappingInTx(tx, session.TenantID, newUser.ID, session.ProviderID, userInfo); err != nil {
 		tx.Rollback()
 		return nil, err
 	}
-	
+
 	tx.Commit()
 	return newUser, nil
 }
@@ -465,11 +465,11 @@ func (s *SSOService) updateUserMappingInTx(tx *gorm.DB, tenantID, userID, provid
 		CreatedAt:      time.Now(),
 		UpdatedAt:      time.Now(),
 	}
-	
+
 	if userInfo.Attributes != nil {
 		attributesJSON, _ := json.Marshal(userInfo.Attributes)
 		mapping.Attributes = attributesJSON
 	}
-	
+
 	return tx.Create(&mapping).Error
 }
