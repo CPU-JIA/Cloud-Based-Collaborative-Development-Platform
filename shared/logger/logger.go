@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -48,11 +47,6 @@ type zapLogger struct {
 	logger *zap.SugaredLogger
 }
 
-// logrusLogger Logrus日志实现
-type logrusLogger struct {
-	logger *logrus.Entry
-}
-
 // NewZapLogger 创建Zap日志实例
 func NewZapLogger(config Config) (Logger, error) {
 	level := parseLogLevel(config.Level)
@@ -83,7 +77,8 @@ func NewZapLogger(config Config) (Logger, error) {
 	// 配置输出
 	var writeSyncer zapcore.WriteSyncer
 	if config.Output == "file" && config.FilePath != "" {
-		file, err := os.OpenFile(config.FilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+		// 修复文件权限问题：从0666改为0644
+		file, err := os.OpenFile(config.FilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 		if err != nil {
 			return nil, fmt.Errorf("打开日志文件失败: %w", err)
 		}
@@ -103,40 +98,9 @@ func NewZapLogger(config Config) (Logger, error) {
 	}, nil
 }
 
-// NewLogrusLogger 创建Logrus日志实例
-func NewLogrusLogger(config Config) (Logger, error) {
-	logger := logrus.New()
-	
-	// 设置日志级别
-	level := parseLogrusLevel(config.Level)
-	logger.SetLevel(level)
-	
-	// 设置日志格式
-	if config.Format == "json" {
-		logger.SetFormatter(&logrus.JSONFormatter{
-			TimestampFormat: time.RFC3339,
-		})
-	} else {
-		logger.SetFormatter(&logrus.TextFormatter{
-			TimestampFormat: time.RFC3339,
-			FullTimestamp:   true,
-		})
-	}
-	
-	// 设置输出
-	if config.Output == "file" && config.FilePath != "" {
-		file, err := os.OpenFile(config.FilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
-		if err != nil {
-			return nil, fmt.Errorf("打开日志文件失败: %w", err)
-		}
-		logger.SetOutput(file)
-	} else {
-		logger.SetOutput(os.Stdout)
-	}
-	
-	return &logrusLogger{
-		logger: logrus.NewEntry(logger),
-	}, nil
+// NewLogger 创建统一的Zap日志实例 (简化API)
+func NewLogger(config Config) (Logger, error) {
+	return NewZapLogger(config)
 }
 
 // Zap Logger 实现
@@ -204,66 +168,6 @@ func (l *zapLogger) WithContext(ctx context.Context) Logger {
 	return l
 }
 
-// Logrus Logger 实现
-func (l *logrusLogger) Debug(args ...interface{}) {
-	l.logger.Debug(args...)
-}
-
-func (l *logrusLogger) Info(args ...interface{}) {
-	l.logger.Info(args...)
-}
-
-func (l *logrusLogger) Warn(args ...interface{}) {
-	l.logger.Warn(args...)
-}
-
-func (l *logrusLogger) Error(args ...interface{}) {
-	l.logger.Error(args...)
-}
-
-func (l *logrusLogger) Fatal(args ...interface{}) {
-	l.logger.Fatal(args...)
-}
-
-func (l *logrusLogger) Debugf(format string, args ...interface{}) {
-	l.logger.Debugf(format, args...)
-}
-
-func (l *logrusLogger) Infof(format string, args ...interface{}) {
-	l.logger.Infof(format, args...)
-}
-
-func (l *logrusLogger) Warnf(format string, args ...interface{}) {
-	l.logger.Warnf(format, args...)
-}
-
-func (l *logrusLogger) Errorf(format string, args ...interface{}) {
-	l.logger.Errorf(format, args...)
-}
-
-func (l *logrusLogger) Fatalf(format string, args ...interface{}) {
-	l.logger.Fatalf(format, args...)
-}
-
-func (l *logrusLogger) WithField(key string, value interface{}) Logger {
-	return &logrusLogger{
-		logger: l.logger.WithField(key, value),
-	}
-}
-
-func (l *logrusLogger) WithFields(fields map[string]interface{}) Logger {
-	return &logrusLogger{
-		logger: l.logger.WithFields(fields),
-	}
-}
-
-func (l *logrusLogger) WithContext(ctx context.Context) Logger {
-	// 从上下文中提取追踪信息
-	if traceID := getTraceIDFromContext(ctx); traceID != "" {
-		return l.WithField("trace_id", traceID)
-	}
-	return l
-}
 
 // 辅助函数
 func parseLogLevel(level string) zapcore.Level {
@@ -283,22 +187,6 @@ func parseLogLevel(level string) zapcore.Level {
 	}
 }
 
-func parseLogrusLevel(level string) logrus.Level {
-	switch strings.ToLower(level) {
-	case "debug":
-		return logrus.DebugLevel
-	case "info":
-		return logrus.InfoLevel
-	case "warn", "warning":
-		return logrus.WarnLevel
-	case "error":
-		return logrus.ErrorLevel
-	case "fatal":
-		return logrus.FatalLevel
-	default:
-		return logrus.InfoLevel
-	}
-}
 
 func getTraceIDFromContext(ctx context.Context) string {
 	// 这里可以集成OpenTelemetry来获取trace ID

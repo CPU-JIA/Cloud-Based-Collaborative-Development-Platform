@@ -111,17 +111,23 @@ func (p *PostgresDB) WithUser(ctx context.Context, userID uuid.UUID) *gorm.DB {
 	return p.DB.WithContext(ctx).Exec("SELECT set_config('app.current_user_id', ?, true)", userID.String())
 }
 
-// WithContext 设置完整上下文（租户+用户）
+// WithContext 设置完整上下文（租户+用户）- 优化版本，减少SQL调用
 func (p *PostgresDB) WithContext(ctx context.Context, tenantCtx TenantContext) *gorm.DB {
 	db := p.DB.WithContext(ctx)
 	
-	// 设置租户ID
-	if tenantCtx.TenantID != uuid.Nil {
+	// 批量设置配置参数，减少SQL调用次数
+	if tenantCtx.TenantID != uuid.Nil && tenantCtx.UserID != uuid.Nil {
+		// 一次性设置两个参数
+		db = db.Exec(`
+			SELECT 
+				set_config('app.current_tenant_id', ?, true),
+				set_config('app.current_user_id', ?, true)
+		`, tenantCtx.TenantID.String(), tenantCtx.UserID.String())
+	} else if tenantCtx.TenantID != uuid.Nil {
+		// 只设置租户ID
 		db = db.Exec("SELECT set_config('app.current_tenant_id', ?, true)", tenantCtx.TenantID.String())
-	}
-	
-	// 设置用户ID
-	if tenantCtx.UserID != uuid.Nil {
+	} else if tenantCtx.UserID != uuid.Nil {
+		// 只设置用户ID
 		db = db.Exec("SELECT set_config('app.current_user_id', ?, true)", tenantCtx.UserID.String())
 	}
 	

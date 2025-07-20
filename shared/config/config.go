@@ -2,7 +2,6 @@ package config
 
 import (
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/spf13/viper"
@@ -17,6 +16,7 @@ type Config struct {
 	Auth     AuthConfig     `mapstructure:"auth"`
 	Log      LogConfig      `mapstructure:"log"`
 	Monitor  MonitorConfig  `mapstructure:"monitor"`
+	Security SecurityConfig `mapstructure:"security"`
 }
 
 // ServerConfig 服务器配置
@@ -27,6 +27,11 @@ type ServerConfig struct {
 	WriteTimeout time.Duration `mapstructure:"write_timeout" default:"30s"`
 	IdleTimeout  time.Duration `mapstructure:"idle_timeout" default:"120s"`
 	Environment  string        `mapstructure:"environment" default:"development"`
+}
+
+// Address 返回服务器监听地址
+func (s *ServerConfig) Address() string {
+	return fmt.Sprintf("%s:%d", s.Host, s.Port)
 }
 
 // DatabaseConfig 数据库配置
@@ -41,6 +46,35 @@ type DatabaseConfig struct {
 	MaxIdleConns    int           `mapstructure:"max_idle_conns" default:"5"`
 	ConnMaxLifetime time.Duration `mapstructure:"conn_max_lifetime" default:"300s"`
 	ConnMaxIdleTime time.Duration `mapstructure:"conn_max_idle_time" default:"60s"`
+}
+
+// ToDBConfig 转换为database.Config
+func (d *DatabaseConfig) ToDBConfig() interface{} {
+	return struct {
+		Host            string
+		Port            int
+		Name            string
+		User            string
+		Password        string
+		SSLMode         string
+		MaxOpenConns    int
+		MaxIdleConns    int
+		ConnMaxLifetime time.Duration
+		ConnMaxIdleTime time.Duration
+		LogLevel        interface{}
+	}{
+		Host:            d.Host,
+		Port:            d.Port,
+		Name:            d.Name,
+		User:            d.User,
+		Password:        d.Password,
+		SSLMode:         d.SSLMode,
+		MaxOpenConns:    d.MaxOpenConns,
+		MaxIdleConns:    d.MaxIdleConns,
+		ConnMaxLifetime: d.ConnMaxLifetime,
+		ConnMaxIdleTime: d.ConnMaxIdleTime,
+		LogLevel:        "info",
+	}
 }
 
 // RedisConfig Redis配置
@@ -84,6 +118,29 @@ type LogConfig struct {
 	Compress   bool   `mapstructure:"compress" default:"true"`
 }
 
+// ToLoggerConfig 转换为logger.Config
+func (l *LogConfig) ToLoggerConfig() interface{} {
+	return struct {
+		Level      string `json:"level" yaml:"level"`
+		Format     string `json:"format" yaml:"format"`
+		Output     string `json:"output" yaml:"output"`
+		FilePath   string `json:"file_path" yaml:"file_path"`
+		MaxSize    int    `json:"max_size" yaml:"max_size"`
+		MaxBackups int    `json:"max_backups" yaml:"max_backups"`
+		MaxAge     int    `json:"max_age" yaml:"max_age"`
+		Compress   bool   `json:"compress" yaml:"compress"`
+	}{
+		Level:      l.Level,
+		Format:     l.Format,
+		Output:     l.Output,
+		FilePath:   "",
+		MaxSize:    l.MaxSize,
+		MaxBackups: l.MaxBackups,
+		MaxAge:     l.MaxAge,
+		Compress:   l.Compress,
+	}
+}
+
 // MonitorConfig 监控配置
 type MonitorConfig struct {
 	Enabled           bool   `mapstructure:"enabled" default:"true"`
@@ -91,6 +148,13 @@ type MonitorConfig struct {
 	TracingEnabled    bool   `mapstructure:"tracing_enabled" default:"true"`
 	TracingEndpoint   string `mapstructure:"tracing_endpoint"`
 	SamplingRate      float64 `mapstructure:"sampling_rate" default:"0.1"`
+}
+
+// SecurityConfig 安全配置
+type SecurityConfig struct {
+	CorsAllowedOrigins []string `mapstructure:"cors_allowed_origins"`
+	TrustedProxies     []string `mapstructure:"trusted_proxies"`
+	MaxRequestSize     string   `mapstructure:"max_request_size" default:"10MB"`
 }
 
 // Load 加载配置
@@ -153,8 +217,18 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("JWT密钥不能为空")
 	}
 
+	// 增强JWT密钥验证 - 要求至少32字符长度
+	if len(c.Auth.JWTSecret) < 32 {
+		return fmt.Errorf("JWT密钥长度必须至少32字符，当前长度: %d", len(c.Auth.JWTSecret))
+	}
+
 	if c.Server.Port <= 0 || c.Server.Port > 65535 {
 		return fmt.Errorf("服务器端口无效: %d", c.Server.Port)
+	}
+
+	// 验证CORS配置
+	if len(c.Security.CorsAllowedOrigins) == 0 && c.IsProduction() {
+		return fmt.Errorf("生产环境必须配置CORS允许的域名")
 	}
 
 	return nil

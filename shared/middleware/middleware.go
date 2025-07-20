@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"context"
 	"net/http"
 	"strings"
 	"time"
@@ -12,16 +13,9 @@ import (
 )
 
 // CORS 跨域中间件
-func CORS() gin.HandlerFunc {
+func CORS(allowedOrigins []string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		origin := c.Request.Header.Get("Origin")
-		
-		// 允许的域名列表（生产环境需要配置具体域名）
-		allowedOrigins := []string{
-			"http://localhost:3000",
-			"http://localhost:8080",
-			"https://app.company.com",
-		}
 		
 		// 检查是否在允许列表中
 		allowed := false
