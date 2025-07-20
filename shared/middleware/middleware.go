@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -152,9 +153,12 @@ func TenantMiddleware() gin.HandlerFunc {
 
 // JWTClaims JWT声明
 type JWTClaims struct {
-	UserID   string `json:"user_id"`
-	TenantID string `json:"tenant_id"`
-	Role     string `json:"role"`
+	UserID      uuid.UUID `json:"user_id"`
+	TenantID    uuid.UUID `json:"tenant_id"`
+	Email       string    `json:"email"`
+	Role        string    `json:"role"`
+	Permissions []string  `json:"permissions"`
+	TokenType   string    `json:"token_type"`
 	jwt.RegisteredClaims
 }
 
@@ -166,6 +170,7 @@ func JWTAuth(secretKey string) gin.HandlerFunc {
 		if authHeader == "" {
 			c.JSON(http.StatusUnauthorized, gin.H{
 				"error": "缺少认证信息",
+				"code":  "MISSING_AUTH_HEADER",
 			})
 			c.Abort()
 			return
@@ -176,6 +181,7 @@ func JWTAuth(secretKey string) gin.HandlerFunc {
 		if !strings.HasPrefix(authHeader, bearerPrefix) {
 			c.JSON(http.StatusUnauthorized, gin.H{
 				"error": "无效的认证格式",
+				"code":  "INVALID_AUTH_FORMAT",
 			})
 			c.Abort()
 			return
@@ -186,12 +192,17 @@ func JWTAuth(secretKey string) gin.HandlerFunc {
 		
 		// 解析和验证token
 		token, err := jwt.ParseWithClaims(tokenString, &JWTClaims{}, func(token *jwt.Token) (interface{}, error) {
+			// 验证签名方法
+			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, fmt.Errorf("无效的签名方法: %v", token.Header["alg"])
+			}
 			return []byte(secretKey), nil
 		})
 		
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{
 				"error": "无效的认证令牌",
+				"code":  "INVALID_TOKEN",
 			})
 			c.Abort()
 			return
@@ -201,6 +212,7 @@ func JWTAuth(secretKey string) gin.HandlerFunc {
 		if !token.Valid {
 			c.JSON(http.StatusUnauthorized, gin.H{
 				"error": "认证令牌已过期",
+				"code":  "TOKEN_EXPIRED",
 			})
 			c.Abort()
 			return
@@ -211,6 +223,27 @@ func JWTAuth(secretKey string) gin.HandlerFunc {
 		if !ok {
 			c.JSON(http.StatusUnauthorized, gin.H{
 				"error": "无效的令牌声明",
+				"code":  "INVALID_CLAIMS",
+			})
+			c.Abort()
+			return
+		}
+		
+		// 验证令牌类型（必须是访问令牌）
+		if claims.TokenType != "access" {
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"error": "无效的令牌类型",
+				"code":  "INVALID_TOKEN_TYPE",
+			})
+			c.Abort()
+			return
+		}
+		
+		// 验证发行者
+		if claims.Issuer != "collaborative-platform" {
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"error": "无效的令牌发行者",
+				"code":  "INVALID_ISSUER",
 			})
 			c.Abort()
 			return
@@ -219,7 +252,10 @@ func JWTAuth(secretKey string) gin.HandlerFunc {
 		// 设置用户信息到上下文
 		c.Set("user_id", claims.UserID)
 		c.Set("tenant_id", claims.TenantID)
+		c.Set("user_email", claims.Email)
 		c.Set("user_role", claims.Role)
+		c.Set("user_permissions", claims.Permissions)
+		c.Set("token_type", claims.TokenType)
 		
 		c.Next()
 	}
