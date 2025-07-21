@@ -17,6 +17,8 @@ type Config struct {
 	Log      LogConfig      `mapstructure:"log"`
 	Monitor  MonitorConfig  `mapstructure:"monitor"`
 	Security SecurityConfig `mapstructure:"security"`
+	Storage  StorageConfig  `mapstructure:"storage"`
+	CICD     CICDConfig     `mapstructure:"cicd"`
 }
 
 // ServerConfig 服务器配置
@@ -260,4 +262,95 @@ func (c *Config) IsDevelopment() bool {
 // IsProduction 是否为生产环境
 func (c *Config) IsProduction() bool {
 	return c.Server.Environment == "production"
+}
+
+// StorageConfig 存储配置
+type StorageConfig struct {
+	Type       string              `mapstructure:"type" default:"local"`
+	Local      LocalStorageConfig  `mapstructure:"local"`
+	S3         S3StorageConfig     `mapstructure:"s3"`
+	Cache      CacheStorageConfig  `mapstructure:"cache"`
+	Artifact   ArtifactConfig      `mapstructure:"artifact"`
+}
+
+// LocalStorageConfig 本地存储配置
+type LocalStorageConfig struct {
+	BasePath    string   `mapstructure:"base_path" default:"/var/lib/cicd/storage"`
+	MaxFileSize int64    `mapstructure:"max_file_size" default:"104857600"` // 100MB
+	AllowedExts []string `mapstructure:"allowed_exts"`
+}
+
+// S3StorageConfig S3存储配置
+type S3StorageConfig struct {
+	Region          string `mapstructure:"region"`
+	Bucket          string `mapstructure:"bucket"`
+	AccessKeyID     string `mapstructure:"access_key_id"`
+	SecretAccessKey string `mapstructure:"secret_access_key"`
+	Endpoint        string `mapstructure:"endpoint"`
+	UseSSL          bool   `mapstructure:"use_ssl" default:"true"`
+}
+
+// CacheStorageConfig 缓存存储配置
+type CacheStorageConfig struct {
+	Type        string        `mapstructure:"type" default:"memory"`
+	TTL         time.Duration `mapstructure:"ttl" default:"30m"`
+	MaxSize     int64         `mapstructure:"max_size" default:"52428800"` // 50MB
+	MaxEntries  int           `mapstructure:"max_entries" default:"1000"`
+}
+
+// ArtifactConfig 构建产物配置
+type ArtifactConfig struct {
+	RetentionDays   int    `mapstructure:"retention_days" default:"30"`
+	MaxSizePerJob   int64  `mapstructure:"max_size_per_job" default:"524288000"`   // 500MB
+	MaxTotalSize    int64  `mapstructure:"max_total_size" default:"10737418240"`   // 10GB
+	CompressionType string `mapstructure:"compression_type" default:"gzip"`
+}
+
+// CICDConfig CI/CD服务配置
+type CICDConfig struct {
+	Scheduler SchedulerConfig `mapstructure:"scheduler"`
+	Runner    RunnerConfig    `mapstructure:"runner"`
+}
+
+// SchedulerConfig 调度器配置
+type SchedulerConfig struct {
+	WorkerCount       int           `mapstructure:"worker_count" default:"5"`
+	QueueSize         int           `mapstructure:"queue_size" default:"1000"`
+	PollInterval      time.Duration `mapstructure:"poll_interval" default:"10s"`
+	JobTimeout        time.Duration `mapstructure:"job_timeout" default:"30m"`
+	MaxRetries        int           `mapstructure:"max_retries" default:"3"`
+	EnablePriority    bool          `mapstructure:"enable_priority" default:"true"`
+	EnableLoadBalance bool          `mapstructure:"enable_load_balance" default:"true"`
+}
+
+// RunnerConfig 执行器配置
+type RunnerConfig struct {
+	PoolSize          int           `mapstructure:"pool_size" default:"10"`
+	HeartbeatInterval time.Duration `mapstructure:"heartbeat_interval" default:"30s"`
+	MaxIdleTime       time.Duration `mapstructure:"max_idle_time" default:"5m"`
+	EnableAutoScale   bool          `mapstructure:"enable_auto_scale" default:"false"`
+}
+
+// ToStorageConfig 转换为存储配置
+func (s *StorageConfig) ToStorageConfig() interface{} {
+	return map[string]interface{}{
+		"type":     s.Type,
+		"local":    s.Local,
+		"s3":       s.S3,
+		"cache":    s.Cache,
+		"artifact": s.Artifact,
+	}
+}
+
+// ToSchedulerConfig 转换为调度器配置
+func (c *CICDConfig) ToSchedulerConfig() interface{} {
+	return map[string]interface{}{
+		"worker_count":        c.Scheduler.WorkerCount,
+		"queue_size":          c.Scheduler.QueueSize,
+		"poll_interval":       c.Scheduler.PollInterval,
+		"job_timeout":         c.Scheduler.JobTimeout,
+		"max_retries":         c.Scheduler.MaxRetries,
+		"enable_priority":     c.Scheduler.EnablePriority,
+		"enable_load_balance": c.Scheduler.EnableLoadBalance,
+	}
 }
