@@ -155,12 +155,12 @@ func TestGitGatewayMockClient(t *testing.T) {
 	// 设置测试数据
 	projectID := uuid.New()
 	repoID := uuid.New()
-	
+
 	mockRepo := &client.Repository{
 		ID:            repoID,
 		ProjectID:     projectID,
 		Name:          "test-repo",
-		Description:   stringPtr("测试仓库"),
+		Description:   stringPointer("测试仓库"),
 		Visibility:    client.RepositoryVisibilityPrivate,
 		DefaultBranch: "main",
 		CreatedAt:     time.Now(),
@@ -191,7 +191,7 @@ func TestGitGatewayMockClient(t *testing.T) {
 		Name:          "test-repo",
 		Description:   stringPtr("测试仓库"),
 		Visibility:    client.RepositoryVisibilityPrivate,
-		DefaultBranch: stringPtr("main"),
+		DefaultBranch: stringPointer("main"),
 		InitReadme:    true,
 	}
 
@@ -269,4 +269,7 @@ func TestDataModelMapping(t *testing.T) {
 	t.Log("✅ 数据模型映射测试通过")
 }
 
-// 辅助函数定义在 test_helpers.go 中
+// 辅助函数
+func stringPointer(s string) *string {
+	return &s
+}
