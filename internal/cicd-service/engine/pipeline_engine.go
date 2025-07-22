@@ -573,9 +573,8 @@ func (e *pipelineEngine) executeJob(execution *pipelineExecution, run *models.Pi
 	job := &models.Job{
 		PipelineRunID: run.ID,
 		Name:          jobConfig.Name,
-		Stage:         "build", // 默认阶段
+		Type:          models.JobTypeBuild, // 使用正确的类型
 		Status:        models.JobStatusPending,
-		CreatedAt:     time.Now().UTC(),
 	}
 
 	if err := e.repo.CreateJob(execution.Context, job); err != nil {
@@ -720,9 +719,10 @@ func (e *pipelineEngine) getHistoricalStatus(ctx context.Context, runID uuid.UUI
 
 	// 转换作业状态
 	for i, job := range jobs {
+		// LogOutput字段不存在，使用ErrorMessage或LogPath
 		var output string
-		if job.LogOutput != nil {
-			output = *job.LogOutput
+		if job.ErrorMessage != "" {
+			output = job.ErrorMessage
 		}
 		
 		status.Jobs[i] = JobExecutionStatus{
@@ -732,11 +732,19 @@ func (e *pipelineEngine) getHistoricalStatus(ctx context.Context, runID uuid.UUI
 			RunnerID:   job.RunnerID,
 			StartedAt:  job.StartedAt,
 			FinishedAt: job.FinishedAt,
-			Duration:   job.Duration,
+			Duration:   convertDurationToInt64(job.Duration),
 			ExitCode:   job.ExitCode,
 			Output:     output,
 		}
 	}
 
 	return status, nil
+}
+// convertDurationToInt64 将time.Duration转换为int64秒数
+func convertDurationToInt64(d *time.Duration) *int64 {
+	if d == nil {
+		return nil
+	}
+	seconds := int64(d.Seconds())
+	return &seconds
 }

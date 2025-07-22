@@ -38,6 +38,14 @@ type ProjectService interface {
 	UpdateRepository(ctx context.Context, repositoryID uuid.UUID, req *UpdateRepositoryRequest, userID, tenantID uuid.UUID) (*models.Repository, error)
 	DeleteRepository(ctx context.Context, repositoryID uuid.UUID, userID, tenantID uuid.UUID) error
 	
+	// Git高级操作
+	CreateBranch(ctx context.Context, repositoryID uuid.UUID, req *CreateBranchRequest, userID, tenantID uuid.UUID) (*models.Branch, error)
+	ListBranches(ctx context.Context, repositoryID uuid.UUID, page, pageSize int, userID, tenantID uuid.UUID) (*BranchListResponse, error)
+	DeleteBranch(ctx context.Context, repositoryID uuid.UUID, branchName string, userID, tenantID uuid.UUID) error
+	
+	CreatePullRequest(ctx context.Context, repositoryID uuid.UUID, req *CreatePullRequestRequest, userID, tenantID uuid.UUID) (*models.PullRequest, error)
+	GetPullRequest(ctx context.Context, repositoryID, pullRequestID uuid.UUID, userID, tenantID uuid.UUID) (*models.PullRequest, error)
+	
 	// 权限检查
 	CheckProjectAccess(ctx context.Context, projectID, userID uuid.UUID) (bool, error)
 	GetUserProjects(ctx context.Context, userID, tenantID uuid.UUID) ([]models.Project, error)
@@ -59,6 +67,25 @@ func NewProjectService(repo repository.ProjectRepository, gitClient client.GitGa
 	
 	// 创建分布式事务管理器
 	transactionMgr := transaction.NewDistributedTransactionManager(repo, gitClient, compensationMgr, logger)
+	
+	return &projectService{
+		repo:              repo,
+		gitClient:         gitClient,
+		compensationMgr:   compensationMgr,
+		transactionMgr:    transactionMgr,
+		logger:            logger,
+	}
+}
+
+// NewProjectServiceWithTransaction 创建带有指定分布式事务管理器的项目服务实例
+func NewProjectServiceWithTransaction(
+	repo repository.ProjectRepository,
+	gitClient client.GitGatewayClient,
+	transactionMgr *transaction.DistributedTransactionManager,
+	logger *zap.Logger,
+) ProjectService {
+	// 使用现有的事务管理器获取补偿管理器
+	compensationMgr := compensation.NewCompensationManager(gitClient, logger)
 	
 	return &projectService{
 		repo:              repo,
@@ -687,4 +714,201 @@ func (s *projectService) DeleteRepository(ctx context.Context, repositoryID uuid
 		zap.String("deleted_by", userID.String()))
 
 	return nil
+}
+
+// Git高级操作方法
+
+// CreateBranchRequest 创建分支请求
+type CreateBranchRequest struct {
+	Name       string `json:"name" binding:"required,min=1,max=100"`
+	SourceRef  string `json:"source_ref" binding:"required"`
+	SourceType string `json:"source_type" binding:"required,oneof=branch commit tag"`
+}
+
+// BranchListResponse 分支列表响应
+type BranchListResponse struct {
+	Branches []models.Branch `json:"branches"`
+	Total    int64           `json:"total"`
+	Page     int             `json:"page"`
+	PageSize int             `json:"page_size"`
+}
+
+// CreatePullRequestRequest 创建合并请求
+type CreatePullRequestRequest struct {
+	Title         string      `json:"title" binding:"required,min=1,max=255"`
+	Description   *string     `json:"description,omitempty"`
+	SourceBranch  string      `json:"source_branch" binding:"required"`
+	TargetBranch  string      `json:"target_branch" binding:"required"`
+	AssigneeIDs   []uuid.UUID `json:"assignee_ids,omitempty"`
+	ReviewerIDs   []uuid.UUID `json:"reviewer_ids,omitempty"`
+}
+
+// CreateBranch 创建分支
+func (s *projectService) CreateBranch(ctx context.Context, repositoryID uuid.UUID, req *CreateBranchRequest, userID, tenantID uuid.UUID) (*models.Branch, error) {
+	// 检查仓库访问权限
+	gitRepo, err := s.gitClient.GetRepository(ctx, repositoryID)
+	if err != nil {
+		return nil, fmt.Errorf("获取仓库信息失败: %w", err)
+	}
+
+	hasAccess, err := s.repo.CheckUserAccess(ctx, gitRepo.ProjectID, userID)
+	if err != nil {
+		return nil, fmt.Errorf("检查项目访问权限失败: %w", err)
+	}
+	if !hasAccess {
+		return nil, errors.New("无权限在此仓库中创建分支")
+	}
+
+	// 构建Git网关请求
+	gitReq := &client.CreateBranchRequest{
+		Name:    req.Name,
+		FromSHA: req.SourceRef,
+	}
+
+	// 调用Git网关创建分支
+	gitBranch, err := s.gitClient.CreateBranch(ctx, repositoryID, gitReq)
+	if err != nil {
+		s.logger.Error("Git网关创建分支失败",
+			zap.Error(err),
+			zap.String("repository_id", repositoryID.String()),
+			zap.String("branch_name", req.Name),
+			zap.String("user_id", userID.String()))
+		return nil, fmt.Errorf("创建分支失败: %w", err)
+	}
+
+	// 转换为项目服务的分支模型
+	branch := &models.Branch{
+		ID:           gitBranch.ID,
+		RepositoryID: gitBranch.RepositoryID,
+		Name:         gitBranch.Name,
+		CommitSHA:    gitBranch.CommitSHA,
+		IsDefault:    gitBranch.IsDefault,
+		IsProtected:  gitBranch.IsProtected,
+		CreatedBy:    userID,
+		CreatedAt:    gitBranch.CreatedAt,
+		UpdatedAt:    gitBranch.UpdatedAt,
+	}
+
+	s.logger.Info("分支创建成功",
+		zap.String("repository_id", repositoryID.String()),
+		zap.String("branch_name", branch.Name),
+		zap.String("created_by", userID.String()))
+
+	return branch, nil
+}
+
+// DeleteBranch 删除分支
+func (s *projectService) DeleteBranch(ctx context.Context, repositoryID uuid.UUID, branchName string, userID, tenantID uuid.UUID) error {
+	// 检查仓库访问权限
+	gitRepo, err := s.gitClient.GetRepository(ctx, repositoryID)
+	if err != nil {
+		return fmt.Errorf("获取仓库信息失败: %w", err)
+	}
+
+	hasAccess, err := s.repo.CheckUserAccess(ctx, gitRepo.ProjectID, userID)
+	if err != nil {
+		return fmt.Errorf("检查项目访问权限失败: %w", err)
+	}
+	if !hasAccess {
+		return errors.New("无权限删除此分支")
+	}
+
+	// 调用Git网关删除分支
+	err = s.gitClient.DeleteBranch(ctx, repositoryID, branchName)
+	if err != nil {
+		s.logger.Error("Git网关删除分支失败",
+			zap.Error(err),
+			zap.String("repository_id", repositoryID.String()),
+			zap.String("branch_name", branchName),
+			zap.String("user_id", userID.String()))
+		return fmt.Errorf("删除分支失败: %w", err)
+	}
+
+	s.logger.Info("分支删除成功",
+		zap.String("repository_id", repositoryID.String()),
+		zap.String("branch_name", branchName),
+		zap.String("deleted_by", userID.String()))
+
+	return nil
+}
+
+// ListBranches 获取分支列表
+func (s *projectService) ListBranches(ctx context.Context, repositoryID uuid.UUID, page, pageSize int, userID, tenantID uuid.UUID) (*BranchListResponse, error) {
+	// 检查仓库访问权限
+	gitRepo, err := s.gitClient.GetRepository(ctx, repositoryID)
+	if err != nil {
+		return nil, fmt.Errorf("获取仓库信息失败: %w", err)
+	}
+
+	hasAccess, err := s.repo.CheckUserAccess(ctx, gitRepo.ProjectID, userID)
+	if err != nil {
+		return nil, fmt.Errorf("检查项目访问权限失败: %w", err)
+	}
+	if !hasAccess {
+		return nil, errors.New("无权限访问此仓库的分支")
+	}
+
+	// 验证分页参数
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 || pageSize > 100 {
+		pageSize = 20
+	}
+
+	// 从Git网关获取分支列表
+	gitBranchList, err := s.gitClient.ListBranches(ctx, repositoryID)
+	if err != nil {
+		s.logger.Error("Git网关获取分支列表失败",
+			zap.Error(err),
+			zap.String("repository_id", repositoryID.String()),
+			zap.String("user_id", userID.String()))
+		return nil, fmt.Errorf("获取分支列表失败: %w", err)
+	}
+
+	// 应用分页（简化实现，实际应在Git网关层实现）
+	startIndex := (page - 1) * pageSize
+	endIndex := startIndex + pageSize
+	if startIndex >= len(gitBranchList) {
+		startIndex = 0
+		endIndex = 0
+	} else if endIndex > len(gitBranchList) {
+		endIndex = len(gitBranchList)
+	}
+
+	pagedBranches := gitBranchList[startIndex:endIndex]
+
+	// 转换为项目服务的分支模型
+	branches := make([]models.Branch, len(pagedBranches))
+	for i, gitBranch := range pagedBranches {
+		branches[i] = models.Branch{
+			ID:           gitBranch.ID,
+			RepositoryID: gitBranch.RepositoryID,
+			Name:         gitBranch.Name,
+			CommitSHA:    gitBranch.CommitSHA,
+			IsDefault:    gitBranch.IsDefault,
+			IsProtected:  gitBranch.IsProtected,
+			CreatedAt:    gitBranch.CreatedAt,
+			UpdatedAt:    gitBranch.UpdatedAt,
+		}
+	}
+
+	return &BranchListResponse{
+		Branches: branches,
+		Total:    int64(len(gitBranchList)),
+		Page:     page,
+		PageSize: pageSize,
+	}, nil
+}
+
+// CreatePullRequest 创建合并请求 (预留接口，等待Git网关实现)
+func (s *projectService) CreatePullRequest(ctx context.Context, repositoryID uuid.UUID, req *CreatePullRequestRequest, userID, tenantID uuid.UUID) (*models.PullRequest, error) {
+	// TODO: 等待Git网关实现Pull Request功能
+	return nil, fmt.Errorf("合并请求功能正在开发中")
+}
+
+// GetPullRequest 获取合并请求详情 (预留接口，等待Git网关实现)
+func (s *projectService) GetPullRequest(ctx context.Context, repositoryID, pullRequestID uuid.UUID, userID, tenantID uuid.UUID) (*models.PullRequest, error) {
+	// TODO: 等待Git网关实现Pull Request功能
+	return nil, fmt.Errorf("合并请求功能正在开发中")
 }

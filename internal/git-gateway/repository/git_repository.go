@@ -2,6 +2,8 @@ package repository
 
 import (
 	"context"
+	"time"
+	
 	"github.com/cloud-platform/collaborative-dev/internal/git-gateway/models"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -44,6 +46,26 @@ type GitRepository interface {
 	ListWebhooks(ctx context.Context, repositoryID uuid.UUID) ([]models.Webhook, error)
 	UpdateWebhook(ctx context.Context, id uuid.UUID, updates map[string]interface{}) error
 	DeleteWebhook(ctx context.Context, id uuid.UUID) error
+	
+	// Pull Request管理
+	CreatePullRequest(ctx context.Context, pr *models.PullRequest) error
+	GetPullRequestByID(ctx context.Context, id uuid.UUID) (*models.PullRequest, error)
+	GetPullRequestByNumber(ctx context.Context, repositoryID uuid.UUID, number int) (*models.PullRequest, error)
+	ListPullRequests(ctx context.Context, repositoryID uuid.UUID, status *models.PullRequestStatus, page, pageSize int) ([]models.PullRequest, int64, error)
+	UpdatePullRequest(ctx context.Context, id uuid.UUID, updates map[string]interface{}) error
+	MergePullRequest(ctx context.Context, id uuid.UUID, mergeCommitSHA string, mergedBy uuid.UUID) error
+	ClosePullRequest(ctx context.Context, id uuid.UUID) error
+	
+	// PR评论管理
+	CreatePRComment(ctx context.Context, comment *models.PRComment) error
+	GetPRComments(ctx context.Context, pullRequestID uuid.UUID) ([]models.PRComment, error)
+	UpdatePRComment(ctx context.Context, id uuid.UUID, content string) error
+	DeletePRComment(ctx context.Context, id uuid.UUID) error
+	
+	// PR审查管理
+	CreatePRReview(ctx context.Context, review *models.PRReview) error
+	GetPRReviews(ctx context.Context, pullRequestID uuid.UUID) ([]models.PRReview, error)
+	UpdatePRReviewStatus(ctx context.Context, pullRequestID uuid.UUID, reviewerID uuid.UUID, status models.ReviewStatus) error
 	
 	// 统计和查询
 	GetRepositoryStats(ctx context.Context, repositoryID uuid.UUID) (*models.RepositoryStats, error)
@@ -444,4 +466,171 @@ func (r *gitRepository) SearchRepositories(ctx context.Context, query string, pr
 		Find(&repos).Error
 	
 	return repos, total, err
+}
+
+// Pull Request管理实现
+
+// CreatePullRequest 创建PR
+func (r *gitRepository) CreatePullRequest(ctx context.Context, pr *models.PullRequest) error {
+	return r.db.WithContext(ctx).Create(pr).Error
+}
+
+// GetPullRequestByID 通过ID获取PR
+func (r *gitRepository) GetPullRequestByID(ctx context.Context, id uuid.UUID) (*models.PullRequest, error) {
+	var pr models.PullRequest
+	err := r.db.WithContext(ctx).
+		Preload("Repository").
+		Preload("Comments").
+		Preload("Reviews").
+		Where("id = ?", id).
+		First(&pr).Error
+	
+	if err != nil {
+		return nil, err
+	}
+	
+	return &pr, nil
+}
+
+// GetPullRequestByNumber 通过编号获取PR
+func (r *gitRepository) GetPullRequestByNumber(ctx context.Context, repositoryID uuid.UUID, number int) (*models.PullRequest, error) {
+	var pr models.PullRequest
+	err := r.db.WithContext(ctx).
+		Preload("Repository").
+		Preload("Comments").
+		Preload("Reviews").
+		Where("repository_id = ? AND number = ?", repositoryID, number).
+		First(&pr).Error
+	
+	if err != nil {
+		return nil, err
+	}
+	
+	return &pr, nil
+}
+
+// ListPullRequests 获取PR列表
+func (r *gitRepository) ListPullRequests(ctx context.Context, repositoryID uuid.UUID, status *models.PullRequestStatus, page, pageSize int) ([]models.PullRequest, int64, error) {
+	var prs []models.PullRequest
+	var total int64
+	
+	query := r.db.WithContext(ctx).Model(&models.PullRequest{}).Where("repository_id = ?", repositoryID)
+	
+	if status != nil {
+		query = query.Where("status = ?", *status)
+	}
+	
+	// 获取总数
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	
+	// 分页查询
+	offset := (page - 1) * pageSize
+	err := query.
+		Preload("Repository").
+		Order("created_at DESC").
+		Offset(offset).
+		Limit(pageSize).
+		Find(&prs).Error
+	
+	return prs, total, err
+}
+
+// UpdatePullRequest 更新PR
+func (r *gitRepository) UpdatePullRequest(ctx context.Context, id uuid.UUID, updates map[string]interface{}) error {
+	return r.db.WithContext(ctx).
+		Model(&models.PullRequest{}).
+		Where("id = ?", id).
+		Updates(updates).Error
+}
+
+// MergePullRequest 合并PR
+func (r *gitRepository) MergePullRequest(ctx context.Context, id uuid.UUID, mergeCommitSHA string, mergedBy uuid.UUID) error {
+	now := time.Now()
+	return r.db.WithContext(ctx).
+		Model(&models.PullRequest{}).
+		Where("id = ?", id).
+		Updates(map[string]interface{}{
+			"status":           models.PullRequestStatusMerged,
+			"merge_commit_sha": mergeCommitSHA,
+			"merged_by":        mergedBy,
+			"merged_at":        &now,
+			"updated_at":       now,
+		}).Error
+}
+
+// ClosePullRequest 关闭PR
+func (r *gitRepository) ClosePullRequest(ctx context.Context, id uuid.UUID) error {
+	now := time.Now()
+	return r.db.WithContext(ctx).
+		Model(&models.PullRequest{}).
+		Where("id = ?", id).
+		Updates(map[string]interface{}{
+			"status":     models.PullRequestStatusClosed,
+			"closed_at":  &now,
+			"updated_at": now,
+		}).Error
+}
+
+// PR评论管理实现
+
+// CreatePRComment 创建PR评论
+func (r *gitRepository) CreatePRComment(ctx context.Context, comment *models.PRComment) error {
+	return r.db.WithContext(ctx).Create(comment).Error
+}
+
+// GetPRComments 获取PR评论列表
+func (r *gitRepository) GetPRComments(ctx context.Context, pullRequestID uuid.UUID) ([]models.PRComment, error) {
+	var comments []models.PRComment
+	err := r.db.WithContext(ctx).
+		Where("pull_request_id = ?", pullRequestID).
+		Order("created_at ASC").
+		Find(&comments).Error
+	
+	return comments, err
+}
+
+// UpdatePRComment 更新PR评论
+func (r *gitRepository) UpdatePRComment(ctx context.Context, id uuid.UUID, content string) error {
+	return r.db.WithContext(ctx).
+		Model(&models.PRComment{}).
+		Where("id = ?", id).
+		Updates(map[string]interface{}{
+			"content":    content,
+			"updated_at": time.Now(),
+		}).Error
+}
+
+// DeletePRComment 删除PR评论
+func (r *gitRepository) DeletePRComment(ctx context.Context, id uuid.UUID) error {
+	return r.db.WithContext(ctx).
+		Where("id = ?", id).
+		Delete(&models.PRComment{}).Error
+}
+
+// PR审查管理实现
+
+// CreatePRReview 创建PR审查
+func (r *gitRepository) CreatePRReview(ctx context.Context, review *models.PRReview) error {
+	return r.db.WithContext(ctx).Create(review).Error
+}
+
+// GetPRReviews 获取PR审查列表
+func (r *gitRepository) GetPRReviews(ctx context.Context, pullRequestID uuid.UUID) ([]models.PRReview, error) {
+	var reviews []models.PRReview
+	err := r.db.WithContext(ctx).
+		Where("pull_request_id = ?", pullRequestID).
+		Order("created_at DESC").
+		Find(&reviews).Error
+	
+	return reviews, err
+}
+
+// UpdatePRReviewStatus 更新PR审查状态
+func (r *gitRepository) UpdatePRReviewStatus(ctx context.Context, pullRequestID uuid.UUID, reviewerID uuid.UUID, status models.ReviewStatus) error {
+	return r.db.WithContext(ctx).
+		Model(&models.PRReview{}).
+		Where("pull_request_id = ? AND reviewer_id = ?", pullRequestID, reviewerID).
+		Update("status", status).Error
 }

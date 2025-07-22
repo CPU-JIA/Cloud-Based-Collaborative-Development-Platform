@@ -3,6 +3,7 @@ package handlers
 import (
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/cloud-platform/collaborative-dev/internal/git-gateway/models"
 	"github.com/cloud-platform/collaborative-dev/internal/git-gateway/service"
@@ -49,14 +50,14 @@ func (h *GitHandler) CreateRepository(c *gin.Context) {
 		return
 	}
 	
-	repo, err := h.gitService.CreateRepository(c.Request.Context(), &req, userID)
+	repository, err := h.gitService.CreateRepository(c.Request.Context(), &req, userID)
 	if err != nil {
 		h.logger.Error("Failed to create repository", zap.Error(err))
 		response.Error(c, http.StatusInternalServerError, "Failed to create repository", err)
 		return
 	}
 	
-	response.Success(c, http.StatusCreated, "Repository created successfully", repo)
+	response.Success(c, http.StatusCreated, "Repository created successfully", repository)
 }
 
 // GetRepository 获取仓库详情
@@ -68,47 +69,36 @@ func (h *GitHandler) GetRepository(c *gin.Context) {
 		return
 	}
 	
-	repo, err := h.gitService.GetRepository(c.Request.Context(), id)
+	repository, err := h.gitService.GetRepository(c.Request.Context(), id)
 	if err != nil {
 		h.logger.Error("Failed to get repository", zap.Error(err))
 		response.Error(c, http.StatusNotFound, "Repository not found", err)
 		return
 	}
 	
-	response.Success(c, http.StatusOK, "Repository retrieved successfully", repo)
+	response.Success(c, http.StatusOK, "Repository retrieved successfully", repository)
 }
 
 // ListRepositories 获取仓库列表
 func (h *GitHandler) ListRepositories(c *gin.Context) {
-	var projectID *uuid.UUID
-	
-	if projectIDStr := c.Query("project_id"); projectIDStr != "" {
-		id, err := uuid.Parse(projectIDStr)
-		if err != nil {
-			response.Error(c, http.StatusBadRequest, "Invalid project ID", err)
-			return
-		}
-		projectID = &id
-	}
-	
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
 	
-	if page < 1 {
-		page = 1
-	}
-	if pageSize < 1 || pageSize > 100 {
-		pageSize = 20
+	var projectID *uuid.UUID
+	if projectIDStr := c.Query("project_id"); projectIDStr != "" {
+		if pid, err := uuid.Parse(projectIDStr); err == nil {
+			projectID = &pid
+		}
 	}
 	
-	repos, err := h.gitService.ListRepositories(c.Request.Context(), projectID, page, pageSize)
+	resp, err := h.gitService.ListRepositories(c.Request.Context(), projectID, page, pageSize)
 	if err != nil {
 		h.logger.Error("Failed to list repositories", zap.Error(err))
 		response.Error(c, http.StatusInternalServerError, "Failed to list repositories", err)
 		return
 	}
 	
-	response.Success(c, http.StatusOK, "Repositories retrieved successfully", repos)
+	response.Success(c, http.StatusOK, "Repositories retrieved successfully", resp)
 }
 
 // UpdateRepository 更新仓库
@@ -126,14 +116,14 @@ func (h *GitHandler) UpdateRepository(c *gin.Context) {
 		return
 	}
 	
-	repo, err := h.gitService.UpdateRepository(c.Request.Context(), id, &req)
+	repository, err := h.gitService.UpdateRepository(c.Request.Context(), id, &req)
 	if err != nil {
 		h.logger.Error("Failed to update repository", zap.Error(err))
 		response.Error(c, http.StatusInternalServerError, "Failed to update repository", err)
 		return
 	}
 	
-	response.Success(c, http.StatusOK, "Repository updated successfully", repo)
+	response.Success(c, http.StatusOK, "Repository updated successfully", repository)
 }
 
 // DeleteRepository 删除仓库
@@ -151,7 +141,49 @@ func (h *GitHandler) DeleteRepository(c *gin.Context) {
 		return
 	}
 	
-	response.Success(c, http.StatusOK, "Repository deleted successfully", gin.H{"message": "Repository deleted successfully"})
+	response.Success(c, http.StatusOK, "Repository deleted successfully", nil)
+}
+
+// GetRepositoryStats 获取仓库统计信息
+func (h *GitHandler) GetRepositoryStats(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		response.Error(c, http.StatusBadRequest, "Invalid repository ID", err)
+		return
+	}
+	
+	stats, err := h.gitService.GetRepositoryStats(c.Request.Context(), id)
+	if err != nil {
+		h.logger.Error("Failed to get repository stats", zap.Error(err))
+		response.Error(c, http.StatusInternalServerError, "Failed to get repository stats", err)
+		return
+	}
+	
+	response.Success(c, http.StatusOK, "Repository stats retrieved successfully", stats)
+}
+
+// SearchRepositories 搜索仓库
+func (h *GitHandler) SearchRepositories(c *gin.Context) {
+	query := c.Query("q")
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+	
+	var projectID *uuid.UUID
+	if projectIDStr := c.Query("project_id"); projectIDStr != "" {
+		if pid, err := uuid.Parse(projectIDStr); err == nil {
+			projectID = &pid
+		}
+	}
+	
+	resp, err := h.gitService.SearchRepositories(c.Request.Context(), query, projectID, page, pageSize)
+	if err != nil {
+		h.logger.Error("Failed to search repositories", zap.Error(err))
+		response.Error(c, http.StatusInternalServerError, "Failed to search repositories", err)
+		return
+	}
+	
+	response.Success(c, http.StatusOK, "Repositories searched successfully", resp)
 }
 
 // 分支管理处理器
@@ -181,6 +213,25 @@ func (h *GitHandler) CreateBranch(c *gin.Context) {
 	response.Success(c, http.StatusCreated, "Branch created successfully", branch)
 }
 
+// ListBranches 获取分支列表
+func (h *GitHandler) ListBranches(c *gin.Context) {
+	idStr := c.Param("id")
+	repositoryID, err := uuid.Parse(idStr)
+	if err != nil {
+		response.Error(c, http.StatusBadRequest, "Invalid repository ID", err)
+		return
+	}
+	
+	branches, err := h.gitService.ListBranches(c.Request.Context(), repositoryID)
+	if err != nil {
+		h.logger.Error("Failed to list branches", zap.Error(err))
+		response.Error(c, http.StatusInternalServerError, "Failed to list branches", err)
+		return
+	}
+	
+	response.Success(c, http.StatusOK, "Branches retrieved successfully", branches)
+}
+
 // GetBranch 获取分支详情
 func (h *GitHandler) GetBranch(c *gin.Context) {
 	idStr := c.Param("id")
@@ -206,25 +257,6 @@ func (h *GitHandler) GetBranch(c *gin.Context) {
 	response.Success(c, http.StatusOK, "Branch retrieved successfully", branch)
 }
 
-// ListBranches 获取分支列表
-func (h *GitHandler) ListBranches(c *gin.Context) {
-	idStr := c.Param("id")
-	repositoryID, err := uuid.Parse(idStr)
-	if err != nil {
-		response.Error(c, http.StatusBadRequest, "Invalid repository ID", err)
-		return
-	}
-	
-	branches, err := h.gitService.ListBranches(c.Request.Context(), repositoryID)
-	if err != nil {
-		h.logger.Error("Failed to list branches", zap.Error(err))
-		response.Error(c, http.StatusInternalServerError, "Failed to list branches", err)
-		return
-	}
-	
-	response.Success(c, http.StatusOK, "Branches retrieved successfully", gin.H{"branches": branches})
-}
-
 // DeleteBranch 删除分支
 func (h *GitHandler) DeleteBranch(c *gin.Context) {
 	idStr := c.Param("id")
@@ -246,7 +278,7 @@ func (h *GitHandler) DeleteBranch(c *gin.Context) {
 		return
 	}
 	
-	response.Success(c, http.StatusOK, "Branch deleted successfully", gin.H{"message": "Branch deleted successfully"})
+	response.Success(c, http.StatusOK, "Branch deleted successfully", nil)
 }
 
 // SetDefaultBranch 设置默认分支
@@ -272,7 +304,7 @@ func (h *GitHandler) SetDefaultBranch(c *gin.Context) {
 		return
 	}
 	
-	response.Success(c, http.StatusOK, "Default branch updated successfully", gin.H{"message": "Default branch updated successfully"})
+	response.Success(c, http.StatusOK, "Default branch set successfully", nil)
 }
 
 // MergeBranch 合并分支
@@ -299,11 +331,7 @@ func (h *GitHandler) MergeBranch(c *gin.Context) {
 		return
 	}
 	
-	response.Success(c, http.StatusOK, "Branch merged successfully", gin.H{
-		"message": "Branch merged successfully",
-		"target_branch": req.TargetBranch,
-		"source_branch": req.SourceBranch,
-	})
+	response.Success(c, http.StatusOK, "Branch merged successfully", nil)
 }
 
 // 提交管理处理器
@@ -333,6 +361,29 @@ func (h *GitHandler) CreateCommit(c *gin.Context) {
 	response.Success(c, http.StatusCreated, "Commit created successfully", commit)
 }
 
+// ListCommits 获取提交列表
+func (h *GitHandler) ListCommits(c *gin.Context) {
+	idStr := c.Param("id")
+	repositoryID, err := uuid.Parse(idStr)
+	if err != nil {
+		response.Error(c, http.StatusBadRequest, "Invalid repository ID", err)
+		return
+	}
+	
+	branch := c.Query("branch")
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+	
+	resp, err := h.gitService.ListCommits(c.Request.Context(), repositoryID, branch, page, pageSize)
+	if err != nil {
+		h.logger.Error("Failed to list commits", zap.Error(err))
+		response.Error(c, http.StatusInternalServerError, "Failed to list commits", err)
+		return
+	}
+	
+	response.Success(c, http.StatusOK, "Commits retrieved successfully", resp)
+}
+
 // GetCommit 获取提交详情
 func (h *GitHandler) GetCommit(c *gin.Context) {
 	idStr := c.Param("id")
@@ -356,36 +407,6 @@ func (h *GitHandler) GetCommit(c *gin.Context) {
 	}
 	
 	response.Success(c, http.StatusOK, "Commit retrieved successfully", commit)
-}
-
-// ListCommits 获取提交列表
-func (h *GitHandler) ListCommits(c *gin.Context) {
-	idStr := c.Param("id")
-	repositoryID, err := uuid.Parse(idStr)
-	if err != nil {
-		response.Error(c, http.StatusBadRequest, "Invalid repository ID", err)
-		return
-	}
-	
-	branch := c.DefaultQuery("branch", "")
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
-	
-	if page < 1 {
-		page = 1
-	}
-	if pageSize < 1 || pageSize > 100 {
-		pageSize = 20
-	}
-	
-	commits, err := h.gitService.ListCommits(c.Request.Context(), repositoryID, branch, page, pageSize)
-	if err != nil {
-		h.logger.Error("Failed to list commits", zap.Error(err))
-		response.Error(c, http.StatusInternalServerError, "Failed to list commits", err)
-		return
-	}
-	
-	response.Success(c, http.StatusOK, "Commits retrieved successfully", commits)
 }
 
 // GetCommitDiff 获取提交差异
@@ -437,7 +458,7 @@ func (h *GitHandler) CompareBranches(c *gin.Context) {
 		return
 	}
 	
-	response.Success(c, http.StatusOK, "Branch comparison retrieved successfully", diff)
+	response.Success(c, http.StatusOK, "Branches compared successfully", diff)
 }
 
 // 标签管理处理器
@@ -467,6 +488,25 @@ func (h *GitHandler) CreateTag(c *gin.Context) {
 	response.Success(c, http.StatusCreated, "Tag created successfully", tag)
 }
 
+// ListTags 获取标签列表
+func (h *GitHandler) ListTags(c *gin.Context) {
+	idStr := c.Param("id")
+	repositoryID, err := uuid.Parse(idStr)
+	if err != nil {
+		response.Error(c, http.StatusBadRequest, "Invalid repository ID", err)
+		return
+	}
+	
+	tags, err := h.gitService.ListTags(c.Request.Context(), repositoryID)
+	if err != nil {
+		h.logger.Error("Failed to list tags", zap.Error(err))
+		response.Error(c, http.StatusInternalServerError, "Failed to list tags", err)
+		return
+	}
+	
+	response.Success(c, http.StatusOK, "Tags retrieved successfully", tags)
+}
+
 // GetTag 获取标签详情
 func (h *GitHandler) GetTag(c *gin.Context) {
 	idStr := c.Param("id")
@@ -492,25 +532,6 @@ func (h *GitHandler) GetTag(c *gin.Context) {
 	response.Success(c, http.StatusOK, "Tag retrieved successfully", tag)
 }
 
-// ListTags 获取标签列表
-func (h *GitHandler) ListTags(c *gin.Context) {
-	idStr := c.Param("id")
-	repositoryID, err := uuid.Parse(idStr)
-	if err != nil {
-		response.Error(c, http.StatusBadRequest, "Invalid repository ID", err)
-		return
-	}
-	
-	tags, err := h.gitService.ListTags(c.Request.Context(), repositoryID)
-	if err != nil {
-		h.logger.Error("Failed to list tags", zap.Error(err))
-		response.Error(c, http.StatusInternalServerError, "Failed to list tags", err)
-		return
-	}
-	
-	response.Success(c, http.StatusOK, "Tags retrieved successfully", gin.H{"tags": tags})
-}
-
 // DeleteTag 删除标签
 func (h *GitHandler) DeleteTag(c *gin.Context) {
 	idStr := c.Param("id")
@@ -532,7 +553,7 @@ func (h *GitHandler) DeleteTag(c *gin.Context) {
 		return
 	}
 	
-	response.Success(c, http.StatusOK, "Tag deleted successfully", gin.H{"message": "Tag deleted successfully"})
+	response.Success(c, http.StatusOK, "Tag deleted successfully", nil)
 }
 
 // 文件操作处理器
@@ -546,11 +567,16 @@ func (h *GitHandler) GetFileContent(c *gin.Context) {
 		return
 	}
 	
-	branch := c.DefaultQuery("branch", "main")
+	branch := c.Query("branch")
 	filePath := c.Query("path")
 	
+	if branch == "" {
+		response.Error(c, http.StatusBadRequest, "Branch parameter is required", nil)
+		return
+	}
+	
 	if filePath == "" {
-		response.Error(c, http.StatusBadRequest, "File path is required", nil)
+		response.Error(c, http.StatusBadRequest, "Path parameter is required", nil)
 		return
 	}
 	
@@ -561,11 +587,17 @@ func (h *GitHandler) GetFileContent(c *gin.Context) {
 		return
 	}
 	
-	response.Success(c, http.StatusOK, "File content retrieved successfully", gin.H{
-		"path":    filePath,
-		"branch":  branch,
-		"content": string(content),
-	})
+	// 检查文件内容类型
+	contentType := "text/plain"
+	if strings.HasSuffix(strings.ToLower(filePath), ".json") {
+		contentType = "application/json"
+	} else if strings.HasSuffix(strings.ToLower(filePath), ".xml") {
+		contentType = "application/xml"
+	} else if strings.HasSuffix(strings.ToLower(filePath), ".html") || strings.HasSuffix(strings.ToLower(filePath), ".htm") {
+		contentType = "text/html"
+	}
+	
+	c.Data(http.StatusOK, contentType, content)
 }
 
 // GetDirectoryContent 获取目录内容
@@ -577,8 +609,13 @@ func (h *GitHandler) GetDirectoryContent(c *gin.Context) {
 		return
 	}
 	
-	branch := c.DefaultQuery("branch", "main")
+	branch := c.Query("branch")
 	dirPath := c.DefaultQuery("path", "")
+	
+	if branch == "" {
+		response.Error(c, http.StatusBadRequest, "Branch parameter is required", nil)
+		return
+	}
 	
 	files, err := h.gitService.GetDirectoryContent(c.Request.Context(), repositoryID, branch, dirPath)
 	if err != nil {
@@ -587,64 +624,6 @@ func (h *GitHandler) GetDirectoryContent(c *gin.Context) {
 		return
 	}
 	
-	response.Success(c, http.StatusOK, "Directory content retrieved successfully", gin.H{
-		"path":   dirPath,
-		"branch": branch,
-		"files":  files,
-	})
+	response.Success(c, http.StatusOK, "Directory content retrieved successfully", gin.H{"files": files})
 }
 
-// 统计和搜索处理器
-
-// GetRepositoryStats 获取仓库统计信息
-func (h *GitHandler) GetRepositoryStats(c *gin.Context) {
-	idStr := c.Param("id")
-	repositoryID, err := uuid.Parse(idStr)
-	if err != nil {
-		response.Error(c, http.StatusBadRequest, "Invalid repository ID", err)
-		return
-	}
-	
-	stats, err := h.gitService.GetRepositoryStats(c.Request.Context(), repositoryID)
-	if err != nil {
-		h.logger.Error("Failed to get repository stats", zap.Error(err))
-		response.Error(c, http.StatusInternalServerError, "Failed to get repository stats", err)
-		return
-	}
-	
-	response.Success(c, http.StatusOK, "Repository stats retrieved successfully", stats)
-}
-
-// SearchRepositories 搜索仓库
-func (h *GitHandler) SearchRepositories(c *gin.Context) {
-	query := c.Query("q")
-	var projectID *uuid.UUID
-	
-	if projectIDStr := c.Query("project_id"); projectIDStr != "" {
-		id, err := uuid.Parse(projectIDStr)
-		if err != nil {
-			response.Error(c, http.StatusBadRequest, "Invalid project ID", err)
-			return
-		}
-		projectID = &id
-	}
-	
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
-	
-	if page < 1 {
-		page = 1
-	}
-	if pageSize < 1 || pageSize > 100 {
-		pageSize = 20
-	}
-	
-	repos, err := h.gitService.SearchRepositories(c.Request.Context(), query, projectID, page, pageSize)
-	if err != nil {
-		h.logger.Error("Failed to search repositories", zap.Error(err))
-		response.Error(c, http.StatusInternalServerError, "Failed to search repositories", err)
-		return
-	}
-	
-	response.Success(c, http.StatusOK, "Repository search completed successfully", repos)
-}

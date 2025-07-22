@@ -92,6 +92,62 @@ type Repository struct {
 	DefaultBranch string    `json:"default_branch"`
 }
 
+// Branch 分支模型
+type Branch struct {
+	ID           uuid.UUID  `json:"id"`
+	RepositoryID uuid.UUID  `json:"repository_id"`
+	Name         string     `json:"name"`
+	CommitSHA    string     `json:"commit_sha"`
+	IsDefault    bool       `json:"is_default"`
+	IsProtected  bool       `json:"is_protected"`
+	CreatedBy    uuid.UUID  `json:"created_by"`
+	CreatedAt    time.Time  `json:"created_at"`
+	UpdatedAt    time.Time  `json:"updated_at"`
+	DeletedAt    *time.Time `json:"deleted_at,omitempty"`
+}
+
+// PullRequest 合并请求模型
+type PullRequest struct {
+	ID           uuid.UUID   `json:"id"`
+	RepositoryID uuid.UUID   `json:"repository_id"`
+	Number       int         `json:"number"`
+	Title        string      `json:"title"`
+	Description  *string     `json:"description,omitempty"`
+	Status       string      `json:"status"`
+	SourceBranch string      `json:"source_branch"`
+	TargetBranch string      `json:"target_branch"`
+	AuthorID     uuid.UUID   `json:"author_id"`
+	AssigneeIDs  []uuid.UUID `json:"assignee_ids,omitempty"`
+	ReviewerIDs  []uuid.UUID `json:"reviewer_ids,omitempty"`
+	CreatedAt    time.Time   `json:"created_at"`
+	UpdatedAt    time.Time   `json:"updated_at"`
+	MergedAt     *time.Time  `json:"merged_at,omitempty"`
+	ClosedAt     *time.Time  `json:"closed_at,omitempty"`
+}
+
+// Commit 提交模型
+type Commit struct {
+	ID           uuid.UUID `json:"id"`
+	RepositoryID uuid.UUID `json:"repository_id"`
+	SHA          string    `json:"sha"`
+	Message      string    `json:"message"`
+	AuthorName   string    `json:"author_name"`
+	AuthorEmail  string    `json:"author_email"`
+	AuthorID     *uuid.UUID `json:"author_id,omitempty"`
+	CommittedAt  time.Time `json:"committed_at"`
+	ParentSHAs   []string  `json:"parent_shas,omitempty"`
+}
+
+// WebhookEvent Webhook事件模型
+type WebhookEvent struct {
+	ID           uuid.UUID              `json:"id"`
+	RepositoryID uuid.UUID              `json:"repository_id"`
+	EventType    string                 `json:"event_type"`
+	EventData    map[string]interface{} `json:"event_data"`
+	ProcessedAt  *time.Time             `json:"processed_at,omitempty"`
+	CreatedAt    time.Time              `json:"created_at"`
+}
+
 // CreateProjectRequest 创建项目请求
 type CreateProjectRequest struct {
 	Key         string  `json:"key" binding:"required,min=2,max=20" validate:"alphanum"`

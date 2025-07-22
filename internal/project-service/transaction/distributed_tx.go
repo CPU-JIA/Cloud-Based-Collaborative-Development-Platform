@@ -61,6 +61,9 @@ type DistributedTransactionManager struct {
 	transactions      map[uuid.UUID]*DistributedTransaction // 在实际应用中应使用持久化存储
 }
 
+// 确保实现了TransactionManager接口
+var _ TransactionManager = (*DistributedTransactionManager)(nil)
+
 // NewDistributedTransactionManager 创建分布式事务管理器
 func NewDistributedTransactionManager(
 	projectRepo repository.ProjectRepository,

@@ -1,6 +1,7 @@
 package models
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -258,6 +259,18 @@ func (Webhook) TableName() string {
 	return "webhooks"
 }
 
+func (PullRequest) TableName() string {
+	return "pull_requests"
+}
+
+func (PRComment) TableName() string {
+	return "pr_comments"
+}
+
+func (PRReview) TableName() string {
+	return "pr_reviews"
+}
+
 // GORM钩子
 
 // BeforeCreate 创建前的处理
@@ -349,6 +362,63 @@ func (w *Webhook) BeforeUpdate(tx *gorm.DB) error {
 	return nil
 }
 
+func (pr *PullRequest) BeforeCreate(tx *gorm.DB) error {
+	if pr.ID == uuid.Nil {
+		var newID uuid.UUID
+		err := tx.Raw("SELECT uuid_generate_v7()").Scan(&newID).Error
+		if err != nil {
+			return err
+		}
+		pr.ID = newID
+	}
+	
+	// 为PR生成自增的Number
+	if pr.Number == 0 {
+		var maxNumber int
+		tx.Model(&PullRequest{}).
+			Where("repository_id = ?", pr.RepositoryID).
+			Select("COALESCE(MAX(number), 0)").
+			Scan(&maxNumber)
+		pr.Number = maxNumber + 1
+	}
+	
+	return nil
+}
+
+func (pr *PullRequest) BeforeUpdate(tx *gorm.DB) error {
+	pr.UpdatedAt = time.Now()
+	return nil
+}
+
+func (prc *PRComment) BeforeCreate(tx *gorm.DB) error {
+	if prc.ID == uuid.Nil {
+		var newID uuid.UUID
+		err := tx.Raw("SELECT uuid_generate_v7()").Scan(&newID).Error
+		if err != nil {
+			return err
+		}
+		prc.ID = newID
+	}
+	return nil
+}
+
+func (prc *PRComment) BeforeUpdate(tx *gorm.DB) error {
+	prc.UpdatedAt = time.Now()
+	return nil
+}
+
+func (prr *PRReview) BeforeCreate(tx *gorm.DB) error {
+	if prr.ID == uuid.Nil {
+		var newID uuid.UUID
+		err := tx.Raw("SELECT uuid_generate_v7()").Scan(&newID).Error
+		if err != nil {
+			return err
+		}
+		prr.ID = newID
+	}
+	return nil
+}
+
 // 业务方法
 
 // IsActive 检查仓库是否活跃
@@ -402,6 +472,41 @@ func (t *Tag) IsAnnotated() bool {
 	return t.Message != nil && *t.Message != ""
 }
 
+// IsOpen 检查PR是否为开放状态
+func (pr *PullRequest) IsOpen() bool {
+	return pr.Status == PullRequestStatusOpen
+}
+
+// IsClosed 检查PR是否已关闭
+func (pr *PullRequest) IsClosed() bool {
+	return pr.Status == PullRequestStatusClosed
+}
+
+// IsMerged 检查PR是否已合并
+func (pr *PullRequest) IsMerged() bool {
+	return pr.Status == PullRequestStatusMerged
+}
+
+// IsDraft 检查PR是否为草稿状态
+func (pr *PullRequest) IsDraft() bool {
+	return pr.Status == PullRequestStatusDraft
+}
+
+// GetFullTitle 获取PR完整标题（包含编号）
+func (pr *PullRequest) GetFullTitle() string {
+	return fmt.Sprintf("#%d %s", pr.Number, pr.Title)
+}
+
+// IsApproved 检查审查是否通过
+func (prr *PRReview) IsApproved() bool {
+	return prr.Status == ReviewStatusApproved
+}
+
+// IsRejected 检查审查是否被拒绝
+func (prr *PRReview) IsRejected() bool {
+	return prr.Status == ReviewStatusRejected
+}
+
 // 统计数据模型
 
 // RepositoryStats 仓库统计信息
@@ -437,4 +542,117 @@ type FileInfo struct {
 	Size     int64  `json:"size"`
 	Mode     string `json:"mode"`
 	SHA      string `json:"sha"`
+}
+
+// PullRequest 合并请求模型
+type PullRequest struct {
+	ID           uuid.UUID       `json:"id" gorm:"type:uuid;primary_key;default:uuid_generate_v7()"`
+	RepositoryID uuid.UUID       `json:"repository_id" gorm:"type:uuid;not null;index"`
+	Number       int             `json:"number" gorm:"not null;index"`
+	Title        string          `json:"title" gorm:"size:255;not null"`
+	Description  *string         `json:"description" gorm:"type:text"`
+	Status       PullRequestStatus `json:"status" gorm:"size:20;not null;default:'open'"`
+	
+	// 分支信息
+	SourceBranch string          `json:"source_branch" gorm:"size:255;not null"`
+	TargetBranch string          `json:"target_branch" gorm:"size:255;not null"`
+	
+	// 作者信息
+	AuthorID     uuid.UUID       `json:"author_id" gorm:"type:uuid;not null"`
+	AuthorName   string          `json:"author_name" gorm:"size:255;not null"`
+	AuthorEmail  string          `json:"author_email" gorm:"size:255;not null"`
+	
+	// 审查信息
+	ReviewerID   *uuid.UUID      `json:"reviewer_id" gorm:"type:uuid"`
+	ReviewStatus *ReviewStatus   `json:"review_status" gorm:"size:20"`
+	
+	// 合并信息
+	MergeCommitSHA  *string      `json:"merge_commit_sha" gorm:"size:40"`
+	MergedAt        *time.Time   `json:"merged_at"`
+	MergedBy        *uuid.UUID   `json:"merged_by" gorm:"type:uuid"`
+	
+	// 时间戳
+	CreatedAt    time.Time       `json:"created_at" gorm:"not null;default:now()"`
+	UpdatedAt    time.Time       `json:"updated_at" gorm:"not null;default:now()"`
+	ClosedAt     *time.Time      `json:"closed_at"`
+	
+	// 关联关系
+	Repository   *Repository     `json:"repository,omitempty" gorm:"foreignKey:RepositoryID"`
+	Comments     []PRComment     `json:"comments,omitempty" gorm:"foreignKey:PullRequestID"`
+	Reviews      []PRReview      `json:"reviews,omitempty" gorm:"foreignKey:PullRequestID"`
+}
+
+// PullRequestStatus 合并请求状态枚举
+type PullRequestStatus string
+
+const (
+	PullRequestStatusOpen   PullRequestStatus = "open"
+	PullRequestStatusClosed PullRequestStatus = "closed"
+	PullRequestStatusMerged PullRequestStatus = "merged"
+	PullRequestStatusDraft  PullRequestStatus = "draft"
+)
+
+// ReviewStatus 审查状态枚举
+type ReviewStatus string
+
+const (
+	ReviewStatusPending  ReviewStatus = "pending"
+	ReviewStatusApproved ReviewStatus = "approved"
+	ReviewStatusRejected ReviewStatus = "changes_requested"
+	ReviewStatusComment  ReviewStatus = "commented"
+)
+
+// PRComment PR评论模型
+type PRComment struct {
+	ID            uuid.UUID  `json:"id" gorm:"type:uuid;primary_key;default:uuid_generate_v7()"`
+	PullRequestID uuid.UUID  `json:"pull_request_id" gorm:"type:uuid;not null;index"`
+	AuthorID      uuid.UUID  `json:"author_id" gorm:"type:uuid;not null"`
+	AuthorName    string     `json:"author_name" gorm:"size:255;not null"`
+	Content       string     `json:"content" gorm:"type:text;not null"`
+	LineNumber    *int       `json:"line_number"`
+	FilePath      *string    `json:"file_path" gorm:"size:1024"`
+	CreatedAt     time.Time  `json:"created_at" gorm:"not null;default:now()"`
+	UpdatedAt     time.Time  `json:"updated_at" gorm:"not null;default:now()"`
+	
+	// 关联关系
+	PullRequest   *PullRequest `json:"pull_request,omitempty" gorm:"foreignKey:PullRequestID"`
+}
+
+// PRReview PR审查模型
+type PRReview struct {
+	ID            uuid.UUID    `json:"id" gorm:"type:uuid;primary_key;default:uuid_generate_v7()"`
+	PullRequestID uuid.UUID    `json:"pull_request_id" gorm:"type:uuid;not null;index"`
+	ReviewerID    uuid.UUID    `json:"reviewer_id" gorm:"type:uuid;not null"`
+	ReviewerName  string       `json:"reviewer_name" gorm:"size:255;not null"`
+	Status        ReviewStatus `json:"status" gorm:"size:20;not null"`
+	Comment       *string      `json:"comment" gorm:"type:text"`
+	CreatedAt     time.Time    `json:"created_at" gorm:"not null;default:now()"`
+	
+	// 关联关系
+	PullRequest   *PullRequest `json:"pull_request,omitempty" gorm:"foreignKey:PullRequestID"`
+}
+
+// CreatePullRequestRequest 创建PR请求
+type CreatePullRequestRequest struct {
+	Title        string  `json:"title" binding:"required,min=1,max=255"`
+	Description  *string `json:"description" validate:"omitempty,max=5000"`
+	SourceBranch string  `json:"source_branch" binding:"required,min=1,max=255"`
+	TargetBranch string  `json:"target_branch" binding:"required,min=1,max=255"`
+	AuthorName   string  `json:"author_name" binding:"required"`
+	AuthorEmail  string  `json:"author_email" binding:"required,email"`
+}
+
+// UpdatePullRequestRequest 更新PR请求
+type UpdatePullRequestRequest struct {
+	Title       *string            `json:"title" validate:"omitempty,min=1,max=255"`
+	Description *string            `json:"description" validate:"omitempty,max=5000"`
+	Status      *PullRequestStatus `json:"status" validate:"omitempty,oneof=open closed merged draft"`
+}
+
+// PRListResponse PR列表响应
+type PRListResponse struct {
+	PullRequests []PullRequest `json:"pull_requests"`
+	Total        int64         `json:"total"`
+	Page         int           `json:"page"`
+	PageSize     int           `json:"page_size"`
 }

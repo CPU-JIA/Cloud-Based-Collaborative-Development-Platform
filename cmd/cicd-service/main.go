@@ -9,13 +9,16 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/cloud-platform/collaborative-dev/internal/cicd-service/docker"
 	"github.com/cloud-platform/collaborative-dev/internal/cicd-service/engine"
+	"github.com/cloud-platform/collaborative-dev/internal/cicd-service/executor"
 	"github.com/cloud-platform/collaborative-dev/internal/cicd-service/handlers"
 	"github.com/cloud-platform/collaborative-dev/internal/cicd-service/repository"
 	"github.com/cloud-platform/collaborative-dev/internal/cicd-service/runner"
 	"github.com/cloud-platform/collaborative-dev/internal/cicd-service/scheduler"
 	"github.com/cloud-platform/collaborative-dev/internal/cicd-service/service"
 	"github.com/cloud-platform/collaborative-dev/internal/cicd-service/storage"
+	"github.com/cloud-platform/collaborative-dev/internal/cicd-service/webhook"
 	"github.com/cloud-platform/collaborative-dev/shared/config"
 	"github.com/cloud-platform/collaborative-dev/shared/database"
 	"github.com/cloud-platform/collaborative-dev/shared/logger"
@@ -134,6 +137,56 @@ func main() {
 		zapLoggerInstance.Fatal("Failed to start job scheduler", zap.Error(err))
 	}
 	
+	// 创建Docker管理器
+	dockerConfig := docker.DefaultManagerConfig()
+	
+	// 从全局配置更新Docker配置
+	if cfg.CICD.Docker.Host != "" {
+		dockerConfig.DockerHost = cfg.CICD.Docker.Host
+	}
+	if cfg.CICD.Docker.MaxContainers > 0 {
+		dockerConfig.MaxContainers = cfg.CICD.Docker.MaxContainers
+	}
+	if cfg.CICD.Docker.CleanupInterval > 0 {
+		dockerConfig.CleanupInterval = cfg.CICD.Docker.CleanupInterval
+	}
+	dockerConfig.EnableMonitoring = cfg.CICD.Docker.EnableMonitoring
+	dockerConfig.EnableAutoCleanup = cfg.CICD.Docker.EnableAutoCleanup
+	
+	dockerManager, err := docker.NewDockerManager(dockerConfig, zapLoggerInstance)
+	if err != nil {
+		zapLoggerInstance.Fatal("Failed to create Docker manager", zap.Error(err))
+	}
+	
+	// 创建执行服务
+	executionServiceConfig := executor.DefaultExecutionServiceConfig()
+	
+	// 从全局配置更新执行服务配置
+	if cfg.CICD.Executor.MaxConcurrentJobs > 0 {
+		executionServiceConfig.ExecutorConfig.MaxConcurrentJobs = cfg.CICD.Executor.MaxConcurrentJobs
+	}
+	if cfg.CICD.Executor.DefaultTimeout > 0 {
+		executionServiceConfig.ExecutorConfig.DefaultTimeout = cfg.CICD.Executor.DefaultTimeout
+	}
+	executionServiceConfig.ExecutorConfig.EnableAutoCleanup = cfg.CICD.Executor.EnableAutoCleanup
+	
+	executionService, err := executor.NewExecutionService(
+		executionServiceConfig,
+		dockerManager,
+		storageManager,
+		pipelineRepo,
+		jobScheduler,
+		zapLoggerInstance,
+	)
+	if err != nil {
+		zapLoggerInstance.Fatal("Failed to create execution service", zap.Error(err))
+	}
+	
+	// 启动执行服务
+	if err := executionService.Start(ctx); err != nil {
+		zapLoggerInstance.Fatal("Failed to start execution service", zap.Error(err))
+	}
+	
 	// 创建Runner通信管理器
 	runnerCommManager := runner.NewRunnerCommunicationManager(pipelineRepo, pipelineEngine, zapLoggerInstance)
 	
@@ -148,6 +201,45 @@ func main() {
 	
 	pipelineService := service.NewPipelineService(pipelineRepo, storageManager, zapLoggerInstance)
 	pipelineHandler := handlers.NewPipelineHandler(pipelineService, zapLoggerInstance)
+	
+	// 创建流水线触发器
+	pipelineTriggerConfig := webhook.PipelineTriggerConfig{
+		DefaultTimeout:    time.Duration(cfg.CICD.Executor.DefaultTimeout) * time.Second,
+		MaxConcurrentJobs: cfg.CICD.Scheduler.WorkerCount,
+		RetryAttempts:     3,
+		RetryInterval:     30 * time.Second,
+	}
+	
+	pipelineTrigger := webhook.NewPipelineTrigger(pipelineRepo, jobScheduler, pipelineTriggerConfig, zapLoggerInstance)
+	
+	// 创建Webhook客户端配置
+	webhookClientConfig := webhook.WebhookClientConfig{
+		DefaultPipelineID: uuid.Nil, // 通过配置或环境变量设置
+		EventMappings: map[string]string{
+			"push":         "ci",
+			"pull_request": "pr_check",
+			"tag":          "release",
+		},
+		DefaultVariables: map[string]interface{}{
+			"CI_SYSTEM": "cloud-platform-cicd",
+			"WEBHOOK_VERSION": "1.0.0",
+		},
+		AutoTrigger: true,
+		FilterRules: []webhook.FilterRule{
+			{
+				EventType: "push",
+				Branches:  []string{"main", "develop", "release/*"},
+				Authors:   []string{"*"}, // 允许所有作者
+			},
+			{
+				EventType: "pull_request",
+				Branches:  []string{"main", "develop"},
+				Authors:   []string{"*"},
+			},
+		},
+	}
+	
+	webhookClient := webhook.NewWebhookClient(jobScheduler, webhookClientConfig, zapLoggerInstance)
 
 	r := gin.New()
 
@@ -218,6 +310,105 @@ func main() {
 		v1.GET("/ws/runner", func(c *gin.Context) {
 			runnerCommManager.HandleRunnerConnection(c.Writer, c.Request)
 		})
+		
+		// Webhook事件接收路由（用于接收来自Git网关的事件）
+		webhookEvents := v1.Group("/webhook-events")
+		{
+			// Git Push事件处理
+			webhookEvents.POST("/git/push", func(c *gin.Context) {
+				var event webhook.GitPushEvent
+				if err := c.ShouldBindJSON(&event); err != nil {
+					c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid push event payload", "details": err.Error()})
+					return
+				}
+				
+				if err := webhookClient.HandleGitPushEvent(c.Request.Context(), &event); err != nil {
+					zapLoggerInstance.Error("处理Git推送事件失败", zap.Error(err))
+					c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to process push event"})
+					return
+				}
+				
+				c.JSON(http.StatusOK, gin.H{"status": "success", "message": "Push event processed"})
+			})
+			
+			// Git分支事件处理
+			webhookEvents.POST("/git/branch", func(c *gin.Context) {
+				var event webhook.GitBranchEvent
+				if err := c.ShouldBindJSON(&event); err != nil {
+					c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid branch event payload", "details": err.Error()})
+					return
+				}
+				
+				if err := webhookClient.HandleBranchEvent(c.Request.Context(), &event); err != nil {
+					zapLoggerInstance.Error("处理Git分支事件失败", zap.Error(err))
+					c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to process branch event"})
+					return
+				}
+				
+				c.JSON(http.StatusOK, gin.H{"status": "success", "message": "Branch event processed"})
+			})
+			
+			// Git标签事件处理
+			webhookEvents.POST("/git/tag", func(c *gin.Context) {
+				var event webhook.GitTagEvent
+				if err := c.ShouldBindJSON(&event); err != nil {
+					c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tag event payload", "details": err.Error()})
+					return
+				}
+				
+				if err := webhookClient.HandleTagEvent(c.Request.Context(), &event); err != nil {
+					zapLoggerInstance.Error("处理Git标签事件失败", zap.Error(err))
+					c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to process tag event"})
+					return
+				}
+				
+				c.JSON(http.StatusOK, gin.H{"status": "success", "message": "Tag event processed"})
+			})
+			
+			// Git Pull Request事件处理
+			webhookEvents.POST("/git/pull-request", func(c *gin.Context) {
+				var event webhook.GitPullRequestEvent
+				if err := c.ShouldBindJSON(&event); err != nil {
+					c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid pull request event payload", "details": err.Error()})
+					return
+				}
+				
+				if err := webhookClient.HandlePullRequestEvent(c.Request.Context(), &event); err != nil {
+					zapLoggerInstance.Error("处理Git拉取请求事件失败", zap.Error(err))
+					c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to process pull request event"})
+					return
+				}
+				
+				c.JSON(http.StatusOK, gin.H{"status": "success", "message": "Pull request event processed"})
+			})
+			
+			// 流水线触发接口
+			webhookEvents.POST("/trigger-pipeline", func(c *gin.Context) {
+				var request struct {
+					RepositoryID uuid.UUID              `json:"repository_id" binding:"required"`
+					PipelineID   uuid.UUID              `json:"pipeline_id" binding:"required"`
+					Variables    map[string]interface{} `json:"variables"`
+				}
+				
+				if err := c.ShouldBindJSON(&request); err != nil {
+					c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid trigger request", "details": err.Error()})
+					return
+				}
+				
+				if err := pipelineTrigger.TriggerPipelineFromWebhook(
+					c.Request.Context(), 
+					request.RepositoryID, 
+					request.PipelineID, 
+					request.Variables,
+				); err != nil {
+					zapLoggerInstance.Error("触发流水线失败", zap.Error(err))
+					c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to trigger pipeline"})
+					return
+				}
+				
+				c.JSON(http.StatusOK, gin.H{"status": "success", "message": "Pipeline triggered successfully"})
+			})
+		}
 	}
 
 	srv := &http.Server{
@@ -241,6 +432,11 @@ func main() {
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
+	// 停止执行服务
+	if err := executionService.Stop(); err != nil {
+		zapLoggerInstance.Error("Failed to stop execution service", zap.Error(err))
+	}
+	
 	// 停止作业调度器
 	if err := jobScheduler.Stop(); err != nil {
 		zapLoggerInstance.Error("Failed to stop job scheduler", zap.Error(err))
@@ -249,6 +445,11 @@ func main() {
 	// 停止Runner通信管理器
 	if err := runnerCommManager.Stop(); err != nil {
 		zapLoggerInstance.Error("Failed to stop runner communication manager", zap.Error(err))
+	}
+	
+	// 关闭Docker管理器
+	if err := dockerManager.Close(); err != nil {
+		zapLoggerInstance.Error("Failed to close Docker manager", zap.Error(err))
 	}
 
 	// 关闭存储管理器

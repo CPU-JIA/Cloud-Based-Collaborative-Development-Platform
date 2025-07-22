@@ -18,16 +18,6 @@ const (
 	PipelineStatusCancelled PipelineStatus = "cancelled"
 )
 
-// JobStatus 作业状态枚举
-type JobStatus string
-
-const (
-	JobStatusPending   JobStatus = "pending"
-	JobStatusRunning   JobStatus = "running"
-	JobStatusSuccess   JobStatus = "success"
-	JobStatusFailed    JobStatus = "failed"
-	JobStatusCancelled JobStatus = "cancelled"
-)
 
 // TriggerType 触发类型枚举
 type TriggerType string
@@ -78,25 +68,6 @@ type PipelineRun struct {
 	Jobs        []Job     `json:"jobs,omitempty" gorm:"foreignKey:PipelineRunID"`
 }
 
-// Job 作业模型
-type Job struct {
-	ID            uuid.UUID  `json:"id" gorm:"type:uuid;primary_key;default:uuid_generate_v7()"`
-	PipelineRunID uuid.UUID  `json:"pipeline_run_id" gorm:"type:uuid;not null;index"`
-	Name          string     `json:"name" gorm:"size:255;not null"`
-	Stage         string     `json:"stage" gorm:"size:100;not null"`
-	Status        JobStatus  `json:"status" gorm:"size:20;not null;default:'pending'"`
-	RunnerID      *uuid.UUID `json:"runner_id" gorm:"type:uuid"`
-	StartedAt     *time.Time `json:"started_at"`
-	FinishedAt    *time.Time `json:"finished_at"`
-	Duration      *int64     `json:"duration"` // 持续时间（秒）
-	ExitCode      *int       `json:"exit_code"`
-	LogOutput     *string    `json:"log_output" gorm:"type:text"`
-	CreatedAt     time.Time  `json:"created_at" gorm:"not null;default:now()"`
-
-	// 关联关系
-	PipelineRun *PipelineRun `json:"pipeline_run,omitempty" gorm:"foreignKey:PipelineRunID"`
-	Runner      *Runner      `json:"runner,omitempty" gorm:"foreignKey:RunnerID"`
-}
 
 // Runner 执行器模型
 type Runner struct {
@@ -216,9 +187,6 @@ func (PipelineRun) TableName() string {
 	return "pipeline_runs"
 }
 
-func (Job) TableName() string {
-	return "jobs"
-}
 
 func (Runner) TableName() string {
 	return "runners"
@@ -251,17 +219,6 @@ func (pr *PipelineRun) BeforeCreate(tx *gorm.DB) error {
 	return nil
 }
 
-func (j *Job) BeforeCreate(tx *gorm.DB) error {
-	if j.ID == uuid.Nil {
-		var newID uuid.UUID
-		err := tx.Raw("SELECT uuid_generate_v7()").Scan(&newID).Error
-		if err != nil {
-			return err
-		}
-		j.ID = newID
-	}
-	return nil
-}
 
 func (r *Runner) BeforeCreate(tx *gorm.DB) error {
 	if r.ID == uuid.Nil {

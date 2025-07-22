@@ -9,18 +9,25 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/cloud-platform/collaborative-dev/internal/notification-service/consumer"
+	"github.com/cloud-platform/collaborative-dev/internal/notification-service/handlers"
+	"github.com/cloud-platform/collaborative-dev/internal/notification-service/repository"
+	"github.com/cloud-platform/collaborative-dev/internal/notification-service/services"
 	"github.com/cloud-platform/collaborative-dev/shared/config"
+	"github.com/cloud-platform/collaborative-dev/shared/database"
 	"github.com/cloud-platform/collaborative-dev/shared/logger"
 	"github.com/cloud-platform/collaborative-dev/shared/middleware"
 	"github.com/gin-gonic/gin"
 )
 
 func main() {
+	// 加载配置
 	cfg, err := config.Load()
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
 	}
 
+	// 初始化日志
 	loggerCfg := cfg.Log.ToLoggerConfig().(struct {
 		Level      string `json:"level" yaml:"level"`
 		Format     string `json:"format" yaml:"format"`
@@ -32,7 +39,6 @@ func main() {
 		Compress   bool   `json:"compress" yaml:"compress"`
 	})
 
-	// 简化logger初始化，直接使用NewZapLogger
 	appLogger, err := logger.NewZapLogger(struct {
 		Level      string `json:"level" yaml:"level"`
 		Format     string `json:"format" yaml:"format"`
@@ -51,57 +57,121 @@ func main() {
 		log.Fatalf("Failed to initialize logger: %v", err)
 	}
 
-	// 暂时跳过数据库连接以专注修复编译问题
-	// db, err := database.NewPostgresDB(cfg.Database.ToDBConfig())
-	// if err != nil {
-	//     appLogger.Fatal("Failed to connect to database:", err)
-	// }
+	// 连接数据库
+	dbConfig := cfg.Database.ToDBConfig().(database.Config)
+	postgresDB, err := database.NewPostgresDB(dbConfig)
+	if err != nil {
+		appLogger.Fatal("Failed to connect to database:", err)
+	}
+	db := postgresDB.DB
 
+	// 初始化存储库
+	notificationRepo := repository.NewNotificationRepository(db)
+	templateRepo := repository.NewTemplateRepository(db)
+	ruleRepo := repository.NewRuleRepository(db)
+	deliveryLogRepo := repository.NewDeliveryLogRepository(db)
+
+	// 初始化服务
+	templateEngine := services.NewTemplateEngine()
+	
+	// TODO: 实现实际的邮件、Webhook、应用内通知服务
+	var emailService services.EmailService = &services.MockEmailService{}
+	var webhookService services.WebhookService = &services.MockWebhookService{}
+	var inAppService services.InAppService = &services.MockInAppService{}
+
+	deliveryService := services.NewDeliveryService(
+		notificationRepo,
+		deliveryLogRepo,
+		emailService,
+		webhookService,
+		inAppService,
+		appLogger,
+	)
+
+	notificationService := services.NewNotificationService(
+		notificationRepo,
+		templateRepo,
+		ruleRepo,
+		templateEngine,
+		deliveryService,
+		appLogger,
+	)
+
+	// 初始化HTTP处理器
+	notificationHandler := handlers.NewNotificationHandler(notificationService, appLogger)
+
+	// 初始化Kafka消费者
+	kafkaConfig := consumer.KafkaConfig{
+		Brokers: []string{"localhost:9092"}, // TODO: 从配置文件读取
+		GroupID: "notification-service",
+		Topic:   "platform-events",
+	}
+	
+	eventConsumer := consumer.NewEventConsumer(kafkaConfig, notificationService, appLogger)
+
+	// 启动Kafka消费者
+	if err := eventConsumer.Start(); err != nil {
+		appLogger.Fatal("Failed to start event consumer:", err)
+	}
+
+	// 初始化HTTP路由
 	r := gin.New()
 
+	// 中间件
 	r.Use(middleware.CORS(cfg.Security.CorsAllowedOrigins))
 	r.Use(middleware.Logger(appLogger))
 	r.Use(middleware.SecurityHeaders())
 	r.Use(middleware.Timeout(30 * time.Second))
 
+	// 健康检查
+	r.GET("/health", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{
+			"service": "notification-service",
+			"status":  "healthy",
+			"version": "1.0.0",
+		})
+	})
+
+	// API路由
 	v1 := r.Group("/api/v1")
 	{
-		v1.GET("/health", func(c *gin.Context) {
-			c.JSON(http.StatusOK, gin.H{
-				"service": "notification-service",
-				"status":  "healthy",
-				"version": "1.0.0",
-			})
-		})
-
-		auth := v1.Group("/auth")
+		// 通知相关接口
+		notifications := v1.Group("/notifications")
+		notifications.Use(middleware.JWTAuth(cfg.Auth.JWTSecret))
 		{
-			auth.POST("/login", handleLogin)
-			auth.POST("/logout", handleLogout)
-			auth.POST("/refresh", handleRefresh)
+			notifications.GET("", notificationHandler.GetNotifications)
+			notifications.POST("", notificationHandler.CreateNotification)
+			notifications.GET("/unread/count", notificationHandler.GetUnreadCount)
+			notifications.POST("/:id/read", notificationHandler.MarkAsRead)
+			notifications.DELETE("/:id", notificationHandler.DeleteNotification)
+			notifications.POST("/:id/retry", notificationHandler.RetryNotification)
+			notifications.GET("/correlation/:correlation_id", notificationHandler.GetNotificationsByCorrelationID)
 		}
 
-		users := v1.Group("/users")
-		users.Use(middleware.JWTAuth(cfg.Auth.JWTSecret))
-		{
-			users.GET("", handleGetUsers)
-			users.POST("", handleCreateUser)
-			users.GET("/:id", handleGetUser)
-			users.PUT("/:id", handleUpdateUser)
-			users.DELETE("/:id", handleDeleteUser)
-		}
+		// TODO: 添加模板管理接口
+		// templates := v1.Group("/templates")
+		// templates.Use(middleware.JWTAuth(cfg.Auth.JWTSecret))
+		// {
+		//     templates.GET("", templateHandler.GetTemplates)
+		//     templates.POST("", templateHandler.CreateTemplate)
+		//     templates.GET("/:id", templateHandler.GetTemplate)
+		//     templates.PUT("/:id", templateHandler.UpdateTemplate)
+		//     templates.DELETE("/:id", templateHandler.DeleteTemplate)
+		// }
 
-		roles := v1.Group("/roles")
-		roles.Use(middleware.JWTAuth(cfg.Auth.JWTSecret))
-		{
-			roles.GET("", handleGetRoles)
-			roles.POST("", handleCreateRole)
-			roles.GET("/:id", handleGetRole)
-			roles.PUT("/:id", handleUpdateRole)
-			roles.DELETE("/:id", handleDeleteRole)
-		}
+		// TODO: 添加规则管理接口
+		// rules := v1.Group("/rules")
+		// rules.Use(middleware.JWTAuth(cfg.Auth.JWTSecret))
+		// {
+		//     rules.GET("", ruleHandler.GetRules)
+		//     rules.POST("", ruleHandler.CreateRule)
+		//     rules.GET("/:id", ruleHandler.GetRule)
+		//     rules.PUT("/:id", ruleHandler.UpdateRule)
+		//     rules.DELETE("/:id", ruleHandler.DeleteRule)
+		// }
 	}
 
+	// 启动HTTP服务器
 	srv := &http.Server{
 		Addr:    cfg.Server.Address(),
 		Handler: r,
@@ -114,12 +184,19 @@ func main() {
 		}
 	}()
 
+	// 等待中断信号
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	appLogger.Info("Shutting down server...")
+	appLogger.Info("Shutting down notification service...")
 
+	// 停止Kafka消费者
+	if err := eventConsumer.Stop(); err != nil {
+		appLogger.Error("Failed to stop event consumer:", err)
+	}
+
+	// 关闭HTTP服务器
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
@@ -127,57 +204,5 @@ func main() {
 		appLogger.Fatal("Server forced to shutdown:", err)
 	}
 
-	appLogger.Info("Server exited")
-}
-
-func handleLogin(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"message": "login endpoint"})
-}
-
-func handleLogout(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"message": "logout endpoint"})
-}
-
-func handleRefresh(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"message": "refresh endpoint"})
-}
-
-func handleGetUsers(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"message": "get users endpoint"})
-}
-
-func handleCreateUser(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"message": "create user endpoint"})
-}
-
-func handleGetUser(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"message": "get user endpoint"})
-}
-
-func handleUpdateUser(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"message": "update user endpoint"})
-}
-
-func handleDeleteUser(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"message": "delete user endpoint"})
-}
-
-func handleGetRoles(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"message": "get roles endpoint"})
-}
-
-func handleCreateRole(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"message": "create role endpoint"})
-}
-
-func handleGetRole(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"message": "get role endpoint"})
-}
-
-func handleUpdateRole(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"message": "update role endpoint"})
-}
-
-func handleDeleteRole(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"message": "delete role endpoint"})
+	appLogger.Info("Notification service exited")
 }
