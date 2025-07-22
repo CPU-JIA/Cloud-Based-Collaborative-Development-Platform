@@ -105,9 +105,10 @@ func setupTestDB(t *testing.T) *database.PostgresDB {
 	// 迁移简化的表结构，适配SQLite
 	err = db.AutoMigrate(
 		&TestUser{},
-		&models.Role{},
-		&models.Permission{},
-		&models.RefreshToken{},
+		&TestTenant{},
+		&TestRole{},
+		&TestPermission{},
+		&TestRefreshToken{},
 	)
 	require.NoError(t, err)
 

@@ -10,7 +10,7 @@ services:
       POSTGRES_USER: devcollab_dev
       POSTGRES_PASSWORD: dev_password_123
     ports:
-      - "5432:5432"
+      - "15432:5432"  # 使用不同端口避免冲突
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./database/migrations:/docker-entrypoint-initdb.d
@@ -26,7 +26,7 @@ services:
     image: redis:7-alpine
     container_name: devcollab-redis
     ports:
-      - "6379:6379"
+      - "16379:6379"  # 使用不同端口避免冲突
     volumes:
       - redis_data:/data
     healthcheck:
