@@ -1,0 +1,223 @@
+version: '3.8'
+
+services:
+  # 主要基础设施服务
+  postgres:
+    image: postgres:15-alpine
+    container_name: devcollab-postgres
+    environment:
+      POSTGRES_DB: devcollab_development
+      POSTGRES_USER: devcollab_dev
+      POSTGRES_PASSWORD: dev_password_123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U devcollab_dev -d devcollab_development"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - devcollab-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: devcollab-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - devcollab-network
+
+  # 监控和日志基础设施
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: devcollab-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./deployments/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    networks:
+      - devcollab-network
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: devcollab-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin123
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./deployments/monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./deployments/monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+    depends_on:
+      - prometheus
+    networks:
+      - devcollab-network
+
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: devcollab-jaeger
+    ports:
+      - "16686:16686"  # Jaeger UI
+      - "14268:14268"  # HTTP collector
+    environment:
+      COLLECTOR_OTLP_ENABLED: true
+    networks:
+      - devcollab-network
+
+  # 日志聚合
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: devcollab-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - xpack.security.enabled=false
+    ports:
+      - "9200:9200"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    networks:
+      - devcollab-network
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.11.0
+    container_name: devcollab-kibana
+    ports:
+      - "5601:5601"
+    environment:
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+    depends_on:
+      - elasticsearch
+    networks:
+      - devcollab-network
+
+  # 消息队列
+  kafka:
+    image: confluentinc/cp-kafka:latest
+    container_name: devcollab-kafka
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    depends_on:
+      - zookeeper
+    networks:
+      - devcollab-network
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:latest
+    container_name: devcollab-zookeeper
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    networks:
+      - devcollab-network
+
+  # 应用服务 (开发环境)
+  api-gateway:
+    build:
+      context: .
+      dockerfile: deployments/docker/Dockerfile.api-gateway
+    container_name: devcollab-api-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      - JWT_SECRET=development_jwt_secret_key_32_chars_minimum_here_safe
+      - DATABASE_HOST=postgres
+      - DATABASE_PASSWORD=dev_password_123
+      - REDIS_HOST=redis
+      - KAFKA_BROKERS=kafka:9092
+    depends_on:
+      - postgres
+      - redis
+      - kafka
+    networks:
+      - devcollab-network
+    profiles:
+      - app  # 只在指定profile时启动
+
+  project-service:
+    build:
+      context: .
+      dockerfile: deployments/docker/Dockerfile.project-service
+    container_name: devcollab-project-service
+    ports:
+      - "8082:8082"
+    environment:
+      - JWT_SECRET=development_jwt_secret_key_32_chars_minimum_here_safe
+      - DATABASE_HOST=postgres
+      - DATABASE_PASSWORD=dev_password_123
+      - REDIS_HOST=redis
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - devcollab-network
+    profiles:
+      - app
+
+  cicd-service:
+    build:
+      context: .
+      dockerfile: deployments/docker/Dockerfile.cicd-service
+    container_name: devcollab-cicd-service
+    ports:
+      - "8084:8084"
+    environment:
+      - JWT_SECRET=development_jwt_secret_key_32_chars_minimum_here_safe
+      - DATABASE_HOST=postgres
+      - DATABASE_PASSWORD=dev_password_123
+      - REDIS_HOST=redis
+      - DOCKER_HOST=unix:///var/run/docker.sock
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock  # Docker socket访问
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - devcollab-network
+    profiles:
+      - app
+
+volumes:
+  postgres_data:
+  redis_data:
+  prometheus_data:
+  grafana_data:
+  elasticsearch_data:
+
+networks:
+  devcollab-network:
+    driver: bridge
+
+# 使用说明:
+# 只启动基础设施: docker-compose up
+# 启动全部服务: docker-compose --profile app up
+# 只启动特定服务: docker-compose up postgres redis prometheus

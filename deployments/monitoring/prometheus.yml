@@ -1,0 +1,49 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  # - "first_rules.yml"
+  # - "second_rules.yml"
+
+scrape_configs:
+  # Prometheus自身监控
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # 应用服务监控
+  - job_name: 'api-gateway'
+    static_configs:
+      - targets: ['api-gateway:9091']
+    metrics_path: /metrics
+    scrape_interval: 30s
+
+  - job_name: 'project-service'
+    static_configs:
+      - targets: ['project-service:9091']
+    metrics_path: /metrics
+    scrape_interval: 30s
+
+  - job_name: 'cicd-service'
+    static_configs:
+      - targets: ['cicd-service:9091']
+    metrics_path: /metrics
+    scrape_interval: 30s
+
+  # 基础设施监控
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['postgres:5432']
+    scrape_interval: 30s
+
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis:6379']
+    scrape_interval: 30s
+
+  # Node Exporter (如果部署了的话)
+  - job_name: 'node'
+    static_configs:
+      - targets: ['localhost:9100']
+    scrape_interval: 30s

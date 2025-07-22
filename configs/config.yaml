@@ -78,15 +78,6 @@ email:
   from_address: "noreply@company.com"
   from_name: "Collaborative Platform"
 
-# 对象存储配置
-storage:
-  type: "s3"  # s3, minio, local
-  endpoint: "https://s3.amazonaws.com"
-  bucket: "collaborative-platform-storage"
-  access_key: "${STORAGE_ACCESS_KEY}"
-  secret_key: "${STORAGE_SECRET_KEY}"
-  region: "us-east-1"
-
 # 缓存配置
 cache:
   default_ttl: "1h"
@@ -116,6 +107,53 @@ features:
   enable_audit_log: true
   enable_2fa: false
   enable_webhook: true
+
+# CI/CD服务配置
+cicd:
+  scheduler:
+    worker_count: 5
+    queue_size: 1000
+    poll_interval: "10s"
+    job_timeout: "30m"
+    max_retries: 3
+    enable_priority: true
+    enable_load_balance: true
+  
+  runner:
+    pool_size: 10
+    heartbeat_interval: "30s"
+    max_idle_time: "5m"
+    enable_auto_scale: false
+  
+  executor:
+    max_concurrent_jobs: 10
+    default_timeout: "30m"
+    enable_auto_cleanup: true
+
+# 存储配置
+storage:
+  type: "local"  # local, s3, minio
+  local:
+    base_path: "/var/lib/cicd/storage"
+    max_file_size: 104857600  # 100MB
+    allowed_exts: [".tar.gz", ".zip", ".log", ".txt"]
+  s3:
+    region: "us-east-1"
+    bucket: "collaborative-platform-storage"
+    access_key_id: "${STORAGE_ACCESS_KEY}"
+    secret_access_key: "${STORAGE_SECRET_KEY}"
+    endpoint: ""
+    use_ssl: true
+  cache:
+    type: "memory"
+    ttl: "30m"
+    max_size: 52428800      # 50MB
+    max_entries: 1000
+  artifact:
+    retention_days: 30
+    max_size_per_job: 524288000   # 500MB
+    max_total_size: 10737418240   # 10GB
+    compression_type: "gzip"
 
 ---
 # 生产环境配置覆盖

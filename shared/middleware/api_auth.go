@@ -149,8 +149,8 @@ func RequireAPIScope(tokenService *services.APITokenService, resource, action st
 	}
 }
 
-// RateLimitMiddleware creates middleware for API rate limiting
-func RateLimitMiddleware(tokenService *services.APITokenService) gin.HandlerFunc {
+// APITokenRateLimitMiddleware creates middleware for API rate limiting
+func APITokenRateLimitMiddleware(tokenService *services.APITokenService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Only apply rate limiting to API tokens
 		tokenID, exists := c.Get("api_token_id")

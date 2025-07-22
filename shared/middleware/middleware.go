@@ -118,12 +118,6 @@ func Recovery(log logger.Logger) gin.HandlerFunc {
 	})
 }
 
-// RateLimit 限流中间件配置
-type RateLimitConfig struct {
-	RequestsPerMinute int
-	BurstSize         int
-}
-
 // TenantMiddleware 租户中间件
 func TenantMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {

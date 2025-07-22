@@ -310,6 +310,7 @@ type ArtifactConfig struct {
 type CICDConfig struct {
 	Scheduler SchedulerConfig `mapstructure:"scheduler"`
 	Runner    RunnerConfig    `mapstructure:"runner"`
+	Executor  ExecutorConfig  `mapstructure:"executor"`
 }
 
 // SchedulerConfig 调度器配置
@@ -329,6 +330,13 @@ type RunnerConfig struct {
 	HeartbeatInterval time.Duration `mapstructure:"heartbeat_interval" default:"30s"`
 	MaxIdleTime       time.Duration `mapstructure:"max_idle_time" default:"5m"`
 	EnableAutoScale   bool          `mapstructure:"enable_auto_scale" default:"false"`
+}
+
+// ExecutorConfig 执行器配置
+type ExecutorConfig struct {
+	MaxConcurrentJobs int           `mapstructure:"max_concurrent_jobs" default:"10"`
+	DefaultTimeout    time.Duration `mapstructure:"default_timeout" default:"30m"`
+	EnableAutoCleanup bool          `mapstructure:"enable_auto_cleanup" default:"true"`
 }
 
 // ToStorageConfig 转换为存储配置

@@ -24,6 +24,7 @@ import (
 	"github.com/cloud-platform/collaborative-dev/shared/logger"
 	"github.com/cloud-platform/collaborative-dev/shared/middleware"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
 
@@ -140,19 +141,7 @@ func main() {
 	// 创建Docker管理器
 	dockerConfig := docker.DefaultManagerConfig()
 	
-	// 从全局配置更新Docker配置
-	if cfg.CICD.Docker.Host != "" {
-		dockerConfig.DockerHost = cfg.CICD.Docker.Host
-	}
-	if cfg.CICD.Docker.MaxContainers > 0 {
-		dockerConfig.MaxContainers = cfg.CICD.Docker.MaxContainers
-	}
-	if cfg.CICD.Docker.CleanupInterval > 0 {
-		dockerConfig.CleanupInterval = cfg.CICD.Docker.CleanupInterval
-	}
-	dockerConfig.EnableMonitoring = cfg.CICD.Docker.EnableMonitoring
-	dockerConfig.EnableAutoCleanup = cfg.CICD.Docker.EnableAutoCleanup
-	
+	// 使用默认Docker配置
 	dockerManager, err := docker.NewDockerManager(dockerConfig, zapLoggerInstance)
 	if err != nil {
 		zapLoggerInstance.Fatal("Failed to create Docker manager", zap.Error(err))
@@ -204,7 +193,7 @@ func main() {
 	
 	// 创建流水线触发器
 	pipelineTriggerConfig := webhook.PipelineTriggerConfig{
-		DefaultTimeout:    time.Duration(cfg.CICD.Executor.DefaultTimeout) * time.Second,
+		DefaultTimeout:    cfg.CICD.Executor.DefaultTimeout,
 		MaxConcurrentJobs: cfg.CICD.Scheduler.WorkerCount,
 		RetryAttempts:     3,
 		RetryInterval:     30 * time.Second,

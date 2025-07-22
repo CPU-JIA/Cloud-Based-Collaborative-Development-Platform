@@ -1,0 +1,41 @@
+# 安全测试配置文件
+server:
+  host: "127.0.0.1"
+  port: 8081
+  environment: "development"
+
+security:
+  cors_allowed_origins:
+    - "http://localhost:3000"
+    - "http://127.0.0.1:3000"
+  trusted_proxies:
+    - "127.0.0.1"
+    - "10.0.0.0/8"
+  csrf_secret: "test-csrf-secret-for-development-only"
+  max_request_size: "10MB"
+
+auth:
+  jwt_secret: "development-jwt-secret-change-in-production"
+  jwt_expiration: "24h"
+
+database:
+  host: "localhost"
+  port: 5432
+  name: "collab_test"
+  user: "postgres"
+  password: "postgres"
+  ssl_mode: "disable"
+
+redis:
+  host: "localhost"
+  port: 6379
+  password: ""
+  db: 1
+
+log:
+  level: "debug"
+  format: "json"
+  output: "stdout"
+
+monitor:
+  enabled: false
