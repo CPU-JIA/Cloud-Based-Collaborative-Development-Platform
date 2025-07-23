@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>企业协作开发平台 - 演示版</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+        
+        .status-badge {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 8px 16px;
+            border-radius: 20px;
+            display: inline-block;
+            font-weight: 500;
+        }
+        
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s ease;
+        }
+        
+        .card:hover {
+            transform: translateY(-2px);
+        }
+        
+        .card h3 {
+            color: #4f46e5;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #f3f4f6;
+        }
+        
+        .metric:last-child {
+            border-bottom: none;
+        }
+        
+        .metric-value {
+            font-weight: 600;
+            color: #059669;
+        }
+        
+        .projects-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 15px;
+        }
+        
+        .project-card {
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            border-left: 4px solid #4f46e5;
+        }
+        
+        .project-status {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+        
+        .status-active {
+            background: #dcfce7;
+            color: #166534;
+        }
+        
+        .status-planning {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #f3f4f6;
+            border-radius: 3px;
+            margin: 8px 0;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4f46e5, #7c3aed);
+            border-radius: 3px;
+            transition: width 0.5s ease;
+        }
+        
+        .api-demo {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        
+        .api-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            background: #4f46e5;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: background 0.2s ease;
+        }
+        
+        .btn:hover {
+            background: #4338ca;
+        }
+        
+        .response-box {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 15px;
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-size: 0.85rem;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        
+        .loading {
+            color: #6b7280;
+            font-style: italic;
+        }
+        
+        .emoji {
+            font-size: 1.2em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 企业协作开发平台</h1>
+            <div class="status-badge" id="platformStatus">
+                📊 正在加载系统状态...
+            </div>
+        </div>
+        
+        <div class="dashboard">
+            <div class="card">
+                <h3><span class="emoji">⚡</span> 性能指标</h3>
+                <div class="metric">
+                    <span>API响应时间</span>
+                    <span class="metric-value" id="responseTime">加载中...</span>
+                </div>
+                <div class="metric">
+                    <span>内存使用</span>
+                    <span class="metric-value" id="memoryUsage">加载中...</span>
+                </div>
+                <div class="metric">
+                    <span>系统可用性</span>
+                    <span class="metric-value" id="uptime">加载中...</span>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h3><span class="emoji">🔧</span> 服务状态</h3>
+                <div class="metric">
+                    <span>项目服务</span>
+                    <span class="metric-value" id="projectService">检查中...</span>
+                </div>
+                <div class="metric">
+                    <span>数据库</span>
+                    <span class="metric-value" id="database">检查中...</span>
+                </div>
+                <div class="metric">
+                    <span>缓存服务</span>
+                    <span class="metric-value" id="cache">检查中...</span>
+                </div>
+                <div class="metric">
+                    <span>监控系统</span>
+                    <span class="metric-value" id="monitoring">检查中...</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h3><span class="emoji">📋</span> 项目概览</h3>
+            <div class="projects-grid" id="projectsGrid">
+                <div class="loading">正在加载项目数据...</div>
+            </div>
+        </div>
+        
+        <div class="api-demo">
+            <h3><span class="emoji">🔌</span> API 功能演示</h3>
+            <div class="api-buttons">
+                <button class="btn" onclick="testHealth()">健康检查</button>
+                <button class="btn" onclick="testProjects()">获取项目列表</button>
+                <button class="btn" onclick="testTasks()">获取任务列表</button>
+                <button class="btn" onclick="testLogin()">模拟登录</button>
+                <button class="btn" onclick="createProject()">创建项目</button>
+            </div>
+            <div class="response-box" id="apiResponse">
+                点击上方按钮测试 API 功能...
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8082/api/v1';
+        
+        // 页面加载时初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            loadSystemStatus();
+            loadProjects();
+        });
+        
+        // 加载系统状态
+        async function loadSystemStatus() {
+            try {
+                const response = await fetch(`${API_BASE}/status`);
+                const data = await response.json();
+                
+                // 更新平台状态
+                document.getElementById('platformStatus').textContent = 
+                    `📊 ${data.platform_status}`;
+                
+                // 更新性能指标
+                document.getElementById('responseTime').textContent = data.performance.response_time;
+                document.getElementById('memoryUsage').textContent = data.performance.memory_usage;
+                document.getElementById('uptime').textContent = data.performance.uptime;
+                
+                // 更新服务状态
+                document.getElementById('projectService').textContent = 
+                    data.services.project_service === 'running' ? '✅ 运行中' : '❌ 异常';
+                document.getElementById('database').textContent = 
+                    data.services.database === 'configured' ? '✅ 已配置' : '❌ 异常';
+                document.getElementById('cache').textContent = 
+                    data.services.cache === 'ready' ? '✅ 就绪' : '❌ 异常';
+                document.getElementById('monitoring').textContent = 
+                    data.services.monitoring === 'active' ? '✅ 活跃' : '❌ 异常';
+            } catch (error) {
+                console.error('加载系统状态失败:', error);
+                document.getElementById('platformStatus').textContent = '⚠️ 状态加载失败';
+            }
+        }
+        
+        // 加载项目列表
+        async function loadProjects() {
+            try {
+                const response = await fetch(`${API_BASE}/projects`);
+                const data = await response.json();
+                
+                const projectsGrid = document.getElementById('projectsGrid');
+                projectsGrid.innerHTML = '';
+                
+                data.data.forEach(project => {
+                    const projectCard = document.createElement('div');
+                    projectCard.className = 'project-card';
+                    projectCard.innerHTML = `
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <h4 style="margin: 0;">${project.name}</h4>
+                            <span class="project-status status-${project.status}">
+                                ${project.status === 'active' ? '进行中' : '规划中'}
+                            </span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: ${project.progress}%"></div>
+                        </div>
+                        <div style="font-size: 0.9rem; color: #6b7280; margin-top: 5px;">
+                            进度: ${project.progress}%
+                        </div>
+                    `;
+                    projectsGrid.appendChild(projectCard);
+                });
+            } catch (error) {
+                console.error('加载项目失败:', error);
+                document.getElementById('projectsGrid').innerHTML = 
+                    '<div style="color: #ef4444;">项目数据加载失败</div>';
+            }
+        }
+        
+        // API 测试函数
+        async function apiCall(endpoint, options = {}) {
+            const responseBox = document.getElementById('apiResponse');
+            responseBox.textContent = '🔄 请求中...';
+            responseBox.className = 'response-box loading';
+            
+            try {
+                const response = await fetch(`${API_BASE}${endpoint}`, {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...options.headers
+                    },
+                    ...options
+                });
+                
+                const data = await response.json();
+                responseBox.textContent = JSON.stringify(data, null, 2);
+                responseBox.className = 'response-box';
+            } catch (error) {
+                responseBox.textContent = `❌ 错误: ${error.message}`;
+                responseBox.className = 'response-box';
+            }
+        }
+        
+        function testHealth() {
+            apiCall('/health');
+        }
+        
+        function testProjects() {
+            apiCall('/projects');
+        }
+        
+        function testTasks() {
+            apiCall('/projects/1/tasks');
+        }
+        
+        function testLogin() {
+            apiCall('/auth/login', {
+                method: 'POST',
+                body: JSON.stringify({
+                    username: 'demo@example.com',
+                    password: 'demo123'
+                })
+            });
+        }
+        
+        function createProject() {
+            apiCall('/projects', {
+                method: 'POST',
+                body: JSON.stringify({
+                    name: '新建演示项目',
+                    description: '这是一个演示项目'
+                })
+            });
+        }
+    </script>
+</body>
+</html>

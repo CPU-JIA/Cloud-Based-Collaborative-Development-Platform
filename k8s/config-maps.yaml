@@ -1,0 +1,159 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-tuning-config
+  namespace: devcollab-prod
+data:
+  postgresql.conf: |
+    # 性能调优配置
+    max_connections = 200
+    shared_buffers = 256MB
+    effective_cache_size = 1GB
+    maintenance_work_mem = 64MB
+    checkpoint_completion_target = 0.9
+    wal_buffers = 16MB
+    default_statistics_target = 100
+    random_page_cost = 1.1
+    effective_io_concurrency = 200
+    work_mem = 4MB
+    min_wal_size = 1GB
+    max_wal_size = 4GB
+    max_worker_processes = 8
+    max_parallel_workers_per_gather = 2
+    max_parallel_workers = 8
+    max_parallel_maintenance_workers = 2
+    
+    # 日志配置
+    log_destination = 'stderr'
+    logging_collector = on
+    log_directory = 'pg_log'
+    log_filename = 'postgresql-%Y-%m-%d_%H%M%S.log'
+    log_file_mode = 0600
+    log_truncate_on_rotation = on
+    log_rotation_age = 1d
+    log_rotation_size = 100MB
+    log_min_duration_statement = 1000
+    log_line_prefix = '%t [%p-%l] %q%u@%d '
+    log_lock_waits = on
+    log_statement = 'ddl'
+    log_temp_files = 10MB
+    
+    # 多租户RLS优化
+    row_security = on
+    
+    # 连接和认证
+    ssl = on
+    ssl_cert_file = 'server.crt'
+    ssl_key_file = 'server.key'
+    ssl_ca_file = 'ca.crt'
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-cluster-config
+  namespace: devcollab-prod
+data:
+  redis.conf: |
+    # 基础配置
+    port 6379
+    tcp-backlog 511
+    timeout 0
+    tcp-keepalive 300
+    
+    # 内存配置
+    maxmemory 512mb
+    maxmemory-policy allkeys-lru
+    
+    # 持久化配置
+    save 900 1
+    save 300 10
+    save 60 10000
+    stop-writes-on-bgsave-error yes
+    rdbcompression yes
+    rdbchecksum yes
+    dbfilename dump.rdb
+    dir /data
+    
+    # AOF配置
+    appendonly yes
+    appendfilename "appendonly.aof"
+    appendfsync everysec
+    no-appendfsync-on-rewrite no
+    auto-aof-rewrite-percentage 100
+    auto-aof-rewrite-min-size 64mb
+    aof-load-truncated yes
+    aof-use-rdb-preamble yes
+    
+    # 安全配置
+    requirepass ${REDIS_PASSWORD}
+    
+    # 集群配置
+    cluster-enabled yes
+    cluster-config-file nodes.conf
+    cluster-node-timeout 5000
+    cluster-announce-ip ${POD_IP}
+    cluster-announce-port 6379
+    cluster-announce-bus-port 16379
+    
+    # 慢日志配置
+    slowlog-log-slower-than 10000
+    slowlog-max-len 128
+    
+    # 客户端配置
+    maxclients 10000
+    
+    # 网络配置
+    bind 0.0.0.0
+    protected-mode no
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: devcollab-prod
+data:
+  LOG_LEVEL: "INFO"
+  GIN_MODE: "release"
+  API_VERSION: "v1"
+  CORS_ALLOW_ORIGINS: "*"
+  CORS_ALLOW_METHODS: "GET,POST,PUT,DELETE,OPTIONS"
+  CORS_ALLOW_HEADERS: "Origin,Content-Type,Authorization,X-Requested-With"
+  
+  # JWT配置
+  JWT_EXPIRATION_HOURS: "24"
+  REFRESH_TOKEN_EXPIRATION_DAYS: "7"
+  
+  # 限流配置
+  RATE_LIMIT_REQUESTS: "100"
+  RATE_LIMIT_WINDOW_MINUTES: "1"
+  
+  # 文件上传配置
+  MAX_FILE_SIZE_MB: "50"
+  ALLOWED_FILE_TYPES: "jpg,png,gif,pdf,doc,docx,xls,xlsx,ppt,pptx,txt,md"
+  
+  # Git配置
+  GIT_MAX_REPOSITORY_SIZE_GB: "10"
+  GIT_DEFAULT_BRANCH: "main"
+  GIT_WEBHOOK_SECRET: "webhook-secret-key-change-me"
+  
+  # CI/CD配置
+  CICD_MAX_BUILD_TIME_MINUTES: "60"
+  CICD_MAX_CONCURRENT_JOBS: "10"
+  CICD_DEFAULT_RUNNER_IMAGE: "alpine:latest"
+  
+  # 监控配置
+  METRICS_ENABLED: "true"
+  METRICS_PATH: "/metrics"
+  HEALTH_CHECK_PATH: "/health"
+  READY_CHECK_PATH: "/ready"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: devcollab-tls-secret
+  namespace: devcollab-prod
+type: kubernetes.io/tls
+data:
+  # 这些是示例证书，生产环境需要使用真实证书
+  tls.crt: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURQVENDQWlXZ0F3SUJBZ0lVTjNjdWZRTVBNTi9xd09BdVYxTjRSNVF5RGhJd0RRWUpLb1pJaHZjTkFRRUwKQlFBd0xERXFNQ2dHQTFVRUF3d2hZWEJwTG1SbGRtTnZiR3hoWWk1amJHOTFaQzVzYjJOaGJEcG9kSFJ3Y3k1NApaM0F6TG1GMWRHTXdIaGNOTWpRd01UTXdNRFl6TmpNNFdoY05NalV3TVRJNE1EWXpOakU0V2pBc01Tb3dLQVlEClZRUUREQ0ZoY0drdVpHVjJZMjlzYkdGaUxtTnNiM1ZrTG14dlkyRnNPbWgwZEhCek9sOWJOak14YW1Ga2JpQgpWUVFBQUFBQUJLQUFBQUVBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBCkFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUEKQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQQpBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBCkFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUEKQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQQpBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBCkFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUEKQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQQpBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBCi0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0K
+  tls.key: LS0tLS1CRUdJTiBQUklWQVRFIEtFWS0tLS0tCk1JSUV2Z0lCQURBTkJna3Foa2lHOXcwQkFRRUZBQVNDQktnd2dnU2tBZ0VBQW9JQkFRRFFCRFFBQUFBQUJLQUEKQUFFQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBCkFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUEKQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQQpBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBCkFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUEKQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQQpBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBCkFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUEKQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQQpBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBCi0tLS0tRU5EIFBSSVZBVEUgS0VZLS0tLS0K

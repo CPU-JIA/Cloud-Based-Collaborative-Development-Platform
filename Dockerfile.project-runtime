@@ -1,0 +1,31 @@
+# 简单运行时镜像
+FROM alpine:latest
+
+# 安装必要工具
+RUN apk --no-cache add ca-certificates tzdata curl
+
+# 创建非root用户
+RUN addgroup -g 1000 appuser && \
+    adduser -D -s /bin/sh -u 1000 -G appuser appuser
+
+# 设置工作目录
+WORKDIR /app
+
+# 复制静态编译的二进制文件
+COPY bin/project-service-static ./project-service
+
+# 设置可执行权限和更改所有权
+RUN chmod +x project-service && chown appuser:appuser project-service
+
+# 切换到非root用户
+USER appuser
+
+# 暴露端口
+EXPOSE 8080
+
+# 健康检查
+HEALTHCHECK --interval=30s --timeout=3s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:8080/health || exit 1
+
+# 启动应用
+CMD ["./project-service"]

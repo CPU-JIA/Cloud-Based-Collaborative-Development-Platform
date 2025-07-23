@@ -171,13 +171,34 @@ services:
     ports:
       - "8082:8082"
     environment:
+      # 服务器配置
+      - SERVER_PORT=8082
+      # 认证配置
       - JWT_SECRET=development_jwt_secret_key_32_chars_minimum_here_safe
+      # 数据库配置 - 使用完整环境变量名称
       - DATABASE_HOST=postgres
+      - DATABASE_PORT=5432
+      - DATABASE_NAME=devcollab_development
+      - DATABASE_USER=devcollab_dev
       - DATABASE_PASSWORD=dev_password_123
+      - DATABASE_SSL_MODE=disable
+      # Redis配置  
       - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      # Kafka配置
+      - KAFKA_BROKERS=kafka:9092
+      # 调试配置
+      - GIN_MODE=debug
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8082/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
     networks:
       - devcollab-network
     profiles:

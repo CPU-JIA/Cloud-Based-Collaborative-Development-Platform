@@ -1,0 +1,298 @@
+# Docker Compose - 生产环境模拟
+version: '3.8'
+
+services:
+  # PostgreSQL 主库
+  postgres-master:
+    image: postgres:15-alpine
+    container_name: devcollab-postgres-master
+    environment:
+      POSTGRES_DB: devcollab_production
+      POSTGRES_USER: devcollab_prod_user
+      POSTGRES_PASSWORD: devcollab_prod_pass
+      POSTGRES_REPLICATION_USER: replicator
+      POSTGRES_REPLICATION_PASSWORD: replicator_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_master_data:/var/lib/postgresql/data
+      - ./k8s/postgres-master.conf:/etc/postgresql/postgresql.conf:ro
+    command: >
+      postgres 
+      -c config_file=/etc/postgresql/postgresql.conf
+      -c logging_collector=on
+      -c log_directory=/var/lib/postgresql/data/pg_log
+      -c log_filename=postgresql-%Y-%m-%d.log
+    networks:
+      - devcollab-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U devcollab_prod_user -d devcollab_production"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # PostgreSQL 从库1
+  postgres-slave-1:
+    image: postgres:15-alpine
+    container_name: devcollab-postgres-slave-1
+    environment:
+      POSTGRES_DB: devcollab_production
+      POSTGRES_USER: devcollab_prod_user
+      POSTGRES_PASSWORD: devcollab_prod_pass
+      PGUSER: postgres
+      POSTGRES_MASTER_SERVICE: postgres-master
+      POSTGRES_REPLICATION_USER: replicator
+      POSTGRES_REPLICATION_PASSWORD: replicator_pass
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_slave1_data:/var/lib/postgresql/data
+    depends_on:
+      postgres-master:
+        condition: service_healthy
+    networks:
+      - devcollab-network
+
+  # Redis 集群节点
+  redis-node-1:
+    image: redis:7-alpine
+    container_name: devcollab-redis-1
+    command: >
+      redis-server
+      --port 6379
+      --cluster-enabled yes
+      --cluster-config-file nodes.conf
+      --cluster-node-timeout 5000
+      --appendonly yes
+      --requirepass redis_prod_pass_123
+    ports:
+      - "7001:6379"
+      - "17001:16379"
+    volumes:
+      - redis1_data:/data
+    networks:
+      - devcollab-network
+
+  redis-node-2:
+    image: redis:7-alpine
+    container_name: devcollab-redis-2
+    command: >
+      redis-server
+      --port 6379
+      --cluster-enabled yes
+      --cluster-config-file nodes.conf
+      --cluster-node-timeout 5000
+      --appendonly yes
+      --requirepass redis_prod_pass_123
+    ports:
+      - "7002:6379"
+      - "17002:16379"
+    volumes:
+      - redis2_data:/data
+    networks:
+      - devcollab-network
+
+  redis-node-3:
+    image: redis:7-alpine
+    container_name: devcollab-redis-3
+    command: >
+      redis-server
+      --port 6379
+      --cluster-enabled yes
+      --cluster-config-file nodes.conf
+      --cluster-node-timeout 5000
+      --appendonly yes
+      --requirepass redis_prod_pass_123
+    ports:
+      - "7003:6379"
+      - "17003:16379"
+    volumes:
+      - redis3_data:/data
+    networks:
+      - devcollab-network
+
+  # IAM 服务
+  iam-service:
+    build:
+      context: .
+      dockerfile: cmd/iam-service/Dockerfile
+    container_name: devcollab-iam-service
+    environment:
+      POSTGRES_HOST: postgres-master
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: devcollab_production
+      POSTGRES_USER: devcollab_prod_user
+      POSTGRES_PASSWORD: devcollab_prod_pass
+      REDIS_HOST: redis-node-1
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: redis_prod_pass_123
+      JWT_SECRET_KEY: super-secure-jwt-key-for-production-environment-32characters
+      GIN_MODE: release
+      LOG_LEVEL: INFO
+    ports:
+      - "8001:8080"
+    depends_on:
+      postgres-master:
+        condition: service_healthy
+      redis-node-1:
+        condition: service_started
+    networks:
+      - devcollab-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Project 服务
+  project-service:
+    build:
+      context: .
+      dockerfile: cmd/project-service/Dockerfile
+    container_name: devcollab-project-service
+    environment:
+      POSTGRES_HOST: postgres-master
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: devcollab_production
+      POSTGRES_USER: devcollab_prod_user
+      POSTGRES_PASSWORD: devcollab_prod_pass
+      JWT_SECRET_KEY: super-secure-jwt-key-for-production-environment-32characters
+      IAM_SERVICE_URL: http://iam-service:8080
+      GIN_MODE: release
+      LOG_LEVEL: INFO
+    ports:
+      - "8002:8080"
+    depends_on:
+      postgres-master:
+        condition: service_healthy
+      iam-service:
+        condition: service_healthy
+    networks:
+      - devcollab-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Git Gateway 服务
+  git-gateway-service:
+    build:
+      context: .
+      dockerfile: cmd/git-gateway/Dockerfile
+    container_name: devcollab-git-gateway
+    environment:
+      POSTGRES_HOST: postgres-master
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: devcollab_production
+      POSTGRES_USER: devcollab_prod_user
+      POSTGRES_PASSWORD: devcollab_prod_pass
+      JWT_SECRET_KEY: super-secure-jwt-key-for-production-environment-32characters
+      IAM_SERVICE_URL: http://iam-service:8080
+      PROJECT_SERVICE_URL: http://project-service:8080
+      GIN_MODE: release
+      LOG_LEVEL: INFO
+    ports:
+      - "8003:8080"
+    volumes:
+      - git_repositories:/var/git/repositories
+    depends_on:
+      postgres-master:
+        condition: service_healthy
+      iam-service:
+        condition: service_healthy
+      project-service:
+        condition: service_healthy
+    networks:
+      - devcollab-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Prometheus 监控
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: devcollab-prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus/'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    networks:
+      - devcollab-network
+    restart: unless-stopped
+
+  # Grafana 可视化
+  grafana:
+    image: grafana/grafana:latest
+    container_name: devcollab-grafana
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin_change_me_123
+      GF_INSTALL_PLUGINS: grafana-clock-panel,grafana-simple-json-datasource
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+    depends_on:
+      - prometheus
+    networks:
+      - devcollab-network
+    restart: unless-stopped
+
+  # Nginx 负载均衡器
+  nginx:
+    image: nginx:alpine
+    container_name: devcollab-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - iam-service
+      - project-service
+      - git-gateway-service
+    networks:
+      - devcollab-network
+    restart: unless-stopped
+
+volumes:
+  postgres_master_data:
+    driver: local
+  postgres_slave1_data:
+    driver: local
+  redis1_data:
+    driver: local
+  redis2_data:
+    driver: local
+  redis3_data:
+    driver: local
+  git_repositories:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+
+networks:
+  devcollab-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

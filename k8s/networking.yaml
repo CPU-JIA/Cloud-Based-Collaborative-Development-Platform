@@ -1,0 +1,249 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+  name: devcollab-gateway
+  namespace: devcollab-prod
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+  - port:
+      number: 80
+      name: http
+      protocol: HTTP
+    hosts:
+    - api.devcollab.cloud
+    tls:
+      httpsRedirect: true
+  - port:
+      number: 443
+      name: https
+      protocol: HTTPS
+    tls:
+      mode: SIMPLE
+      credentialName: devcollab-tls-secret
+    hosts:
+    - api.devcollab.cloud
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: devcollab-vs
+  namespace: devcollab-prod
+spec:
+  hosts:
+  - api.devcollab.cloud
+  gateways:
+  - devcollab-gateway
+  http:
+  - match:
+    - uri:
+        prefix: /api/v1/auth
+    route:
+    - destination:
+        host: iam-service
+        port:
+          number: 80
+    fault:
+      delay:
+        percentage:
+          value: 0.1
+        fixedDelay: 5s
+    retries:
+      attempts: 3
+      perTryTimeout: 30s
+  - match:
+    - uri:
+        prefix: /api/v1/projects
+    route:
+    - destination:
+        host: project-service
+        port:
+          number: 80
+    retries:
+      attempts: 3
+      perTryTimeout: 30s
+  - match:
+    - uri:
+        prefix: /api/v1/git
+    route:
+    - destination:
+        host: git-gateway-service
+        port:
+          number: 80
+    timeout: 60s
+    retries:
+      attempts: 2
+      perTryTimeout: 30s
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: devcollab-authz
+  namespace: devcollab-prod
+spec:
+  selector:
+    matchLabels:
+      app: iam-service
+  rules:
+  - from:
+    - source:
+        principals: ["cluster.local/ns/devcollab-prod/sa/default"]
+    to:
+    - operation:
+        methods: ["GET", "POST"]
+  - from:
+    - source:
+        namespaces: ["istio-system"]
+    to:
+    - operation:
+        methods: ["GET"]
+        paths: ["/health", "/ready", "/metrics"]
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: iam-service-dr
+  namespace: devcollab-prod
+spec:
+  host: iam-service
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 100
+      http:
+        http1MaxPendingRequests: 50
+        maxRequestsPerConnection: 10
+    loadBalancer:
+      simple: LEAST_CONN
+    outlierDetection:
+      consecutive5xxErrors: 3
+      interval: 30s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: project-service-dr
+  namespace: devcollab-prod
+spec:
+  host: project-service
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 200
+      http:
+        http1MaxPendingRequests: 100
+        maxRequestsPerConnection: 10
+    loadBalancer:
+      simple: ROUND_ROBIN
+    outlierDetection:
+      consecutive5xxErrors: 3
+      interval: 30s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 30
+---
+apiVersion: v1
+kind: NetworkPolicy
+metadata:
+  name: deny-all
+  namespace: devcollab-prod
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  - Egress
+---
+apiVersion: v1
+kind: NetworkPolicy
+metadata:
+  name: allow-iam-service
+  namespace: devcollab-prod
+spec:
+  podSelector:
+    matchLabels:
+      app: iam-service
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: istio-system
+    - podSelector:
+        matchLabels:
+          app: project-service
+    - podSelector:
+        matchLabels:
+          app: git-gateway-service
+    ports:
+    - protocol: TCP
+      port: 8080
+  egress:
+  - to:
+    - podSelector:
+        matchLabels:
+          app: postgres
+    ports:
+    - protocol: TCP
+      port: 5432
+  - to:
+    - podSelector:
+        matchLabels:
+          app: redis
+    ports:
+    - protocol: TCP
+      port: 6379
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 53
+    - protocol: UDP
+      port: 53
+---
+apiVersion: v1
+kind: NetworkPolicy
+metadata:
+  name: allow-project-service
+  namespace: devcollab-prod
+spec:
+  podSelector:
+    matchLabels:
+      app: project-service
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: istio-system
+    - podSelector:
+        matchLabels:
+          app: git-gateway-service
+    ports:
+    - protocol: TCP
+      port: 8080
+  egress:
+  - to:
+    - podSelector:
+        matchLabels:
+          app: postgres
+    ports:
+    - protocol: TCP
+      port: 5432
+  - to:
+    - podSelector:
+        matchLabels:
+          app: iam-service
+    ports:
+    - protocol: TCP
+      port: 8080
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 53
+    - protocol: UDP
+      port: 53

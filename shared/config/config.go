@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/spf13/viper"
@@ -51,20 +52,8 @@ type DatabaseConfig struct {
 }
 
 // ToDBConfig 转换为database.Config
-func (d *DatabaseConfig) ToDBConfig() interface{} {
-	return struct {
-		Host            string
-		Port            int
-		Name            string
-		User            string
-		Password        string
-		SSLMode         string
-		MaxOpenConns    int
-		MaxIdleConns    int
-		ConnMaxLifetime time.Duration
-		ConnMaxIdleTime time.Duration
-		LogLevel        interface{}
-	}{
+func (d *DatabaseConfig) ToDBConfig() DatabaseDBConfig {
+	return DatabaseDBConfig{
 		Host:            d.Host,
 		Port:            d.Port,
 		Name:            d.Name,
@@ -77,6 +66,21 @@ func (d *DatabaseConfig) ToDBConfig() interface{} {
 		ConnMaxIdleTime: d.ConnMaxIdleTime,
 		LogLevel:        "info",
 	}
+}
+
+// DatabaseDBConfig 兼容database.Config的结构
+type DatabaseDBConfig struct {
+	Host            string
+	Port            int
+	Name            string
+	User            string
+	Password        string
+	SSLMode         string
+	MaxOpenConns    int
+	MaxIdleConns    int
+	ConnMaxLifetime time.Duration
+	ConnMaxIdleTime time.Duration
+	LogLevel        interface{}
 }
 
 // RedisConfig Redis配置
@@ -170,21 +174,25 @@ func Load() (*Config, error) {
 	viper.AddConfigPath("/etc/collaborative-platform")
 	viper.AddConfigPath("$HOME/.collaborative-platform")
 
-	// 设置环境变量前缀
-	viper.SetEnvPrefix("COLLAB")
+	// 启用自动环境变量读取，但不设置前缀以避免限制
 	viper.AutomaticEnv()
 
-	// 设置环境变量映射
-	viper.BindEnv("database.host", "DATABASE_HOST")
-	viper.BindEnv("database.port", "DATABASE_PORT")
-	viper.BindEnv("database.name", "DATABASE_NAME")
-	viper.BindEnv("database.user", "DATABASE_USER")
-	viper.BindEnv("database.password", "DATABASE_PASSWORD")
+	// 直接绑定环境变量，支持多种命名格式
+	viper.BindEnv("database.host", "POSTGRES_HOST", "DATABASE_HOST")
+	viper.BindEnv("database.port", "POSTGRES_PORT", "DATABASE_PORT")
+	viper.BindEnv("database.name", "POSTGRES_DB", "DATABASE_NAME")
+	viper.BindEnv("database.user", "POSTGRES_USER", "DATABASE_USER")
+	viper.BindEnv("database.password", "POSTGRES_PASSWORD", "DATABASE_PASSWORD")
 	viper.BindEnv("redis.host", "REDIS_HOST")
 	viper.BindEnv("redis.port", "REDIS_PORT")
 	viper.BindEnv("redis.password", "REDIS_PASSWORD")
 	viper.BindEnv("kafka.brokers", "KAFKA_BROKERS")
-	viper.BindEnv("auth.jwt_secret", "JWT_SECRET")
+	viper.BindEnv("auth.jwt_secret", "JWT_SECRET_KEY", "JWT_SECRET")
+	viper.BindEnv("server.port", "SERVER_PORT")
+
+	// 添加配置调试日志
+	fmt.Printf("DEBUG: 尝试读取环境变量 POSTGRES_PASSWORD: %s\n", os.Getenv("POSTGRES_PASSWORD"))
+	fmt.Printf("DEBUG: 尝试读取环境变量 DATABASE_PASSWORD: %s\n", os.Getenv("DATABASE_PASSWORD"))
 
 	// 读取配置文件
 	if err := viper.ReadInConfig(); err != nil {
@@ -201,6 +209,36 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("解析配置失败: %w", err)
 	}
 
+	// 开发环境设置默认值以便调试
+	if cfg.IsDevelopment() || cfg.Server.Environment == "" {
+		// 设置默认服务器端口如果未配置
+		if cfg.Server.Port == 0 {
+			fmt.Println("WARN: 开发环境未设置服务器端口，使用默认端口 8082")
+			cfg.Server.Port = 8082
+		}
+		
+		// 设置默认数据库密码如果未配置
+		if cfg.Database.Password == "" {
+			fmt.Println("WARN: 开发环境未设置数据库密码，使用默认密码")
+			cfg.Database.Password = "dev_password_123" // 与Docker Compose一致
+		}
+
+		// 设置默认JWT密钥如果未配置
+		if cfg.Auth.JWTSecret == "" {
+			fmt.Println("WARN: 开发环境未设置JWT密钥，使用默认密钥")
+			cfg.Auth.JWTSecret = "development_jwt_secret_key_32_chars_minimum_here_safe"
+		}
+
+		// 输出调试信息
+		fmt.Printf("DEBUG: 解析后数据库密码: %s\n", cfg.Database.Password)
+		if len(cfg.Auth.JWTSecret) >= 16 {
+			fmt.Printf("DEBUG: 解析后JWT密钥: %s\n", cfg.Auth.JWTSecret[:16]+"...")
+		} else {
+			fmt.Printf("DEBUG: 解析后JWT密钥: %s (长度: %d)\n", cfg.Auth.JWTSecret, len(cfg.Auth.JWTSecret))
+		}
+		fmt.Printf("DEBUG: 服务器端口: %d\n", cfg.Server.Port)
+	}
+
 	// 验证必要的配置
 	if err := cfg.Validate(); err != nil {
 		return nil, fmt.Errorf("配置验证失败: %w", err)
@@ -211,16 +249,18 @@ func Load() (*Config, error) {
 
 // Validate 验证配置
 func (c *Config) Validate() error {
-	if c.Database.Password == "" {
-		return fmt.Errorf("数据库密码不能为空")
+	// 在生产环境强制要求密码，开发环境允许为空（将使用默认值）
+	if c.IsProduction() && c.Database.Password == "" {
+		return fmt.Errorf("生产环境数据库密码不能为空")
 	}
 
-	if c.Auth.JWTSecret == "" {
-		return fmt.Errorf("JWT密钥不能为空")
+	// 在生产环境强制要求JWT密钥，开发环境允许为空（将使用默认值）
+	if c.IsProduction() && c.Auth.JWTSecret == "" {
+		return fmt.Errorf("生产环境JWT密钥不能为空")
 	}
 
-	// 增强JWT密钥验证 - 要求至少32字符长度
-	if len(c.Auth.JWTSecret) < 32 {
+	// 增强JWT密钥验证 - 要求至少32字符长度（开发和生产都需要）
+	if len(c.Auth.JWTSecret) > 0 && len(c.Auth.JWTSecret) < 32 {
 		return fmt.Errorf("JWT密钥长度必须至少32字符，当前长度: %d", len(c.Auth.JWTSecret))
 	}
 
@@ -266,11 +306,11 @@ func (c *Config) IsProduction() bool {
 
 // StorageConfig 存储配置
 type StorageConfig struct {
-	Type       string              `mapstructure:"type" default:"local"`
-	Local      LocalStorageConfig  `mapstructure:"local"`
-	S3         S3StorageConfig     `mapstructure:"s3"`
-	Cache      CacheStorageConfig  `mapstructure:"cache"`
-	Artifact   ArtifactConfig      `mapstructure:"artifact"`
+	Type     string             `mapstructure:"type" default:"local"`
+	Local    LocalStorageConfig `mapstructure:"local"`
+	S3       S3StorageConfig    `mapstructure:"s3"`
+	Cache    CacheStorageConfig `mapstructure:"cache"`
+	Artifact ArtifactConfig     `mapstructure:"artifact"`
 }
 
 // LocalStorageConfig 本地存储配置
@@ -292,17 +332,17 @@ type S3StorageConfig struct {
 
 // CacheStorageConfig 缓存存储配置
 type CacheStorageConfig struct {
-	Type        string        `mapstructure:"type" default:"memory"`
-	TTL         time.Duration `mapstructure:"ttl" default:"30m"`
-	MaxSize     int64         `mapstructure:"max_size" default:"52428800"` // 50MB
-	MaxEntries  int           `mapstructure:"max_entries" default:"1000"`
+	Type       string        `mapstructure:"type" default:"memory"`
+	TTL        time.Duration `mapstructure:"ttl" default:"30m"`
+	MaxSize    int64         `mapstructure:"max_size" default:"52428800"` // 50MB
+	MaxEntries int           `mapstructure:"max_entries" default:"1000"`
 }
 
 // ArtifactConfig 构建产物配置
 type ArtifactConfig struct {
 	RetentionDays   int    `mapstructure:"retention_days" default:"30"`
-	MaxSizePerJob   int64  `mapstructure:"max_size_per_job" default:"524288000"`   // 500MB
-	MaxTotalSize    int64  `mapstructure:"max_total_size" default:"10737418240"`   // 10GB
+	MaxSizePerJob   int64  `mapstructure:"max_size_per_job" default:"524288000"` // 500MB
+	MaxTotalSize    int64  `mapstructure:"max_total_size" default:"10737418240"` // 10GB
 	CompressionType string `mapstructure:"compression_type" default:"gzip"`
 }
 

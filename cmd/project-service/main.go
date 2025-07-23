@@ -49,9 +49,21 @@ func main() {
 	}
 	defer zapLoggerInstance.Sync()
 
-	// 连接数据库
-	dbConfig := cfg.Database.ToDBConfig().(database.Config)
-	db, err := database.NewPostgresDB(dbConfig)
+	// 连接数据库 - 直接使用cfg.Database
+	databaseConfig := database.Config{
+		Host:            cfg.Database.Host,
+		Port:            cfg.Database.Port,
+		Name:            cfg.Database.Name,
+		User:            cfg.Database.User,
+		Password:        cfg.Database.Password,
+		SSLMode:         cfg.Database.SSLMode,
+		MaxOpenConns:    cfg.Database.MaxOpenConns,
+		MaxIdleConns:    cfg.Database.MaxIdleConns,
+		ConnMaxLifetime: cfg.Database.ConnMaxLifetime,
+		ConnMaxIdleTime: cfg.Database.ConnMaxIdleTime,
+		LogLevel:        1, // 设置为logger.Silent
+	}
+	db, err := database.NewPostgresDB(databaseConfig)
 	if err != nil {
 		zapLoggerInstance.Fatal("Failed to connect to database", zap.Error(err))
 	}
@@ -152,28 +164,28 @@ func main() {
 			projects.GET("/:id/repositories", projectHandler.ListRepositories)     // 获取项目仓库列表
 			
 			// 敏捷管理 - Sprint
-			projects.POST("/:projectId/sprints", agileHandler.CreateSprint)           // 创建Sprint
-			projects.GET("/:projectId/sprints", agileHandler.ListSprints)             // 获取Sprint列表
-			projects.GET("/:projectId/sprints/:sprintId", agileHandler.GetSprint)     // 获取Sprint详情
-			projects.PUT("/:projectId/sprints/:sprintId", agileHandler.UpdateSprint)  // 更新Sprint
-			projects.DELETE("/:projectId/sprints/:sprintId", agileHandler.DeleteSprint) // 删除Sprint
-			projects.POST("/:projectId/sprints/:sprintId/start", agileHandler.StartSprint)  // 启动Sprint
-			projects.POST("/:projectId/sprints/:sprintId/close", agileHandler.CloseSprint)  // 关闭Sprint
-			projects.GET("/:projectId/sprints/:sprintId/burndown", agileHandler.GetSprintBurndownData) // 燃尽图数据
+			projects.POST("/:id/sprints", agileHandler.CreateSprint)           // 创建Sprint
+			projects.GET("/:id/sprints", agileHandler.ListSprints)             // 获取Sprint列表
+			projects.GET("/:id/sprints/:sprintId", agileHandler.GetSprint)     // 获取Sprint详情
+			projects.PUT("/:id/sprints/:sprintId", agileHandler.UpdateSprint)  // 更新Sprint
+			projects.DELETE("/:id/sprints/:sprintId", agileHandler.DeleteSprint) // 删除Sprint
+			projects.POST("/:id/sprints/:sprintId/start", agileHandler.StartSprint)  // 启动Sprint
+			projects.POST("/:id/sprints/:sprintId/close", agileHandler.CloseSprint)  // 关闭Sprint
+			projects.GET("/:id/sprints/:sprintId/burndown", agileHandler.GetSprintBurndownData) // 燃尽图数据
 			
 			// 敏捷管理 - Epic
-			projects.POST("/:projectId/epics", agileHandler.CreateEpic)               // 创建Epic
-			projects.GET("/:projectId/epics", agileHandler.ListEpics)                 // 获取Epic列表
-			projects.GET("/:projectId/epics/:epicId", agileHandler.GetEpic)           // 获取Epic详情
+			projects.POST("/:id/epics", agileHandler.CreateEpic)               // 创建Epic
+			projects.GET("/:id/epics", agileHandler.ListEpics)                 // 获取Epic列表
+			projects.GET("/:id/epics/:epicId", agileHandler.GetEpic)           // 获取Epic详情
 			
 			// 敏捷管理 - 任务
-			projects.POST("/:projectId/tasks", agileHandler.CreateTask)               // 创建任务
-			projects.GET("/:projectId/tasks", agileHandler.ListTasks)                 // 获取任务列表
-			projects.GET("/:projectId/statistics", agileHandler.GetProjectStatistics) // 获取项目统计数据
+			projects.POST("/:id/tasks", agileHandler.CreateTask)               // 创建任务
+			projects.GET("/:id/tasks", agileHandler.ListTasks)                 // 获取任务列表
+			projects.GET("/:id/statistics", agileHandler.GetProjectStatistics) // 获取项目统计数据
 			
 			// 任务排序管理
-			projects.POST("/:project_id/tasks/rebalance", agileHandler.RebalanceTaskRanks)     // 重新平衡任务排名
-			projects.GET("/:project_id/tasks/validate-order", agileHandler.ValidateTaskOrder) // 验证任务排序
+			projects.POST("/:id/tasks/rebalance", agileHandler.RebalanceTaskRanks)     // 重新平衡任务排名
+			projects.GET("/:id/tasks/validate-order", agileHandler.ValidateTaskOrder) // 验证任务排序
 		}
 
 		// 任务管理路由 

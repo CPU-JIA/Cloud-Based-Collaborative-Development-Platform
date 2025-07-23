@@ -1,0 +1,137 @@
+# 生产环境基础设施 - 简化版
+version: '3.8'
+
+services:
+  # PostgreSQL 主库
+  postgres-master:
+    image: postgres:15-alpine
+    container_name: devcollab-postgres
+    environment:
+      POSTGRES_DB: devcollab_production
+      POSTGRES_USER: devcollab_prod_user
+      POSTGRES_PASSWORD: devcollab_prod_pass
+    ports:
+      - "15432:5432"  # 使用不同端口避免冲突
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - devcollab-prod
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U devcollab_prod_user -d devcollab_production"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+
+  # Redis 缓存
+  redis:
+    image: redis:7-alpine
+    container_name: devcollab-redis
+    command: >
+      redis-server
+      --requirepass redis_prod_pass_123
+      --appendonly yes
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+    ports:
+      - "16379:6379"  # 使用不同端口避免冲突
+    volumes:
+      - redis_data:/data
+    networks:
+      - devcollab-prod
+    healthcheck:
+      test: ["CMD", "redis-cli", "--no-auth-warning", "-a", "redis_prod_pass_123", "ping"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+
+  # 项目服务 (使用运行时镜像)
+  project-service:
+    image: project-service:runtime  # 使用新构建的运行时镜像
+    container_name: devcollab-project
+    environment:
+      POSTGRES_HOST: postgres-master
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: devcollab_production
+      POSTGRES_USER: devcollab_prod_user
+      POSTGRES_PASSWORD: devcollab_prod_pass
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: redis_prod_pass_123
+      JWT_SECRET_KEY: super-secure-jwt-key-for-production-environment-32characters
+      GIN_MODE: release
+      LOG_LEVEL: INFO
+    ports:
+      - "8002:8080"
+    depends_on:
+      postgres-master:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - devcollab-prod
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+
+  # Prometheus 监控
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: devcollab-prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus/'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    networks:
+      - devcollab-prod
+    restart: unless-stopped
+
+  # Grafana 可视化
+  grafana:
+    image: grafana/grafana:latest
+    container_name: devcollab-grafana
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin123
+      GF_INSTALL_PLUGINS: grafana-clock-panel
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    depends_on:
+      - prometheus
+    networks:
+      - devcollab-prod
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+
+networks:
+  devcollab-prod:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.30.0.0/16

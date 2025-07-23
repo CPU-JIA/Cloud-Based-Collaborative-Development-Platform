@@ -3,7 +3,7 @@
 
 # 服务器配置
 server:
-  port: 8080
+  port: 8082  # 修改为project-service的正确端口
   host: "0.0.0.0"
   read_timeout: "30s"
   write_timeout: "30s"
@@ -16,7 +16,7 @@ database:
   port: 5432
   name: "devcollab_development"
   user: "devcollab_dev"
-  password: "${DATABASE_PASSWORD}"
+  password: ""  # 从环境变量 DATABASE_PASSWORD 读取
   ssl_mode: "disable"
   max_open_conns: 25
   max_idle_conns: 5
@@ -27,7 +27,7 @@ database:
 redis:
   host: "localhost"
   port: 6379
-  password: "${REDIS_PASSWORD}"
+  password: ""  # 从环境变量 REDIS_PASSWORD 读取
   db: 0
   pool_size: 10
   dial_timeout: "5s"
@@ -42,7 +42,7 @@ kafka:
 
 # 认证配置
 auth:
-  jwt_secret: "${JWT_SECRET}"
+  jwt_secret: ""  # 从环境变量 JWT_SECRET 读取
   jwt_expiration: "24h"
   refresh_token_expiry: "168h"  # 7天
   password_min_length: 8
