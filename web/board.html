@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scrum看板 - 企业协作开发平台</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f8fafc;
+            color: #1a202c;
+        }
+        
+        .header {
+            background: white;
+            padding: 16px 24px;
+            border-bottom: 1px solid #e2e8f0;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+        
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .header h1 {
+            color: #2d3748;
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+        
+        .stats {
+            display: flex;
+            gap: 24px;
+            align-items: center;
+        }
+        
+        .stat-item {
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #4299e1;
+        }
+        
+        .stat-label {
+            font-size: 0.75rem;
+            color: #718096;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        
+        .main-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+        
+        .board-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .column {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            min-height: 600px;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .column-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .column-title {
+            font-weight: 600;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .column-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+        
+        .task-count {
+            background: #edf2f7;
+            color: #4a5568;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        
+        .column-content {
+            padding: 16px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .task-card {
+            background: #f7fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 16px;
+            cursor: grab;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+        
+        .task-card:hover {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            transform: translateY(-2px);
+        }
+        
+        .task-card.dragging {
+            opacity: 0.5;
+            transform: rotate(5deg);
+            cursor: grabbing;
+        }
+        
+        .task-title {
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #2d3748;
+            line-height: 1.4;
+        }
+        
+        .task-description {
+            font-size: 0.875rem;
+            color: #718096;
+            margin-bottom: 12px;
+            line-height: 1.5;
+        }
+        
+        .task-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        
+        .task-assignee {
+            background: #bee3f8;
+            color: #2b6cb0;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        
+        .task-priority {
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        
+        .priority-high {
+            background: #fed7d7;
+            color: #c53030;
+        }
+        
+        .priority-medium {
+            background: #fef5e7;
+            color: #d69e2e;
+        }
+        
+        .priority-low {
+            background: #c6f6d5;
+            color: #38a169;
+        }
+        
+        .task-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.75rem;
+            color: #a0aec0;
+        }
+        
+        .story-points {
+            background: #4299e1;
+            color: white;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 0.7rem;
+        }
+        
+        .add-task-btn {
+            background: #e2e8f0;
+            border: 2px dashed #cbd5e0;
+            border-radius: 8px;
+            padding: 12px;
+            text-align: center;
+            color: #718096;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 0.875rem;
+        }
+        
+        .add-task-btn:hover {
+            background: #edf2f7;
+            border-color: #a0aec0;
+            color: #4a5568;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        
+        .btn {
+            background: #4299e1;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.875rem;
+            transition: background 0.2s ease;
+        }
+        
+        .btn:hover {
+            background: #3182ce;
+        }
+        
+        .btn-secondary {
+            background: #e2e8f0;
+            color: #4a5568;
+        }
+        
+        .btn-secondary:hover {
+            background: #cbd5e0;
+        }
+        
+        .drop-zone {
+            border: 2px dashed #4299e1;
+            background: rgba(66, 153, 225, 0.1);
+            border-radius: 8px;
+            margin: 8px 0;
+            min-height: 100px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #4299e1;
+            font-weight: 500;
+        }
+        
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #48bb78;
+            color: white;
+            padding: 12px 16px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+            z-index: 1000;
+        }
+        
+        .notification.show {
+            transform: translateX(0);
+        }
+        
+        .notification.success {
+            background: #48bb78;
+        }
+        
+        .notification.error {
+            background: #f56565;
+        }
+        
+        .notification.warning {
+            background: #ed8936;
+        }
+        
+        .notification.info {
+            background: #4299e1;
+        }
+        
+        @media (max-width: 768px) {
+            .board-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .stats {
+                gap: 16px;
+            }
+            
+            .header-content {
+                flex-direction: column;
+                gap: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-content">
+            <h1>🚀 Scrum看板 - 企业协作开发平台</h1>
+            <div class="stats" id="boardStats">
+                <div class="stat-item">
+                    <div class="stat-value" id="totalTasks">-</div>
+                    <div class="stat-label">总任务</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="completionRate">-</div>
+                    <div class="stat-label">完成率</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="velocity">-</div>
+                    <div class="stat-label">故事点</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="main-content">
+        <div class="controls">
+            <button class="btn" onclick="loadBoard()">🔄 刷新看板</button>
+            <button class="btn btn-secondary" onclick="showCreateTaskModal()">➕ 创建任务</button>
+            <button class="btn btn-secondary" onclick="toggleAutoRefresh()">⚡ 自动刷新</button>
+        </div>
+        
+        <div class="board-container" id="boardContainer">
+            <!-- 看板列将动态生成 -->
+        </div>
+    </div>
+    
+    <div class="notification" id="notification"></div>
+
+    <script>
+        const API_BASE = 'http://localhost:8082/api/v1';
+        const WS_URL = 'ws://localhost:8082/ws';
+        let boardData = null;
+        let tasksData = [];
+        let autoRefreshInterval = null;
+        let websocket = null;
+        
+        // 页面加载时初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            loadBoard();
+            loadTasks();
+            setupDragAndDrop();
+            connectWebSocket();
+        });
+        
+        // WebSocket连接
+        function connectWebSocket() {
+            try {
+                websocket = new WebSocket(WS_URL);
+                
+                websocket.onopen = function(event) {
+                    console.log('WebSocket连接成功');
+                    showNotification('🔗 实时通知已连接', 'success');
+                };
+                
+                websocket.onmessage = function(event) {
+                    const data = JSON.parse(event.data);
+                    handleWebSocketMessage(data);
+                };
+                
+                websocket.onclose = function(event) {
+                    console.log('WebSocket连接关闭');
+                    showNotification('⚠️ 实时通知连接断开', 'warning');
+                    
+                    // 5秒后重连
+                    setTimeout(connectWebSocket, 5000);
+                };
+                
+                websocket.onerror = function(error) {
+                    console.error('WebSocket错误:', error);
+                    showNotification('❌ 实时通知连接失败', 'error');
+                };
+            } catch (error) {
+                console.error('WebSocket连接失败:', error);
+                setTimeout(connectWebSocket, 5000);
+            }
+        }
+        
+        // 处理WebSocket消息
+        function handleWebSocketMessage(data) {
+            console.log('收到WebSocket消息:', data);
+            
+            switch(data.type) {
+                case 'welcome':
+                    console.log('WebSocket欢迎消息:', data.message);
+                    break;
+                    
+                case 'task_updated':
+                    showNotification(`📝 ${data.message}`, 'info');
+                    // 刷新任务数据
+                    loadTasks();
+                    loadBoard();
+                    break;
+                    
+                case 'project_updated':
+                    showNotification(`📊 项目已更新`, 'info');
+                    loadBoard();
+                    break;
+                    
+                case 'user_joined':
+                    showNotification(`👋 ${data.data.username} 加入了协作`, 'info');
+                    break;
+                    
+                case 'broadcast':
+                    showNotification(`📢 ${data.message}`, 'info');
+                    break;
+                    
+                default:
+                    console.log('未知消息类型:', data.type);
+            }
+        }
+        
+        // 加载看板数据
+        async function loadBoard() {
+            try {
+                const response = await fetch(`${API_BASE}/projects/1/board`);
+                boardData = await response.json();
+                updateBoardStats();
+                renderBoard();
+            } catch (error) {
+                console.error('加载看板失败:', error);
+                showNotification('❌ 看板数据加载失败', 'error');
+            }
+        }
+        
+        // 加载任务数据
+        async function loadTasks() {
+            try {
+                const response = await fetch(`${API_BASE}/projects/1/tasks`);
+                const data = await response.json();
+                tasksData = data.data || [];
+                renderTasks();
+            } catch (error) {
+                console.error('加载任务失败:', error);
+                showNotification('❌ 任务数据加载失败', 'error');
+            }
+        }
+        
+        // 更新统计数据
+        function updateBoardStats() {
+            if (!boardData) return;
+            
+            document.getElementById('totalTasks').textContent = boardData.total_tasks;
+            document.getElementById('completionRate').textContent = boardData.completion_rate + '%';
+            document.getElementById('velocity').textContent = boardData.velocity;
+        }
+        
+        // 渲染看板
+        function renderBoard() {
+            if (!boardData || !boardData.columns) return;
+            
+            const container = document.getElementById('boardContainer');
+            container.innerHTML = '';
+            
+            boardData.columns.forEach(column => {
+                const columnElement = createColumnElement(column);
+                container.appendChild(columnElement);
+            });
+        }
+        
+        // 创建列元素
+        function createColumnElement(column) {
+            const columnDiv = document.createElement('div');
+            columnDiv.className = 'column';
+            columnDiv.dataset.status = column.id;
+            
+            columnDiv.innerHTML = `
+                <div class="column-header">
+                    <div class="column-title">
+                        <div class="column-indicator" style="background-color: ${column.color}"></div>
+                        ${column.title}
+                    </div>
+                    <div class="task-count">${column.count}</div>
+                </div>
+                <div class="column-content" data-status="${column.id}">
+                    <!-- 任务卡片将在这里插入 -->
+                    <div class="add-task-btn" onclick="createTaskInColumn('${column.id}')">
+                        ➕ 添加任务到 ${column.title}
+                    </div>
+                </div>
+            `;
+            
+            return columnDiv;
+        }
+        
+        // 渲染任务
+        function renderTasks() {
+            if (!tasksData.length) return;
+            
+            // 清空所有列的任务
+            document.querySelectorAll('.column-content').forEach(content => {
+                const addBtn = content.querySelector('.add-task-btn');
+                content.innerHTML = '';
+                if (addBtn) content.appendChild(addBtn);
+            });
+            
+            // 将任务放到对应的列中
+            tasksData.forEach(task => {
+                const taskElement = createTaskElement(task);
+                const columnContent = document.querySelector(`[data-status="${task.status}"]`);
+                if (columnContent) {
+                    const addBtn = columnContent.querySelector('.add-task-btn');
+                    columnContent.insertBefore(taskElement, addBtn);
+                }
+            });
+        }
+        
+        // 创建任务卡片
+        function createTaskElement(task) {
+            const taskDiv = document.createElement('div');
+            taskDiv.className = 'task-card';
+            taskDiv.draggable = true;
+            taskDiv.dataset.taskId = task.id;
+            
+            const priorityClass = `priority-${task.priority}`;
+            const createdDate = new Date(task.created_at).toLocaleDateString('zh-CN');
+            
+            taskDiv.innerHTML = `
+                <div class="task-title">${task.title}</div>
+                <div class="task-description">${task.description}</div>
+                <div class="task-meta">
+                    <div class="task-assignee">${task.assignee}</div>
+                    <div class="task-priority ${priorityClass}">${getPriorityText(task.priority)}</div>
+                </div>
+                <div class="task-footer">
+                    <span>${createdDate}</span>
+                    <div class="story-points">${task.story_points}</div>
+                </div>
+            `;
+            
+            return taskDiv;
+        }
+        
+        // 获取优先级文本
+        function getPriorityText(priority) {
+            const priorityMap = {
+                'high': '高优先级',
+                'medium': '中优先级',
+                'low': '低优先级'
+            };
+            return priorityMap[priority] || priority;
+        }
+        
+        // 设置拖拽功能
+        function setupDragAndDrop() {
+            document.addEventListener('dragstart', handleDragStart);
+            document.addEventListener('dragover', handleDragOver);
+            document.addEventListener('drop', handleDrop);
+            document.addEventListener('dragend', handleDragEnd);
+        }
+        
+        let draggedElement = null;
+        
+        function handleDragStart(e) {
+            if (e.target.classList.contains('task-card')) {
+                draggedElement = e.target;
+                e.target.classList.add('dragging');
+                
+                // 显示放置区域
+                document.querySelectorAll('.column-content').forEach(content => {
+                    if (content !== e.target.parentElement) {
+                        const dropZone = document.createElement('div');
+                        dropZone.className = 'drop-zone';
+                        dropZone.textContent = '拖拽到这里';
+                        content.insertBefore(dropZone, content.firstChild);
+                    }
+                });
+            }
+        }
+        
+        function handleDragOver(e) {
+            e.preventDefault();
+        }
+        
+        async function handleDrop(e) {
+            e.preventDefault();
+            
+            if (draggedElement && e.target.classList.contains('drop-zone')) {
+                const newStatus = e.target.parentElement.dataset.status;
+                const taskId = draggedElement.dataset.taskId;
+                
+                // 更新任务状态
+                await updateTaskStatus(taskId, newStatus);
+                
+                // 移动任务卡片
+                e.target.parentElement.insertBefore(draggedElement, e.target);
+                e.target.remove();
+                
+                showNotification('✅ 任务状态已更新', 'success');
+            }
+        }
+        
+        function handleDragEnd(e) {
+            if (e.target.classList.contains('task-card')) {
+                e.target.classList.remove('dragging');
+            }
+            
+            // 移除所有放置区域
+            document.querySelectorAll('.drop-zone').forEach(zone => zone.remove());
+            draggedElement = null;
+        }
+        
+        // 更新任务状态
+        async function updateTaskStatus(taskId, newStatus) {
+            try {
+                const response = await fetch(`${API_BASE}/projects/1/tasks/${taskId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ status: newStatus })
+                });
+                
+                if (response.ok) {
+                    // 更新本地数据
+                    const task = tasksData.find(t => t.id == taskId);
+                    if (task) {
+                        task.status = newStatus;
+                    }
+                    // 重新加载看板统计
+                    loadBoard();
+                } else {
+                    throw new Error('更新失败');
+                }
+            } catch (error) {
+                console.error('更新任务状态失败:', error);
+                showNotification('❌ 任务状态更新失败', 'error');
+            }
+        }
+        
+        // 在指定列创建任务
+        function createTaskInColumn(status) {
+            const title = prompt('任务标题:');
+            if (!title) return;
+            
+            const description = prompt('任务描述:');
+            const assignee = prompt('负责人:') || '未分配';
+            const priority = prompt('优先级 (high/medium/low):') || 'medium';
+            const storyPoints = parseInt(prompt('故事点:')) || 1;
+            
+            createTask({
+                title,
+                description: description || '',
+                assignee,
+                priority,
+                story_points: storyPoints
+            });
+        }
+        
+        // 创建任务
+        async function createTask(taskData) {
+            try {
+                const response = await fetch(`${API_BASE}/projects/1/tasks`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(taskData)
+                });
+                
+                if (response.ok) {
+                    showNotification('✅ 任务创建成功', 'success');
+                    loadTasks();
+                    loadBoard();
+                } else {
+                    throw new Error('创建失败');
+                }
+            } catch (error) {
+                console.error('创建任务失败:', error);
+                showNotification('❌ 任务创建失败', 'error');
+            }
+        }
+        
+        // 显示通知
+        function showNotification(message, type = 'success') {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.className = `notification show ${type}`;
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        }
+        
+        // 切换自动刷新
+        function toggleAutoRefresh() {
+            if (autoRefreshInterval) {
+                clearInterval(autoRefreshInterval);
+                autoRefreshInterval = null;
+                showNotification('🔄 自动刷新已关闭', 'info');
+            } else {
+                autoRefreshInterval = setInterval(() => {
+                    loadBoard();
+                    loadTasks();
+                }, 30000); // 30秒刷新一次
+                showNotification('⚡ 自动刷新已开启', 'info');
+            }
+        }
+        
+        // 显示创建任务模态框
+        function showCreateTaskModal() {
+            createTaskInColumn('todo');
+        }
+    </script>
+</body>
+</html>

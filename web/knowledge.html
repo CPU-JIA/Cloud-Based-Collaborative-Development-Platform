@@ -1,0 +1,1343 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>知识库 - 企业协作开发平台</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f7fa;
+            color: #333;
+            overflow: hidden;
+        }
+        
+        .header {
+            background: white;
+            border-bottom: 1px solid #e2e8f0;
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+        
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        
+        .logo {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #4299e1;
+            text-decoration: none;
+        }
+        
+        .document-title {
+            background: none;
+            border: none;
+            font-size: 1rem;
+            font-weight: 600;
+            color: #2d3748;
+            padding: 8px 12px;
+            border-radius: 6px;
+            transition: background 0.2s;
+            min-width: 200px;
+        }
+        
+        .document-title:hover {
+            background: #f7fafc;
+        }
+        
+        .document-title:focus {
+            outline: none;
+            background: white;
+            box-shadow: 0 0 0 2px #4299e1;
+        }
+        
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+        
+        .status-saved {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+        
+        .status-saving {
+            background: #fed7a1;
+            color: #9c4221;
+        }
+        
+        .status-error {
+            background: #fed7d7;
+            color: #742a2a;
+        }
+        
+        .btn {
+            background: #4299e1;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .btn:hover {
+            background: #3182ce;
+            transform: translateY(-1px);
+        }
+        
+        .btn-secondary {
+            background: #e2e8f0;
+            color: #4a5568;
+        }
+        
+        .btn-secondary:hover {
+            background: #cbd5e0;
+        }
+        
+        .main-container {
+            display: flex;
+            height: calc(100vh - 60px);
+        }
+        
+        .sidebar {
+            width: 300px;
+            background: white;
+            border-right: 1px solid #e2e8f0;
+            overflow-y: auto;
+        }
+        
+        .sidebar-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .sidebar-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #2d3748;
+        }
+        
+        .document-list {
+            list-style: none;
+        }
+        
+        .document-item {
+            padding: 12px 20px;
+            border-bottom: 1px solid #f7fafc;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .document-item:hover {
+            background: #f7fafc;
+        }
+        
+        .document-item.active {
+            background: #ebf8ff;
+            border-right: 3px solid #4299e1;
+        }
+        
+        .document-name {
+            font-weight: 500;
+            color: #2d3748;
+            margin-bottom: 4px;
+        }
+        
+        .document-meta {
+            font-size: 0.8rem;
+            color: #718096;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .editor-container {
+            flex: 1;
+            display: flex;
+            background: white;
+        }
+        
+        .editor-pane {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .editor-toolbar {
+            background: #f8fafc;
+            border-bottom: 1px solid #e2e8f0;
+            padding: 8px 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .toolbar-btn {
+            background: none;
+            border: 1px solid #e2e8f0;
+            padding: 6px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: all 0.2s;
+        }
+        
+        .toolbar-btn:hover {
+            background: white;
+            border-color: #cbd5e0;
+        }
+        
+        .toolbar-btn.active {
+            background: #4299e1;
+            color: white;
+            border-color: #4299e1;
+        }
+        
+        .editor-content {
+            flex: 1;
+            position: relative;
+        }
+        
+        .editor-textarea {
+            width: 100%;
+            height: 100%;
+            border: none;
+            outline: none;
+            padding: 20px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+            resize: none;
+            background: white;
+        }
+        
+        .preview-pane {
+            flex: 1;
+            border-left: 1px solid #e2e8f0;
+            overflow-y: auto;
+        }
+        
+        .preview-header {
+            background: #f8fafc;
+            border-bottom: 1px solid #e2e8f0;
+            padding: 12px 16px;
+            font-weight: 600;
+            color: #4a5568;
+            font-size: 0.9rem;
+        }
+        
+        .preview-content {
+            padding: 20px;
+            max-width: none;
+        }
+        
+        .preview-content h1 {
+            font-size: 2rem;
+            margin-bottom: 16px;
+            color: #2d3748;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 8px;
+        }
+        
+        .preview-content h2 {
+            font-size: 1.5rem;
+            margin: 24px 0 12px 0;
+            color: #2d3748;
+        }
+        
+        .preview-content h3 {
+            font-size: 1.2rem;
+            margin: 20px 0 8px 0;
+            color: #4a5568;
+        }
+        
+        .preview-content p {
+            margin-bottom: 12px;
+            line-height: 1.6;
+            color: #4a5568;
+        }
+        
+        .preview-content ul, .preview-content ol {
+            margin: 12px 0 12px 20px;
+        }
+        
+        .preview-content li {
+            margin-bottom: 4px;
+            line-height: 1.5;
+            color: #4a5568;
+        }
+        
+        .preview-content code {
+            background: #f7fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 3px;
+            padding: 2px 6px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 0.9em;
+            color: #e53e3e;
+        }
+        
+        .preview-content pre {
+            background: #2d3748;
+            color: #e2e8f0;
+            border-radius: 6px;
+            padding: 16px;
+            margin: 16px 0;
+            overflow-x: auto;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+        
+        .preview-content pre code {
+            background: none;
+            border: none;
+            padding: 0;
+            color: inherit;
+        }
+        
+        .preview-content blockquote {
+            border-left: 4px solid #4299e1;
+            margin: 16px 0;
+            padding: 16px 20px;
+            background: #f7fafc;
+            color: #4a5568;
+            font-style: italic;
+        }
+        
+        .preview-content table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 16px 0;
+        }
+        
+        .preview-content th,
+        .preview-content td {
+            border: 1px solid #e2e8f0;
+            padding: 8px 12px;
+            text-align: left;
+        }
+        
+        .preview-content th {
+            background: #f8fafc;
+            font-weight: 600;
+        }
+        
+        .collaboration-panel {
+            position: fixed;
+            top: 70px;
+            right: 20px;
+            width: 280px;
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            display: none;
+        }
+        
+        .collaboration-header {
+            padding: 12px 16px;
+            border-bottom: 1px solid #e2e8f0;
+            font-weight: 600;
+            color: #2d3748;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 1.2rem;
+            cursor: pointer;
+            color: #718096;
+        }
+        
+        .collaborators-list {
+            padding: 12px;
+        }
+        
+        .collaborator-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px;
+            border-radius: 6px;
+            margin-bottom: 6px;
+        }
+        
+        .collaborator-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: #4299e1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 0.8rem;
+        }
+        
+        .collaborator-info {
+            flex: 1;
+        }
+        
+        .collaborator-name {
+            font-weight: 500;
+            color: #2d3748;
+            font-size: 0.9rem;
+        }
+        
+        .collaborator-status {
+            font-size: 0.7rem;
+            color: #718096;
+        }
+        
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            display: none;
+        }
+        
+        .loading-content {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #e2e8f0;
+            border-top: 4px solid #4299e1;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .version-panel {
+            position: fixed;
+            top: 70px;
+            left: 320px;
+            width: 300px;
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            max-height: 400px;
+            overflow-y: auto;
+            display: none;
+        }
+        
+        .version-header {
+            padding: 12px 16px;
+            border-bottom: 1px solid #e2e8f0;
+            font-weight: 600;
+            color: #2d3748;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .version-list {
+            padding: 12px;
+        }
+        
+        .version-item {
+            padding: 10px;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .version-item:hover {
+            background: #f7fafc;
+            border-color: #cbd5e0;
+        }
+        
+        .version-item.current {
+            border-color: #4299e1;
+            background: #ebf8ff;
+        }
+        
+        .version-number {
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 4px;
+        }
+        
+        .version-meta {
+            font-size: 0.8rem;
+            color: #718096;
+        }
+        
+        @media (max-width: 1024px) {
+            .sidebar {
+                width: 250px;
+            }
+            
+            .collaboration-panel,
+            .version-panel {
+                width: 260px;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .main-container {
+                flex-direction: column;
+            }
+            
+            .sidebar {
+                width: 100%;
+                height: 200px;
+            }
+            
+            .editor-container {
+                flex-direction: column;
+            }
+            
+            .preview-pane {
+                border-left: none;
+                border-top: 1px solid #e2e8f0;
+            }
+            
+            .collaboration-panel,
+            .version-panel {
+                position: fixed;
+                top: 10px;
+                left: 10px;
+                right: 10px;
+                width: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 加载遮罩 -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <p>正在加载知识库...</p>
+        </div>
+    </div>
+    
+    <!-- 头部 -->
+    <div class="header">
+        <div class="header-left">
+            <a href="index.html" class="logo">📚 企业协作开发平台</a>
+            <input type="text" class="document-title" id="documentTitle" value="未命名文档" placeholder="输入文档标题...">
+        </div>
+        <div class="header-right">
+            <div class="status-indicator status-saved" id="statusIndicator">
+                <span>●</span>
+                <span>已保存</span>
+            </div>
+            <button class="btn btn-secondary" onclick="toggleVersionPanel()">
+                📝 版本历史
+            </button>
+            <button class="btn btn-secondary" onclick="toggleCollaborationPanel()">
+                👥 协作 (<span id="collaboratorCount">1</span>)
+            </button>
+            <button class="btn" onclick="saveDocument()">
+                💾 保存
+            </button>
+        </div>
+    </div>
+    
+    <!-- 主容器 -->
+    <div class="main-container">
+        <!-- 侧边栏 -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <span class="sidebar-title">我的文档</span>
+                <button class="btn" onclick="createNewDocument()" style="padding: 4px 8px; font-size: 0.8rem;">+ 新建</button>
+            </div>
+            <ul class="document-list" id="documentList">
+                <!-- 文档列表将通过JS动态生成 -->
+            </ul>
+        </div>
+        
+        <!-- 编辑器容器 -->
+        <div class="editor-container">
+            <!-- 编辑器面板 -->
+            <div class="editor-pane">
+                <div class="editor-toolbar">
+                    <button class="toolbar-btn active" onclick="setViewMode('edit')">✏️ 编辑</button>
+                    <button class="toolbar-btn" onclick="setViewMode('split')">⚡ 分屏</button>
+                    <button class="toolbar-btn" onclick="setViewMode('preview')">👁️ 预览</button>
+                    <div style="flex: 1;"></div>
+                    <button class="toolbar-btn" onclick="insertMarkdown('**粗体**')">B</button>
+                    <button class="toolbar-btn" onclick="insertMarkdown('*斜体*')">I</button>
+                    <button class="toolbar-btn" onclick="insertMarkdown('`代码`')">Code</button>
+                    <button class="toolbar-btn" onclick="insertMarkdown('\n```\n代码块\n```\n')">{ }</button>
+                </div>
+                <div class="editor-content">
+                    <textarea class="editor-textarea" id="markdownEditor" placeholder="开始编写你的Markdown文档..."></textarea>
+                </div>
+            </div>
+            
+            <!-- 预览面板 -->
+            <div class="preview-pane" id="previewPane">
+                <div class="preview-header">📖 实时预览</div>
+                <div class="preview-content" id="previewContent">
+                    <p style="color: #a0aec0; text-align: center; margin-top: 60px;">
+                        开始编写文档，这里将显示实时预览...
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 协作面板 -->
+    <div class="collaboration-panel" id="collaborationPanel">
+        <div class="collaboration-header">
+            <span>👥 在线协作者</span>
+            <button class="close-btn" onclick="toggleCollaborationPanel()">×</button>
+        </div>
+        <div class="collaborators-list" id="collaboratorsList">
+            <div class="collaborator-item">
+                <div class="collaborator-avatar">J</div>
+                <div class="collaborator-info">
+                    <div class="collaborator-name">JIA (你)</div>
+                    <div class="collaborator-status">正在编辑</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 版本历史面板 -->
+    <div class="version-panel" id="versionPanel">
+        <div class="version-header">
+            <span>📝 版本历史</span>
+            <button class="close-btn" onclick="toggleVersionPanel()">×</button>
+        </div>
+        <div class="version-list" id="versionList">
+            <!-- 版本列表将通过JS动态生成 -->
+        </div>
+    </div>
+
+    <script>
+        // 全局变量
+        let currentDocument = null;
+        let documents = [];
+        let isAutoSaving = false;
+        let viewMode = 'split'; // edit, split, preview
+        let saveTimeout = null;
+        let websocket = null;
+        
+        // API配置
+        const API_BASE = 'http://localhost:8084/api/v1';
+        const WS_BASE = 'ws://localhost:8084/ws/documents';
+        
+        // 页面加载时初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeKnowledgeBase();
+        });
+        
+        // 初始化知识库
+        async function initializeKnowledgeBase() {
+            showLoading(true);
+            
+            try {
+                // 检查登录状态
+                const token = getAuthToken();
+                if (!token) {
+                    window.location.href = 'login.html';
+                    return;
+                }
+                
+                // 加载文档列表
+                await loadDocuments();
+                
+                // 设置编辑器事件
+                setupEditor();
+                
+                // 如果有文档，选择第一个
+                if (documents.length > 0) {
+                    await selectDocument(documents[0].id);
+                } else {
+                    // 创建示例文档
+                    await createSampleDocument();
+                }
+                
+            } catch (error) {
+                console.error('初始化失败:', error);
+                showError('知识库加载失败，请刷新页面重试');
+            } finally {
+                showLoading(false);
+            }
+        }
+        
+        // 获取认证token
+        function getAuthToken() {
+            return localStorage.getItem('access_token') || sessionStorage.getItem('access_token');
+        }
+        
+        // 加载文档列表
+        async function loadDocuments() {
+            try {
+                // 使用模拟数据 (生产环境中应该调用实际API)
+                documents = [
+                    {
+                        id: 1,
+                        title: '企业协作开发平台 - 项目概述',
+                        author_email: 'jia@example.com',
+                        created_at: '2025-07-23T10:00:00Z',
+                        updated_at: '2025-07-23T12:00:00Z',
+                        version: 3,
+                        category: '项目文档',
+                        content: `# 企业协作开发平台
+
+## 🎯 项目愿景
+打造现代化的企业级协作开发平台，支持敏捷开发流程、实时协作和知识管理。
+
+## 🏗️ 核心功能
+
+### 1. 敏捷项目管理
+- Scrum看板管理
+- 任务拖拽操作
+- 进度可视化
+- 团队协作
+
+### 2. 实时通信
+- WebSocket实时通知
+- 多人协作编辑
+- 即时消息推送
+
+### 3. 知识库管理
+- **Markdown文档编辑** ✨
+- **版本控制系统** 📝
+- **实时协作编辑** 👥
+- **标签分类管理** 🏷️
+
+## 📊 技术架构
+
+### 后端技术栈
+- **语言**: Go 1.21+
+- **框架**: Gin Web Framework
+- **认证**: JWT Token
+- **实时通信**: WebSocket
+- **存储**: PostgreSQL (生产) / 内存存储 (演示)
+
+### 前端技术栈
+- **核心**: HTML5 + CSS3 + JavaScript ES6+
+- **编辑器**: 自定义Markdown编辑器
+- **实时协作**: WebSocket + Operational Transform
+- **UI框架**: 自定义响应式设计
+
+## 🚀 服务架构
+- **认证服务**: localhost:8083
+- **知识库服务**: localhost:8084  
+- **前端服务**: localhost:3001
+
+## 📈 开发进度
+- [x] 基础架构搭建
+- [x] 用户认证系统  
+- [x] Scrum看板功能
+- [x] WebSocket实时通知
+- [x] **知识库功能** ⚡ (当前页面)
+- [ ] 产品演示完善
+
+## 🔥 知识库特性演示
+
+### ✨ Markdown支持
+支持完整的Markdown语法：
+
+- **粗体文本**
+- *斜体文本*
+- \`行内代码\`
+- [链接](https://example.com)
+
+### 📝 代码高亮
+\`\`\`go
+func main() {
+    fmt.Println("Hello, Knowledge Base!")
+}
+\`\`\`
+
+### 📊 表格支持
+| 功能 | 状态 | 描述 |
+|------|------|------|
+| Markdown编辑 | ✅ 完成 | 全功能编辑器 |
+| 实时预览 | ✅ 完成 | 即时渲染 |
+| 版本控制 | ✅ 完成 | 历史记录 |
+| 多人协作 | ✅ 完成 | WebSocket同步 |
+
+---
+*最后更新: 2025-07-23*  
+*作者: Claude AI Assistant*`
+                    },
+                    {
+                        id: 2,
+                        title: '知识库 API 文档',
+                        author_email: 'jia@example.com',
+                        created_at: '2025-07-23T11:00:00Z',
+                        updated_at: '2025-07-23T11:30:00Z',
+                        version: 2,
+                        category: '技术文档',
+                        content: `# 知识库 API 文档
+
+## 🔐 认证方式
+所有API请求需要在Header中包含JWT token：
+\`\`\`
+Authorization: Bearer <your_jwt_token>
+\`\`\`
+
+## 📚 文档管理API
+
+### 获取文档列表
+\`\`\`http
+GET /api/v1/documents?page=1&page_size=10
+\`\`\`
+
+**响应示例：**
+\`\`\`json
+{
+  "data": [
+    {
+      "id": 1,
+      "title": "项目概述",
+      "author_email": "jia@example.com",
+      "created_at": "2025-07-23T10:00:00Z",
+      "updated_at": "2025-07-23T12:00:00Z",
+      "version": 3,
+      "tags": ["项目管理", "文档"]
+    }
+  ],
+  "total": 1,
+  "page": 1
+}
+\`\`\`
+
+### 创建新文档
+\`\`\`http
+POST /api/v1/documents
+Content-Type: application/json
+
+{
+  "title": "新文档标题",
+  "content": "# 文档内容\\n\\n这是一个新文档。",
+  "is_public": true,
+  "tags": ["标签1", "标签2"],
+  "category": "分类名称"
+}
+\`\`\`
+
+### 更新文档
+\`\`\`http
+PUT /api/v1/documents/{id}
+Content-Type: application/json
+
+{
+  "title": "更新的标题",
+  "content": "更新的内容",
+  "change_log": "更新说明"
+}
+\`\`\`
+
+## ⚡ 实时协作
+
+### WebSocket连接
+\`\`\`
+ws://localhost:8084/ws/documents/{document_id}?token={jwt_token}
+\`\`\`
+
+### 协作消息格式
+\`\`\`json
+{
+  "type": "edit_operation",
+  "data": {
+    "operation": "insert",
+    "position": 10,
+    "content": "新增内容",
+    "user_id": 1
+  }
+}
+\`\`\`
+
+## 📝 版本控制
+
+### 获取版本历史
+\`\`\`http
+GET /api/v1/documents/{id}/versions
+\`\`\`
+
+### 版本回滚
+\`\`\`http
+POST /api/v1/documents/{id}/rollback
+Content-Type: application/json
+
+{
+  "version": 2,
+  "reason": "回滚原因"
+}
+\`\`\`
+
+## 🚀 使用示例
+
+### JavaScript客户端
+\`\`\`javascript
+// 连接WebSocket进行实时协作
+const ws = new WebSocket(\`ws://localhost:8084/ws/documents/1?token=\${token}\`);
+
+ws.onmessage = function(event) {
+    const message = JSON.parse(event.data);
+    if (message.type === 'edit_operation') {
+        applyEdit(message.data);
+    }
+};
+
+// 发送编辑操作
+function sendEdit(operation) {
+    ws.send(JSON.stringify({
+        type: 'edit_operation',
+        data: operation
+    }));
+}
+\`\`\`
+
+---
+*API版本: v1.0.0*  
+*文档更新: 2025-07-23*`
+                    }
+                ];
+                
+                renderDocumentList();
+                
+            } catch (error) {
+                console.error('加载文档列表失败:', error);
+                throw error;
+            }
+        }
+        
+        // 渲染文档列表
+        function renderDocumentList() {
+            const listElement = document.getElementById('documentList');
+            listElement.innerHTML = '';
+            
+            documents.forEach(doc => {
+                const item = document.createElement('li');
+                item.className = 'document-item';
+                item.onclick = () => selectDocument(doc.id);
+                
+                const updatedDate = new Date(doc.updated_at).toLocaleDateString('zh-CN');
+                
+                item.innerHTML = `
+                    <div class="document-name">${doc.title}</div>
+                    <div class="document-meta">
+                        <span>v${doc.version}</span>
+                        <span>${updatedDate}</span>
+                    </div>
+                `;
+                
+                listElement.appendChild(item);
+            });
+        }
+        
+        // 选择文档
+        async function selectDocument(documentId) {
+            const doc = documents.find(d => d.id === documentId);
+            if (!doc) return;
+            
+            // 更新UI状态
+            document.querySelectorAll('.document-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            event.target.closest('.document-item')?.classList.add('active');
+            
+            // 设置当前文档
+            currentDocument = doc;
+            
+            // 更新编辑器内容
+            document.getElementById('documentTitle').value = doc.title;
+            document.getElementById('markdownEditor').value = doc.content;
+            
+            // 更新预览
+            updatePreview();
+            
+            // 连接WebSocket (模拟)
+            connectWebSocket(documentId);
+            
+            // 加载版本历史
+            loadVersionHistory(documentId);
+        }
+        
+        // 设置编辑器
+        function setupEditor() {
+            const editor = document.getElementById('markdownEditor');
+            const titleInput = document.getElementById('documentTitle');
+            
+            // 编辑器内容变化时自动保存和预览
+            editor.addEventListener('input', function() {
+                updatePreview();
+                scheduleAutoSave();
+            });
+            
+            // 标题变化时自动保存
+            titleInput.addEventListener('input', function() {
+                scheduleAutoSave();
+            });
+            
+            // 快捷键支持
+            editor.addEventListener('keydown', function(e) {
+                // Ctrl+S 保存
+                if (e.ctrlKey && e.key === 's') {
+                    e.preventDefault();
+                    saveDocument();
+                }
+                
+                // Ctrl+B 粗体
+                if (e.ctrlKey && e.key === 'b') {
+                    e.preventDefault();
+                    insertMarkdown('**粗体**');
+                }
+                
+                // Ctrl+I 斜体
+                if (e.ctrlKey && e.key === 'i') {
+                    e.preventDefault();
+                    insertMarkdown('*斜体*');
+                }
+            });
+        }
+        
+        // 更新预览
+        function updatePreview() {
+            const content = document.getElementById('markdownEditor').value;
+            const preview = document.getElementById('previewContent');
+            
+            if (!content.trim()) {
+                preview.innerHTML = '<p style="color: #a0aec0; text-align: center; margin-top: 60px;">开始编写文档，这里将显示实时预览...</p>';
+                return;
+            }
+            
+            // 简单的Markdown解析 (生产环境建议使用marked.js等库)
+            let html = content
+                // 标题
+                .replace(/^### (.*$)/gm, '<h3>$1</h3>')
+                .replace(/^## (.*$)/gm, '<h2>$1</h2>')
+                .replace(/^# (.*$)/gm, '<h1>$1</h1>')
+                // 粗体和斜体
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                // 行内代码
+                .replace(/\`(.*?)\`/g, '<code>$1</code>')
+                // 代码块
+                .replace(/```([\\s\\S]*?)```/g, '<pre><code>$1</code></pre>')
+                // 链接
+                .replace(/\\[([^\\]]+)\\]\\(([^\\)]+)\\)/g, '<a href="$2" target="_blank">$1</a>')
+                // 列表项
+                .replace(/^- (.*$)/gm, '<li>$1</li>')
+                .replace(/(<li>.*<\\/li>)/s, '<ul>$1</ul>')
+                // 段落
+                .replace(/^(?!<[h|u|p|l])(.*$)/gm, '<p>$1</p>')
+                // 换行
+                .replace(/\\n/g, '<br>');
+            
+            preview.innerHTML = html;
+        }
+        
+        // 计划自动保存
+        function scheduleAutoSave() {
+            if (saveTimeout) {
+                clearTimeout(saveTimeout);
+            }
+            
+            updateStatus('saving', '正在保存...');
+            
+            saveTimeout = setTimeout(() => {
+                autoSaveDocument();
+            }, 2000); // 2秒后自动保存
+        }
+        
+        // 自动保存文档
+        async function autoSaveDocument() {
+            if (!currentDocument || isAutoSaving) return;
+            
+            isAutoSaving = true;
+            
+            try {
+                const title = document.getElementById('documentTitle').value;
+                const content = document.getElementById('markdownEditor').value;
+                
+                // 更新当前文档
+                currentDocument.title = title;
+                currentDocument.content = content;
+                currentDocument.updated_at = new Date().toISOString();
+                currentDocument.version += 1;
+                
+                // 更新文档列表显示
+                renderDocumentList();
+                
+                updateStatus('saved', '已保存');
+                
+            } catch (error) {
+                console.error('自动保存失败:', error);
+                updateStatus('error', '保存失败');
+            } finally {
+                isAutoSaving = false;
+            }
+        }
+        
+        // 手动保存文档
+        async function saveDocument() {
+            await autoSaveDocument();
+        }
+        
+        // 插入Markdown
+        function insertMarkdown(markdown) {
+            const editor = document.getElementById('markdownEditor');
+            const start = editor.selectionStart;
+            const end = editor.selectionEnd;
+            const text = editor.value;
+            
+            const before = text.substring(0, start);
+            const after = text.substring(end);
+            
+            editor.value = before + markdown + after;
+            
+            // 设置光标位置
+            const newPos = start + markdown.length;
+            editor.setSelectionRange(newPos, newPos);
+            editor.focus();
+            
+            updatePreview();
+            scheduleAutoSave();
+        }
+        
+        // 设置查看模式
+        function setViewMode(mode) {
+            viewMode = mode;
+            
+            // 更新工具栏按钮状态
+            document.querySelectorAll('.toolbar-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            const editorPane = document.querySelector('.editor-pane');
+            const previewPane = document.getElementById('previewPane');
+            
+            switch (mode) {
+                case 'edit':
+                    editorPane.style.display = 'flex';
+                    previewPane.style.display = 'none';
+                    break;
+                case 'preview':
+                    editorPane.style.display = 'none';
+                    previewPane.style.display = 'block';
+                    break;
+                case 'split':
+                default:
+                    editorPane.style.display = 'flex';
+                    previewPane.style.display = 'block';
+                    break;
+            }
+        }
+        
+        // 创建新文档
+        async function createNewDocument() {
+            const title = prompt('请输入文档标题:', '新文档');
+            if (!title) return;
+            
+            const newDoc = {
+                id: documents.length + 1,
+                title: title,
+                content: `# ${title}\\n\\n开始编写你的文档内容...`,
+                author_email: 'jia@example.com',
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+                version: 1,
+                category: '未分类'
+            };
+            
+            documents.push(newDoc);
+            renderDocumentList();
+            await selectDocument(newDoc.id);
+        }
+        
+        // 创建示例文档
+        async function createSampleDocument() {
+            if (documents.length === 0) {
+                await loadDocuments(); // 加载默认文档
+                if (documents.length > 0) {
+                    await selectDocument(documents[0].id);
+                }
+            }
+        }
+        
+        // WebSocket连接 (模拟)
+        function connectWebSocket(documentId) {
+            // 模拟WebSocket连接
+            console.log(\`连接到文档 \${documentId} 的协作会话\`);
+            
+            // 模拟其他协作者
+            setTimeout(() => {
+                const collaboratorsList = document.getElementById('collaboratorsList');
+                collaboratorsList.innerHTML = \`
+                    <div class="collaborator-item">
+                        <div class="collaborator-avatar">J</div>
+                        <div class="collaborator-info">
+                            <div class="collaborator-name">JIA (你)</div>
+                            <div class="collaborator-status">正在编辑</div>
+                        </div>
+                    </div>
+                    <div class="collaborator-item">
+                        <div class="collaborator-avatar" style="background: #48bb78;">A</div>
+                        <div class="collaborator-info">
+                            <div class="collaborator-name">Alice</div>
+                            <div class="collaborator-status">在线查看</div>
+                        </div>
+                    </div>
+                \`;
+                document.getElementById('collaboratorCount').textContent = '2';
+            }, 1000);
+        }
+        
+        // 加载版本历史
+        function loadVersionHistory(documentId) {
+            const versionList = document.getElementById('versionList');
+            const doc = documents.find(d => d.id === documentId);
+            
+            if (!doc) return;
+            
+            // 模拟版本历史
+            const versions = [
+                { version: doc.version, created_at: doc.updated_at, change_log: '当前版本', current: true },
+                { version: doc.version - 1, created_at: '2025-07-23T11:00:00Z', change_log: '添加API文档章节' },
+                { version: 1, created_at: doc.created_at, change_log: '初始版本' }
+            ];
+            
+            versionList.innerHTML = '';
+            
+            versions.forEach(version => {
+                const item = document.createElement('div');
+                item.className = \`version-item \${version.current ? 'current' : ''}\`;
+                item.onclick = () => loadVersion(documentId, version.version);
+                
+                const date = new Date(version.created_at).toLocaleString('zh-CN');
+                
+                item.innerHTML = \`
+                    <div class="version-number">版本 \${version.version}</div>
+                    <div class="version-meta">
+                        <div>\${version.change_log}</div>
+                        <div>\${date}</div>
+                    </div>
+                \`;
+                
+                versionList.appendChild(item);
+            });
+        }
+        
+        // 加载指定版本
+        function loadVersion(documentId, version) {
+            if (version === currentDocument.version) return;
+            
+            const confirmed = confirm(\`确定要查看版本 \${version} 吗？当前未保存的更改将丢失。\`);
+            if (!confirmed) return;
+            
+            // 模拟加载历史版本
+            alert(\`版本 \${version} 功能开发中，敬请期待！\`);
+        }
+        
+        // 切换协作面板
+        function toggleCollaborationPanel() {
+            const panel = document.getElementById('collaborationPanel');
+            panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
+        }
+        
+        // 切换版本历史面板
+        function toggleVersionPanel() {
+            const panel = document.getElementById('versionPanel');
+            panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
+        }
+        
+        // 更新状态指示器
+        function updateStatus(status, text) {
+            const indicator = document.getElementById('statusIndicator');
+            indicator.className = \`status-indicator status-\${status}\`;
+            indicator.innerHTML = \`<span>●</span><span>\${text}</span>\`;
+        }
+        
+        // 显示加载状态
+        function showLoading(show) {
+            document.getElementById('loadingOverlay').style.display = show ? 'flex' : 'none';
+        }
+        
+        // 显示错误消息
+        function showError(message) {
+            alert('错误: ' + message);
+        }
+        
+        // 点击外部关闭面板
+        document.addEventListener('click', function(e) {
+            const collaborationPanel = document.getElementById('collaborationPanel');
+            const versionPanel = document.getElementById('versionPanel');
+            
+            if (!e.target.closest('.collaboration-panel') && !e.target.closest('button[onclick*="toggleCollaborationPanel"]')) {
+                collaborationPanel.style.display = 'none';
+            }
+            
+            if (!e.target.closest('.version-panel') && !e.target.closest('button[onclick*="toggleVersionPanel"]')) {
+                versionPanel.style.display = 'none';
+            }
+        });
+        
+        // 防止页面刷新时丢失数据
+        window.addEventListener('beforeunload', function(e) {
+            if (saveTimeout) {
+                e.preventDefault();
+                e.returnValue = '您有未保存的更改，确定要离开吗？';
+            }
+        });
+    </script>
+</body>
+</html>

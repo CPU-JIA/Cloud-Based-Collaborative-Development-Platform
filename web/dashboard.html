@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>项目仪表板 - 企业协作开发平台</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f8fafc;
+            color: #1a202c;
+        }
+        
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 250px;
+            height: 100vh;
+            background: white;
+            border-right: 1px solid #e2e8f0;
+            box-shadow: 2px 0 4px rgba(0, 0, 0, 0.1);
+            z-index: 100;
+        }
+        
+        .sidebar-header {
+            padding: 20px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        
+        .sidebar-header h2 {
+            color: #2d3748;
+            font-size: 1.2rem;
+            margin-bottom: 4px;
+        }
+        
+        .sidebar-subtitle {
+            color: #718096;
+            font-size: 0.875rem;
+        }
+        
+        .nav-menu {
+            padding: 20px 0;
+        }
+        
+        .nav-item {
+            display: block;
+            padding: 12px 20px;
+            color: #4a5568;
+            text-decoration: none;
+            transition: all 0.2s ease;
+            border: none;
+            background: none;
+            width: 100%;
+            text-align: left;
+            cursor: pointer;
+        }
+        
+        .nav-item:hover, .nav-item.active {
+            background: #edf2f7;
+            color: #2d3748;
+        }
+        
+        .main-content {
+            margin-left: 250px;
+            min-height: 100vh;
+        }
+        
+        .header {
+            background: white;
+            padding: 16px 24px;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .header h1 {
+            color: #2d3748;
+            font-size: 1.5rem;
+        }
+        
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #4299e1, #667eea);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+        }
+        
+        .content {
+            padding: 24px;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        .stat-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        
+        .stat-title {
+            color: #718096;
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        
+        .stat-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+        }
+        
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #2d3748;
+            margin-bottom: 8px;
+        }
+        
+        .stat-change {
+            font-size: 0.875rem;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .stat-change.positive {
+            color: #38a169;
+        }
+        
+        .stat-change.negative {
+            color: #e53e3e;
+        }
+        
+        .chart-container {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .chart-card {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        .chart-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 20px;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #edf2f7;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 8px 0;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4299e1, #667eea);
+            border-radius: 4px;
+            transition: width 0.5s ease;
+        }
+        
+        .recent-activity {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        .activity-header {
+            padding: 24px 24px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .activity-list {
+            padding: 20px 24px;
+        }
+        
+        .activity-item {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 12px 0;
+            border-bottom: 1px solid #f7fafc;
+        }
+        
+        .activity-item:last-child {
+            border-bottom: none;
+        }
+        
+        .activity-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            flex-shrink: 0;
+        }
+        
+        .activity-content {
+            flex: 1;
+        }
+        
+        .activity-title {
+            font-weight: 500;
+            color: #2d3748;
+            margin-bottom: 4px;
+        }
+        
+        .activity-time {
+            font-size: 0.875rem;
+            color: #718096;
+        }
+        
+        .btn {
+            background: #4299e1;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.875rem;
+            transition: background 0.2s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .btn:hover {
+            background: #3182ce;
+        }
+        
+        .btn-secondary {
+            background: #e2e8f0;
+            color: #4a5568;
+        }
+        
+        .btn-secondary:hover {
+            background: #cbd5e0;
+        }
+        
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 200px;
+            }
+            
+            .main-content {
+                margin-left: 200px;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .chart-container {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        @media (max-width: 640px) {
+            .sidebar {
+                transform: translateX(-100%);
+                transition: transform 0.3s ease;
+            }
+            
+            .sidebar.open {
+                transform: translateX(0);
+            }
+            
+            .main-content {
+                margin-left: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <h2>🚀 协作平台</h2>
+            <div class="sidebar-subtitle">项目管理中心</div>
+        </div>
+        <nav class="nav-menu">
+            <a href="#" class="nav-item active" onclick="showSection('dashboard')">📊 仪表板</a>
+            <a href="board.html" class="nav-item">📋 Scrum看板</a>
+            <a href="demo.html" class="nav-item">🎯 系统概览</a>
+            <a href="#" class="nav-item" onclick="showSection('projects')">📁 项目管理</a>
+            <a href="#" class="nav-item" onclick="showSection('team')">👥 团队协作</a>
+            <a href="#" class="nav-item" onclick="showSection('reports')">📈 数据报告</a>
+            <a href="#" class="nav-item" onclick="showSection('settings')">⚙️ 系统设置</a>
+        </nav>
+    </div>
+    
+    <div class="main-content">
+        <div class="header">
+            <h1 id="pageTitle">项目仪表板</h1>
+            <div class="user-info">
+                <div class="avatar">JA</div>
+                <span>JIA总</span>
+                <button class="btn btn-secondary">登出</button>
+            </div>
+        </div>
+        
+        <div class="content">
+            <!-- 仪表板内容 -->
+            <div id="dashboardSection">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <div class="stat-title">活跃项目</div>
+                            <div class="stat-icon" style="background: #bee3f8; color: #2b6cb0;">📊</div>
+                        </div>
+                        <div class="stat-value" id="activeProjects">2</div>
+                        <div class="stat-change positive">
+                            <span>↗️ +1</span>
+                            <span>本周新增</span>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <div class="stat-title">待办任务</div>
+                            <div class="stat-icon" style="background: #fef5e7; color: #d69e2e;">📝</div>
+                        </div>
+                        <div class="stat-value" id="pendingTasks">12</div>
+                        <div class="stat-change negative">
+                            <span>↘️ -3</span>
+                            <span>本周完成</span>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <div class="stat-title">团队成员</div>
+                            <div class="stat-icon" style="background: #c6f6d5; color: #38a169;">👥</div>
+                        </div>
+                        <div class="stat-value" id="teamMembers">8</div>
+                        <div class="stat-change positive">
+                            <span>↗️ +2</span>
+                            <span>本月加入</span>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <div class="stat-title">完成率</div>
+                            <div class="stat-icon" style="background: #fed7d7; color: #c53030;">🎯</div>
+                        </div>
+                        <div class="stat-value" id="completionRate">89%</div>
+                        <div class="stat-change positive">
+                            <span>↗️ +5%</span>
+                            <span>较上月提升</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="chart-container">
+                    <div class="chart-card">
+                        <h3 class="chart-title">项目进度概览</h3>
+                        <div id="projectProgress">
+                            <div style="margin-bottom: 16px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                    <span style="font-weight: 500;">企业协作开发平台</span>
+                                    <span style="color: #4299e1; font-weight: 600;">99%</span>
+                                </div>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: 99%;"></div>
+                                </div>
+                            </div>
+                            <div style="margin-bottom: 16px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                    <span style="font-weight: 500;">敏捷项目管理</span>
+                                    <span style="color: #4299e1; font-weight: 600;">75%</span>
+                                </div>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: 75%;"></div>
+                                </div>
+                            </div>
+                            <div>
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                    <span style="font-weight: 500;">知识库系统</span>
+                                    <span style="color: #4299e1; font-weight: 600;">45%</span>
+                                </div>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: 45%;"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="chart-card">
+                        <h3 class="chart-title">快速操作</h3>
+                        <div style="display: flex; flex-direction: column; gap: 12px;">
+                            <a href="board.html" class="btn">🏃‍♂️ 查看Scrum看板</a>
+                            <button class="btn btn-secondary" onclick="createNewProject()">➕ 创建新项目</button>
+                            <button class="btn btn-secondary" onclick="inviteTeamMember()">👥 邀请团队成员</button>
+                            <button class="btn btn-secondary" onclick="generateReport()">📊 生成报告</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="recent-activity">
+                    <div class="activity-header">
+                        <h3 class="chart-title">最近活动</h3>
+                        <button class="btn btn-secondary">查看全部</button>
+                    </div>
+                    <div class="activity-list" id="activityList">
+                        <div class="activity-item">
+                            <div class="activity-icon" style="background: #bee3f8; color: #2b6cb0;">✅</div>
+                            <div class="activity-content">
+                                <div class="activity-title">任务"WebSocket实时通知"已完成</div>
+                                <div class="activity-time">2分钟前</div>
+                            </div>
+                        </div>
+                        <div class="activity-item">
+                            <div class="activity-icon" style="background: #c6f6d5; color: #38a169;">🚀</div>
+                            <div class="activity-content">
+                                <div class="activity-title">Scrum看板功能上线</div>
+                                <div class="activity-time">15分钟前</div>
+                            </div>
+                        </div>
+                        <div class="activity-item">
+                            <div class="activity-icon" style="background: #fef5e7; color: #d69e2e;">📝</div>
+                            <div class="activity-content">
+                                <div class="activity-title">JIA总 创建了新任务</div>
+                                <div class="activity-time">1小时前</div>
+                            </div>
+                        </div>
+                        <div class="activity-item">
+                            <div class="activity-icon" style="background: #fed7d7; color: #c53030;">🔄</div>
+                            <div class="activity-content">
+                                <div class="activity-title">项目状态更新为"生产就绪"</div>
+                                <div class="activity-time">2小时前</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 其他内容区域 -->
+            <div id="projectsSection" style="display: none;">
+                <h2>项目管理</h2>
+                <p>项目管理功能开发中...</p>
+            </div>
+            
+            <div id="teamSection" style="display: none;">
+                <h2>团队协作</h2>
+                <p>团队协作功能开发中...</p>
+            </div>
+            
+            <div id="reportsSection" style="display: none;">
+                <h2>数据报告</h2>
+                <p>数据报告功能开发中...</p>
+            </div>
+            
+            <div id="settingsSection" style="display: none;">
+                <h2>系统设置</h2>
+                <p>系统设置功能开发中...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8082/api/v1';
+        
+        // 页面加载时初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            loadDashboardData();
+            loadRecentActivity();
+        });
+        
+        // 加载仪表板数据
+        async function loadDashboardData() {
+            try {
+                // 加载项目统计
+                const projectsResponse = await fetch(`${API_BASE}/projects`);
+                const projectsData = await projectsResponse.json();
+                
+                // 加载任务统计
+                const tasksResponse = await fetch(`${API_BASE}/projects/1/tasks`);
+                const tasksData = await tasksResponse.json();
+                
+                // 更新统计数据
+                updateStatistics(projectsData, tasksData);
+                
+            } catch (error) {
+                console.error('加载仪表板数据失败:', error);
+            }
+        }
+        
+        // 更新统计数据
+        function updateStatistics(projectsData, tasksData) {
+            if (projectsData && projectsData.data) {
+                document.getElementById('activeProjects').textContent = projectsData.data.length;
+            }
+            
+            if (tasksData && tasksData.data) {
+                const tasks = tasksData.data;
+                const todoTasks = tasks.filter(t => t.status === 'todo').length;
+                document.getElementById('pendingTasks').textContent = todoTasks;
+                
+                const completedTasks = tasks.filter(t => t.status === 'done').length;
+                const completionRate = tasks.length > 0 ? Math.round((completedTasks / tasks.length) * 100) : 0;
+                document.getElementById('completionRate').textContent = completionRate + '%';
+            }
+        }
+        
+        // 加载最近活动
+        async function loadRecentActivity() {
+            // 模拟最近活动数据
+            const activities = [
+                {
+                    icon: '✅',
+                    color: '#bee3f8',
+                    title: '任务"WebSocket实时通知"已完成',
+                    time: '2分钟前'
+                },
+                {
+                    icon: '🚀',
+                    color: '#c6f6d5',
+                    title: 'Scrum看板功能上线',
+                    time: '15分钟前'
+                },
+                {
+                    icon: '📝',
+                    color: '#fef5e7',
+                    title: 'JIA总 创建了新任务',
+                    time: '1小时前'
+                },
+                {
+                    icon: '🔄',
+                    color: '#fed7d7',
+                    title: '项目状态更新为"生产就绪"',
+                    time: '2小时前'
+                }
+            ];
+            
+            const activityList = document.getElementById('activityList');
+            activityList.innerHTML = activities.map(activity => `
+                <div class="activity-item">
+                    <div class="activity-icon" style="background: ${activity.color}; color: #2d3748;">${activity.icon}</div>
+                    <div class="activity-content">
+                        <div class="activity-title">${activity.title}</div>
+                        <div class="activity-time">${activity.time}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        // 显示指定区域
+        function showSection(sectionName) {
+            // 隐藏所有区域
+            document.querySelectorAll('[id$="Section"]').forEach(section => {
+                section.style.display = 'none';
+            });
+            
+            // 显示指定区域
+            document.getElementById(sectionName + 'Section').style.display = 'block';
+            
+            // 更新导航状态
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            // 更新页面标题
+            const titles = {
+                'dashboard': '项目仪表板',
+                'projects': '项目管理',
+                'team': '团队协作',
+                'reports': '数据报告',
+                'settings': '系统设置'
+            };
+            document.getElementById('pageTitle').textContent = titles[sectionName] || '企业协作平台';
+        }
+        
+        // 快速操作功能
+        function createNewProject() {
+            const projectName = prompt('请输入项目名称:');
+            if (projectName) {
+                alert(`项目"${projectName}"创建成功！`);
+                loadDashboardData(); // 刷新数据
+            }
+        }
+        
+        function inviteTeamMember() {
+            const email = prompt('请输入团队成员邮箱:');
+            if (email) {
+                alert(`邀请邮件已发送到 ${email}`);
+            }
+        }
+        
+        function generateReport() {
+            alert('正在生成项目报告，请稍候...');
+            setTimeout(() => {
+                alert('📊 项目报告已生成并发送到您的邮箱！');
+            }, 2000);
+        }
+    </script>
+</body>
+</html>

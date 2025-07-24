@@ -1,0 +1,54 @@
+import { describe, it, expect, vi } from 'vitest'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { BrowserRouter } from 'react-router-dom'
+import Login from '../pages/Login'
+import { AuthProvider } from '../contexts/AuthContext'
+
+// Mock API
+vi.mock('../utils/api', () => ({
+  authApi: {
+    login: vi.fn(),
+    getCurrentUser: vi.fn(),
+    logout: vi.fn(),
+    refreshToken: vi.fn(),
+  }
+}))
+
+const LoginWrapper = () => (
+  <BrowserRouter>
+    <AuthProvider>
+      <Login />
+    </AuthProvider>
+  </BrowserRouter>
+)
+
+describe('Login Component', () => {
+  it('renders login form', () => {
+    render(<LoginWrapper />)
+    
+    expect(screen.getByText('企业协作开发平台')).toBeInTheDocument()
+    expect(screen.getByLabelText('邮箱地址')).toBeInTheDocument()
+    expect(screen.getByLabelText('密码')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '登录' })).toBeInTheDocument()
+  })
+
+  it('shows validation error for empty fields', async () => {
+    render(<LoginWrapper />)
+    
+    // 查找表单元素并提交
+    const form = document.querySelector('form')!
+    fireEvent.submit(form)
+    
+    await waitFor(() => {
+      expect(screen.getByText('请输入邮箱和密码')).toBeInTheDocument()
+    }, { timeout: 3000 })
+  })
+
+  it('displays demo account information', () => {
+    render(<LoginWrapper />)
+    
+    expect(screen.getByText('演示账户')).toBeInTheDocument()
+    expect(screen.getByText('邮箱: demo@example.com')).toBeInTheDocument()
+    expect(screen.getByText('密码: demo123')).toBeInTheDocument()
+  })
+})

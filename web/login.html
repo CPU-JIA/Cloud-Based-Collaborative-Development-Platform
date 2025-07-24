@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>用户登录 - 企业协作开发平台</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #333;
+        }
+        
+        .login-container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            width: 100%;
+            max-width: 1000px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            min-height: 600px;
+        }
+        
+        .login-left {
+            background: linear-gradient(135deg, #4299e1 0%, #667eea 100%);
+            color: white;
+            padding: 60px 40px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+        }
+        
+        .login-left h2 {
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        .login-left p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+            line-height: 1.6;
+            margin-bottom: 30px;
+        }
+        
+        .feature-list {
+            list-style: none;
+            text-align: left;
+        }
+        
+        .feature-list li {
+            margin: 12px 0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 1rem;
+        }
+        
+        .feature-icon {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+        }
+        
+        .login-right {
+            padding: 60px 40px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        
+        .login-header {
+            margin-bottom: 40px;
+            text-align: center;
+        }
+        
+        .login-header h3 {
+            font-size: 1.8rem;
+            color: #2d3748;
+            margin-bottom: 8px;
+        }
+        
+        .login-subtitle {
+            color: #718096;
+            font-size: 0.95rem;
+        }
+        
+        .form-group {
+            margin-bottom: 24px;
+        }
+        
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            color: #4a5568;
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+        
+        .form-input {
+            width: 100%;
+            padding: 14px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            background: #f8fafc;
+        }
+        
+        .form-input:focus {
+            outline: none;
+            border-color: #4299e1;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.1);
+        }
+        
+        .form-input.error {
+            border-color: #e53e3e;
+            background: #fef5f5;
+        }
+        
+        .error-message {
+            color: #e53e3e;
+            font-size: 0.85rem;
+            margin-top: 6px;
+            display: none;
+        }
+        
+        .form-options {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            font-size: 0.9rem;
+        }
+        
+        .remember-me {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #4a5568;
+        }
+        
+        .remember-me input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            accent-color: #4299e1;
+        }
+        
+        .forgot-password {
+            color: #4299e1;
+            text-decoration: none;
+            transition: color 0.2s ease;
+        }
+        
+        .forgot-password:hover {
+            color: #3182ce;
+            text-decoration: underline;
+        }
+        
+        .login-btn {
+            width: 100%;
+            background: linear-gradient(135deg, #4299e1, #667eea);
+            color: white;
+            border: none;
+            padding: 16px;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 20px;
+        }
+        
+        .login-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(66, 153, 225, 0.3);
+        }
+        
+        .login-btn:active {
+            transform: translateY(0);
+        }
+        
+        .login-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .register-link {
+            text-align: center;
+            color: #718096;
+            font-size: 0.9rem;
+        }
+        
+        .register-link a {
+            color: #4299e1;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        
+        .register-link a:hover {
+            text-decoration: underline;
+        }
+        
+        .loading-spinner {
+            display: none;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #ffffff;
+            border-top: 2px solid transparent;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 8px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .success-message {
+            background: #c6f6d5;
+            color: #22543d;
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+            font-size: 0.9rem;
+        }
+        
+        .alert-message {
+            background: #fed7d7;
+            color: #742a2a;
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+            font-size: 0.9rem;
+        }
+        
+        @media (max-width: 768px) {
+            .login-container {
+                grid-template-columns: 1fr;
+                margin: 20px;
+                border-radius: 16px;
+            }
+            
+            .login-left {
+                padding: 40px 30px;
+                min-height: 300px;
+            }
+            
+            .login-left h2 {
+                font-size: 2rem;
+            }
+            
+            .login-right {
+                padding: 40px 30px;
+            }
+            
+            .feature-list {
+                display: none;
+            }
+        }
+        
+        .demo-credentials {
+            background: #f0f9ff;
+            border: 1px solid #bae6fd;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 20px;
+            font-size: 0.85rem;
+        }
+        
+        .demo-credentials h4 {
+            color: #0369a1;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+        }
+        
+        .demo-credentials p {
+            color: #0c4a6e;
+            margin: 4px 0;
+        }
+        
+        .demo-credentials button {
+            background: #0ea5e9;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            margin-top: 8px;
+            transition: background 0.2s;
+        }
+        
+        .demo-credentials button:hover {
+            background: #0284c7;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-left">
+            <h2>🚀 企业协作开发平台</h2>
+            <p>现代化的敏捷开发协作解决方案，助力团队高效协作，项目快速交付</p>
+            
+            <ul class="feature-list">
+                <li>
+                    <span class="feature-icon">📋</span>
+                    <span>敏捷项目管理与Scrum看板</span>
+                </li>
+                <li>
+                    <span class="feature-icon">⚡</span>
+                    <span>实时协作与WebSocket通知</span>
+                </li>
+                <li>
+                    <span class="feature-icon">📊</span>
+                    <span>DORA指标与项目分析</span>
+                </li>
+                <li>
+                    <span class="feature-icon">🔒</span>
+                    <span>企业级安全与权限管理</span>
+                </li>
+                <li>
+                    <span class="feature-icon">📚</span>
+                    <span>知识库与文档协作</span>
+                </li>
+            </ul>
+        </div>
+        
+        <div class="login-right">
+            <div class="login-header">
+                <h3>欢迎登录</h3>
+                <p class="login-subtitle">使用您的账户凭据访问平台</p>
+            </div>
+            
+            <div class="demo-credentials">
+                <h4>🧪 演示账户</h4>
+                <p><strong>邮箱:</strong> jia@example.com</p>
+                <p><strong>密码:</strong> admin123</p>
+                <button onclick="fillDemoCredentials()">一键填充</button>
+            </div>
+            
+            <div class="success-message" id="successMessage"></div>
+            <div class="alert-message" id="alertMessage"></div>
+            
+            <form id="loginForm">
+                <div class="form-group">
+                    <label class="form-label" for="email">邮箱地址</label>
+                    <input 
+                        type="email" 
+                        id="email" 
+                        class="form-input" 
+                        placeholder="请输入您的邮箱地址"
+                        required
+                    >
+                    <div class="error-message" id="emailError"></div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="password">密码</label>
+                    <input 
+                        type="password" 
+                        id="password" 
+                        class="form-input" 
+                        placeholder="请输入您的密码"
+                        required
+                    >
+                    <div class="error-message" id="passwordError"></div>
+                </div>
+                
+                <div class="form-options">
+                    <label class="remember-me">
+                        <input type="checkbox" id="rememberMe">
+                        <span>记住我</span>
+                    </label>
+                    <a href="#" class="forgot-password">忘记密码？</a>
+                </div>
+                
+                <button type="submit" class="login-btn" id="loginBtn">
+                    <span class="loading-spinner" id="loadingSpinner"></span>
+                    <span id="btnText">登录</span>
+                </button>
+                
+                <div class="register-link">
+                    还没有账户？ <a href="#" onclick="showRegisterForm()">立即注册</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8083/api/v1';
+        
+        // 页面加载时检查是否已登录
+        document.addEventListener('DOMContentLoaded', function() {
+            const token = localStorage.getItem('access_token');
+            if (token) {
+                // 验证token是否有效
+                validateToken(token);
+            }
+        });
+        
+        // 验证token有效性
+        async function validateToken(token) {
+            try {
+                const response = await fetch(`${API_BASE}/auth/profile`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (response.ok) {
+                    // token有效，重定向到仪表板
+                    showSuccess('您已登录，正在跳转到仪表板...');
+                    setTimeout(() => {
+                        window.location.href = 'dashboard.html';
+                    }, 1500);
+                } else {
+                    // token无效，清除本地存储
+                    localStorage.removeItem('access_token');
+                    localStorage.removeItem('refresh_token');
+                    localStorage.removeItem('user_info');
+                }
+            } catch (error) {
+                console.error('Token验证失败:', error);
+                localStorage.removeItem('access_token');
+                localStorage.removeItem('refresh_token');
+                localStorage.removeItem('user_info');
+            }
+        }
+        
+        // 表单提交处理
+        document.getElementById('loginForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const email = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value;
+            const rememberMe = document.getElementById('rememberMe').checked;
+            
+            // 清除之前的错误状态
+            clearErrors();
+            
+            // 基础验证
+            if (!email) {
+                showFieldError('email', '请输入邮箱地址');
+                return;
+            }
+            
+            if (!isValidEmail(email)) {
+                showFieldError('email', '请输入有效的邮箱地址');
+                return;
+            }
+            
+            if (!password) {
+                showFieldError('password', '请输入密码');
+                return;
+            }
+            
+            if (password.length < 6) {
+                showFieldError('password', '密码长度至少6位');
+                return;
+            }
+            
+            // 开始登录
+            setLoading(true);
+            
+            try {
+                const response = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: email,
+                        password: password
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    // 登录成功
+                    handleLoginSuccess(data, rememberMe);
+                } else {
+                    // 登录失败
+                    showAlert(data.error || '登录失败，请检查您的凭据');
+                }
+                
+            } catch (error) {
+                console.error('登录请求失败:', error);
+                showAlert('网络连接失败，请检查网络连接后重试');
+            } finally {
+                setLoading(false);
+            }
+        });
+        
+        // 处理登录成功
+        function handleLoginSuccess(data, rememberMe) {
+            // 保存token和用户信息
+            if (rememberMe) {
+                localStorage.setItem('access_token', data.access_token);
+                localStorage.setItem('refresh_token', data.refresh_token);
+                localStorage.setItem('user_info', JSON.stringify(data.user));
+            } else {
+                sessionStorage.setItem('access_token', data.access_token);
+                sessionStorage.setItem('refresh_token', data.refresh_token);
+                sessionStorage.setItem('user_info', JSON.stringify(data.user));
+            }
+            
+            showSuccess(`欢迎回来，${data.user.email}！正在跳转到仪表板...`);
+            
+            // 延迟跳转，让用户看到成功消息
+            setTimeout(() => {
+                window.location.href = 'dashboard.html';
+            }, 2000);
+        }
+        
+        // 填充演示凭据
+        function fillDemoCredentials() {
+            document.getElementById('email').value = 'jia@example.com';
+            document.getElementById('password').value = 'admin123';
+            document.getElementById('rememberMe').checked = true;
+            
+            // 触发输入验证
+            document.getElementById('email').dispatchEvent(new Event('blur'));
+            document.getElementById('password').dispatchEvent(new Event('blur'));
+        }
+        
+        // 显示注册表单（占位符功能）
+        function showRegisterForm() {
+            showAlert('注册功能开发中，请使用演示账户登录');
+        }
+        
+        // 工具函数
+        function isValidEmail(email) {
+            const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+            return emailRegex.test(email);
+        }
+        
+        function clearErrors() {
+            document.querySelectorAll('.form-input').forEach(input => {
+                input.classList.remove('error');
+            });
+            document.querySelectorAll('.error-message').forEach(error => {
+                error.style.display = 'none';
+            });
+            hideMessages();
+        }
+        
+        function showFieldError(fieldId, message) {
+            const field = document.getElementById(fieldId);
+            const errorElement = document.getElementById(fieldId + 'Error');
+            
+            field.classList.add('error');
+            errorElement.textContent = message;
+            errorElement.style.display = 'block';
+            
+            // 聚焦到错误字段
+            field.focus();
+        }
+        
+        function setLoading(loading) {
+            const btn = document.getElementById('loginBtn');
+            const spinner = document.getElementById('loadingSpinner');
+            const btnText = document.getElementById('btnText');
+            
+            if (loading) {
+                btn.disabled = true;
+                spinner.style.display = 'inline-block';
+                btnText.textContent = '登录中...';
+            } else {
+                btn.disabled = false;
+                spinner.style.display = 'none';
+                btnText.textContent = '登录';
+            }
+        }
+        
+        function showSuccess(message) {
+            const element = document.getElementById('successMessage');
+            element.textContent = message;
+            element.style.display = 'block';
+            hideMessages(['alert']);
+        }
+        
+        function showAlert(message) {
+            const element = document.getElementById('alertMessage');
+            element.textContent = message;
+            element.style.display = 'block';
+            hideMessages(['success']);
+        }
+        
+        function hideMessages(except = []) {
+            if (!except.includes('success')) {
+                document.getElementById('successMessage').style.display = 'none';
+            }
+            if (!except.includes('alert')) {
+                document.getElementById('alertMessage').style.display = 'none';
+            }
+        }
+        
+        // 输入字段实时验证
+        document.getElementById('email').addEventListener('blur', function() {
+            const email = this.value.trim();
+            if (email && !isValidEmail(email)) {
+                showFieldError('email', '请输入有效的邮箱地址');
+            }
+        });
+        
+        document.getElementById('password').addEventListener('blur', function() {
+            const password = this.value;
+            if (password && password.length < 6) {
+                showFieldError('password', '密码长度至少6位');
+            }
+        });
+        
+        // 清除字段错误状态
+        document.getElementById('email').addEventListener('input', function() {
+            if (this.classList.contains('error')) {
+                this.classList.remove('error');
+                document.getElementById('emailError').style.display = 'none';
+            }
+        });
+        
+        document.getElementById('password').addEventListener('input', function() {
+            if (this.classList.contains('error')) {
+                this.classList.remove('error');
+                document.getElementById('passwordError').style.display = 'none';
+            }
+        });
+        
+        // 键盘快捷键
+        document.addEventListener('keydown', function(e) {
+            // Ctrl+Enter 或 Cmd+Enter 提交表单
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                document.getElementById('loginForm').dispatchEvent(new Event('submit'));
+            }
+        });
+    </script>
+</body>
+</html>
