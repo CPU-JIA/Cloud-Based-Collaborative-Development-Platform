@@ -257,6 +257,31 @@ swagger-ui/
 test-results/
 junit.xml
 
+# 项目特定的可执行文件
+project-service
+web-server
+web-server-*
+file-service
+mock-file-service
+project-service-*
+websocket-service
+*-service
+web/web-server
+tools/*/api-test
+tools/*/db-test
+tools/*/docker-test
+
+# 进程ID文件
+*.pid
+
+# 演示和测试的HTML文件（本地生成）
+demo-complete.html
+premium-ui-showcase.html
+test-websocket.html
+
+# 临时测试脚本
+test-login.go
+
 # =============================================================================
 # 本地开发配置
 # =============================================================================
