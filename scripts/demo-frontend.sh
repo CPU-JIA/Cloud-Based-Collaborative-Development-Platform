@@ -23,7 +23,7 @@ npm install --silent
 
 echo ""
 echo "🔧 启动开发服务器..."
-echo "🌐 前端应用将在 http://localhost:5173 运行"
+echo "🌐 前端应用将在 http://localhost:3001 运行"
 echo ""
 echo "📋 演示账户（UI展示用）："
 echo "   邮箱: demo@example.com"

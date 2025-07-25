@@ -13,10 +13,10 @@ server:
 # 数据库配置
 database:
   host: "localhost"
-  port: 5432
+  port: 15432
   name: "devcollab_development"
   user: "devcollab_dev"
-  password: ""  # 从环境变量 DATABASE_PASSWORD 读取
+  password: "dev_password_123"  # 开发环境使用固定密码
   ssl_mode: "disable"
   max_open_conns: 25
   max_idle_conns: 5
@@ -26,8 +26,8 @@ database:
 # Redis配置
 redis:
   host: "localhost"
-  port: 6379
-  password: ""  # 从环境变量 REDIS_PASSWORD 读取
+  port: 16379
+  password: ""  # Redis开发环境无密码
   db: 0
   pool_size: 10
   dial_timeout: "5s"

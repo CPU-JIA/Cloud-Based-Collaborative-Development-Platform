@@ -1,8 +1,17 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Task, TaskStatus, Project } from '../types';
+import { Task, TaskStatus, Project, CreateTaskRequest, UpdateTaskRequest } from '../types';
 import { taskApi, projectApi } from '../utils/api';
+import TaskModal from '../components/TaskModal';
+import ChatWidget from '../components/ChatWidget';
+import FileManager from '../components/FileManager';
+import TeamModal from '../components/TeamModal';
+import { useWebSocket, useTaskUpdates, useOnlineUsers } from '../hooks/useWebSocket';
+import { ConnectionStatus, MessageType } from '../utils/websocket';
+import '../styles/modern-enterprise.css';
+import '../styles/premium-tasks.css';
+import '../styles/websocket.css';
 
 const ProjectBoard: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
@@ -18,6 +27,71 @@ const ProjectBoard: React.FC = () => {
   ]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  
+  // 任务管理状态
+  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [currentStatusId, setCurrentStatusId] = useState<string>('1');
+  
+  // 聊天组件状态
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  
+  // 文件管理器状态
+  const [isFileManagerOpen, setIsFileManagerOpen] = useState(false);
+  
+  // 团队管理状态
+  const [isTeamModalOpen, setIsTeamModalOpen] = useState(false);
+  
+  // WebSocket消息处理
+  const handleWebSocketMessage = useCallback((message: any) => {
+    console.log('📨 收到WebSocket消息:', message);
+    
+    switch (message.type) {
+      case MessageType.TASK_UPDATE:
+        // 实时更新任务状态
+        setTasks(prevTasks => 
+          prevTasks.map(task => 
+            task.id === message.data.task_id 
+              ? { ...task, ...message.data }
+              : task
+          )
+        );
+        break;
+        
+      case MessageType.TASK_CREATE:
+        // 实时添加新任务
+        if (message.data && message.user_id !== user?.id) {
+          loadProjectData(); // 重新加载数据以获取完整的任务信息
+        }
+        break;
+        
+      case MessageType.TASK_DELETE:
+        // 实时删除任务
+        setTasks(prevTasks => 
+          prevTasks.filter(task => task.id !== message.data.task_id)
+        );
+        break;
+        
+      default:
+        break;
+    }
+  }, [user?.id]);
+
+  // WebSocket集成
+  const projectIdNum = parseInt(projectId || '0');
+  const { 
+    isConnected, 
+    status: wsStatus, 
+    sendTaskUpdate, 
+    sendTaskCreate, 
+    sendTaskDelete,
+    sendChatMessage 
+  } = useWebSocket({
+    projectId: projectIdNum,
+    onMessage: handleWebSocketMessage
+  });
+  
+  const onlineUsers = useOnlineUsers(projectIdNum);
 
   useEffect(() => {
     if (projectId) {
@@ -73,6 +147,92 @@ const ProjectBoard: React.FC = () => {
       console.error('登出失败:', error);
     }
   };
+  
+  // 任务管理函数
+  const handleCreateTask = async (data: CreateTaskRequest) => {
+    try {
+      const newTask = await taskApi.create(projectId!, data);
+      setTasks(prev => [...prev, newTask]);
+      
+      // 发送WebSocket通知
+      if (isConnected) {
+        sendTaskCreate({
+          task_id: newTask.id,
+          title: newTask.title,
+          description: newTask.description,
+          status_id: newTask.status_id,
+          priority: newTask.priority,
+          assignee_id: newTask.assignee_id,
+          due_date: newTask.due_date
+        });
+      }
+      
+      console.log('任务创建成功:', newTask);
+    } catch (error: any) {
+      console.error('创建任务失败:', error);
+      throw error;
+    }
+  };
+  
+  const handleEditTask = (task: Task) => {
+    setEditingTask(task);
+    setIsTaskModalOpen(true);
+  };
+  
+  const handleUpdateTask = async (data: UpdateTaskRequest) => {
+    if (!editingTask) return;
+    
+    try {
+      const updatedTask = await taskApi.update(editingTask.id.toString(), data);
+      setTasks(prev => prev.map(t => t.id === editingTask.id ? updatedTask : t));
+      
+      // 发送WebSocket通知
+      if (isConnected) {
+        sendTaskUpdate({
+          task_id: updatedTask.id,
+          title: updatedTask.title,
+          description: updatedTask.description,
+          status_id: updatedTask.status_id,
+          priority: updatedTask.priority,
+          assignee_id: updatedTask.assignee_id,
+          due_date: updatedTask.due_date
+        });
+      }
+      
+      setEditingTask(null);
+      console.log('任务更新成功:', updatedTask);
+    } catch (error: any) {
+      console.error('更新任务失败:', error);
+      throw error;
+    }
+  };
+  
+  const handleDeleteTask = async (task: Task) => {
+    if (!confirm(`确定要删除任务"${task.title}"？`)) {
+      return;
+    }
+    
+    try {
+      await taskApi.delete(task.id.toString());
+      setTasks(prev => prev.filter(t => t.id !== task.id));
+      
+      // 发送WebSocket通知
+      if (isConnected) {
+        sendTaskDelete(task.id);
+      }
+      
+      console.log('任务删除成功:', task.id);
+    } catch (error: any) {
+      console.error('删除任务失败:', error);
+      alert('删除失败：' + (error.message || '网络错误'));
+    }
+  };
+  
+  const handleAddTaskClick = (statusId: string) => {
+    setCurrentStatusId(statusId);
+    setEditingTask(null);
+    setIsTaskModalOpen(true);
+  };
 
   if (loading) {
     return (
@@ -99,141 +259,278 @@ const ProjectBoard: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* 顶部导航栏 */}
-      <header className="bg-white shadow-sm border-b border-gray-200">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={() => navigate('/dashboard')}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                ← 返回
-              </button>
-              <h1 className="text-xl font-bold text-gray-900">
-                📋 {project?.name || '项目看板'}
-              </h1>
-              <span className="inline-flex items-center bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm">
-                {project?.key}
-              </span>
+    <div className="premium-task-board">
+      {/* 顶级导航栏 */}
+      <header className="premium-navbar">
+        <div className="premium-navbar-content">
+          <div className="premium-nav-brand">
+            <button
+              onClick={() => navigate('/dashboard')}
+              className="premium-action-btn edit"
+              style={{ marginRight: '1rem' }}
+            >
+              ←
+            </button>
+            <div className="premium-nav-logo">
+              📋
+            </div>
+            <div>
+              <div style={{ fontWeight: 800 }}>{project?.name || '项目看板'}</div>
+              <div style={{ fontSize: '0.9rem', opacity: 0.7 }}>{project?.key}</div>
+            </div>
+          </div>
+          
+          <div className="premium-nav-actions">
+            {/* WebSocket连接状态 */}
+            <div className="premium-connection-status">
+              <div className={`premium-status-indicator ${isConnected ? 'connected' : 'disconnected'}`}>
+                <div className="premium-status-dot"></div>
+                <span className="premium-status-text">
+                  {wsStatus === ConnectionStatus.CONNECTED ? '已连接' : 
+                   wsStatus === ConnectionStatus.CONNECTING ? '连接中...' : 
+                   wsStatus === ConnectionStatus.RECONNECTING ? '重连中...' : '未连接'}
+                </span>
+              </div>
             </div>
             
-            <div className="flex items-center space-x-4">
-              <div className="text-sm text-gray-600">
-                {user?.display_name || user?.username}
+            {/* 在线用户显示 */}
+            {onlineUsers.length > 0 && (
+              <div className="premium-online-users">
+                <div className="premium-users-avatars">
+                  {onlineUsers.slice(0, 3).map((user, index) => (
+                    <div 
+                      key={user.user_id} 
+                      className="premium-user-avatar online"
+                      style={{ marginLeft: index > 0 ? '-8px' : '0' }}
+                      title={`${user.username} - ${user.status}`}
+                    >
+                      {user.avatar ? (
+                        <img src={user.avatar} alt={user.username} />
+                      ) : (
+                        user.username.charAt(0).toUpperCase()
+                      )}
+                    </div>
+                  ))}
+                  {onlineUsers.length > 3 && (
+                    <div className="premium-user-avatar more" style={{ marginLeft: '-8px' }}>
+                      +{onlineUsers.length - 3}
+                    </div>
+                  )}
+                </div>
+                <span className="premium-online-count">{onlineUsers.length} 人在线</span>
               </div>
-              <button
-                onClick={handleLogout}
-                className="btn btn-secondary text-sm"
-              >
-                退出
-              </button>
+            )}
+            
+            <div className="premium-user-profile" onClick={handleLogout}>
+              <div className="premium-user-avatar">
+                {(user?.display_name || user?.username || 'U').charAt(0).toUpperCase()}
+              </div>
+              <span>{user?.display_name || user?.username}</span>
             </div>
           </div>
         </div>
       </header>
 
-      {/* 看板统计 */}
-      <div className="container mx-auto px-4 py-4">
-        <div className="grid grid-cols-3 gap-4 mb-6">
-          {taskStatuses.map((status) => {
-            const statusTasks = getTasksByStatus(status.id);
-            return (
-              <div key={status.id} className="bg-white rounded-lg p-4 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-medium text-gray-900">{status.name}</h3>
-                  <span className="bg-gray-100 text-gray-800 px-2 py-1 rounded-full text-sm">
-                    {statusTasks.length}
-                  </span>
-                </div>
-              </div>
-            );
-          })}
+      {/* 主要内容区 */}
+      <div className="premium-main-content">
+        {/* 项目头部 */}
+        <div className="premium-project-header">
+          <h1 className="premium-project-title">{project?.name || '项目看板'}</h1>
+          <div className="premium-project-meta">
+            <div className="premium-status-badge active">进行中</div>
+            <div className="premium-meta-item">
+              <span>🔑</span>
+              <span>{project?.key}</span>
+            </div>
+            <div className="premium-meta-item">
+              <span>📅</span>
+              <span>{new Date().toLocaleDateString()}</span>
+            </div>
+          </div>
+          {project?.description && (
+            <p className="premium-project-description">{project.description}</p>
+          )}
         </div>
 
-        {/* 看板主体 */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* 任务操作区 */}
+        <div className="premium-task-actions">
+          <div className="premium-task-stats">
+            {taskStatuses.map((status) => {
+              const statusTasks = getTasksByStatus(status.id);
+              return (
+                <div key={status.id} className="premium-stat-item">
+                  <div className={`premium-stat-number ${status.category === 'done' ? 'completed' : status.category === 'in_progress' ? 'in-progress' : 'pending'}`}>
+                    {statusTasks.length}
+                  </div>
+                  <div className="premium-stat-label">{status.name}</div>
+                </div>
+              );
+            })}
+            <div className="premium-stat-item">
+              <div className="premium-stat-number total">{tasks.length}</div>
+              <div className="premium-stat-label">总任务数</div>
+            </div>
+          </div>
+          
+          <div className="flex gap-3">
+            <button 
+              className="premium-add-task-btn"
+              onClick={() => handleAddTaskClick('1')}
+            >
+              <span>+</span>
+              <span>创建新任务</span>
+            </button>
+            
+            <button 
+              className="premium-add-task-btn"
+              style={{ background: 'linear-gradient(135deg, #10b981, #059669)' }}
+              onClick={() => setIsFileManagerOpen(true)}
+            >
+              <span>📁</span>
+              <span>文件管理</span>
+            </button>
+            
+            <button 
+              className="premium-add-task-btn"
+              style={{ background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)' }}
+              onClick={() => setIsTeamModalOpen(true)}
+            >
+              <span>👥</span>
+              <span>团队管理</span>
+            </button>
+          </div>
+        </div>
+
+        {/* 任务看板区域 */}
+        <div className="premium-task-columns">
           {taskStatuses.map((status) => {
             const statusTasks = getTasksByStatus(status.id);
+            const columnClass = status.category === 'todo' ? 'todo' : status.category === 'in_progress' ? 'in-progress' : 'completed';
+            
             return (
-              <div key={status.id} className="bg-white rounded-lg shadow-sm">
+              <div key={status.id} className="premium-task-column">
                 {/* 列标题 */}
-                <div className="p-4 border-b border-gray-200">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-semibold text-gray-900">{status.name}</h3>
-                    <span className="bg-gray-100 text-gray-700 px-2 py-1 rounded-full text-sm">
-                      {statusTasks.length}
-                    </span>
+                <div className={`premium-column-header ${columnClass}`}>
+                  <div className="premium-column-title">
+                    <div className={`premium-column-icon ${columnClass}`}>
+                      {status.category === 'todo' ? '📋' : status.category === 'in_progress' ? '⚡' : '✅'}
+                    </div>
+                    <span>{status.name}</span>
                   </div>
+                  <div className="premium-task-count">{statusTasks.length}</div>
                 </div>
 
                 {/* 任务列表 */}
-                <div className="p-4 space-y-3 min-h-96">
+                <div className="premium-task-list">
                   {statusTasks.length === 0 ? (
-                    <div className="text-center text-gray-500 py-8">
-                      <div className="text-3xl mb-2">📝</div>
-                      <p className="text-sm">暂无任务</p>
+                    <div className="premium-empty-state">
+                      <div className="premium-empty-icon">
+                        {status.category === 'todo' ? '📝' : status.category === 'in_progress' ? '⚡' : '🎉'}
+                      </div>
+                      <p className="premium-empty-text">暂无任务</p>
                     </div>
                   ) : (
                     statusTasks.map((task) => (
                       <div
                         key={task.id}
-                        className="bg-gray-50 border border-gray-200 rounded-lg p-3 hover:shadow-md transition-shadow cursor-pointer"
+                        className="premium-task-card"
+                        onClick={() => handleEditTask(task)}
                       >
-                        <div className="flex items-start justify-between mb-2">
-                          <h4 className="font-medium text-gray-900 text-sm leading-tight">
-                            {task.title}
-                          </h4>
-                          <span className={`ml-2 px-2 py-1 rounded-full text-xs ${getPriorityColor(task.priority)}`}>
-                            {getPriorityLabel(task.priority)}
-                          </span>
-                        </div>
+                        <h4 className="premium-task-title">{task.title}</h4>
                         
                         {task.description && (
-                          <p className="text-gray-600 text-xs mb-2 line-clamp-2">
-                            {task.description}
-                          </p>
+                          <p className="premium-task-description">{task.description}</p>
                         )}
                         
-                        <div className="flex items-center justify-between text-xs text-gray-500">
-                          <span>#{task.task_number}</span>
+                        <div className="premium-task-meta">
+                          <div className={`premium-task-priority ${task.priority}`}>
+                            {getPriorityLabel(task.priority)}
+                          </div>
+                          
                           {task.due_date && (
-                            <span>
-                              📅 {new Date(task.due_date).toLocaleDateString()}
-                            </span>
+                            <div className="premium-task-date">
+                              <span>📅</span>
+                              <span>{new Date(task.due_date).toLocaleDateString()}</span>
+                            </div>
                           )}
                         </div>
                         
-                        {task.assignee_id && (
-                          <div className="mt-2 flex items-center">
-                            <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs">
-                              👤
-                            </div>
-                            <span className="ml-2 text-xs text-gray-600">已分配</span>
-                          </div>
-                        )}
+                        <div className="premium-task-actions-mini">
+                          <button
+                            className="premium-action-btn edit"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEditTask(task);
+                            }}
+                          >
+                            ✏️
+                          </button>
+                          <button
+                            className="premium-action-btn delete"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteTask(task);
+                            }}
+                          >
+                            🗑️
+                          </button>
+                        </div>
                       </div>
                     ))
                   )}
                   
                   {/* 添加任务按钮 */}
-                  <button className="w-full p-3 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-gray-400 hover:text-gray-600 transition-colors">
-                    + 添加任务
+                  <button 
+                    className="premium-add-task-btn"
+                    style={{ width: '100%', padding: 'var(--space-3)', fontSize: '0.9rem' }}
+                    onClick={() => handleAddTaskClick(status.id)}
+                  >
+                    <span>+</span>
+                    <span>添加任务</span>
                   </button>
                 </div>
               </div>
             );
           })}
         </div>
-
-        {/* 项目信息 */}
-        {project?.description && (
-          <div className="mt-6 bg-white rounded-lg p-4 shadow-sm">
-            <h3 className="font-semibold text-gray-900 mb-2">项目描述</h3>
-            <p className="text-gray-600 text-sm">{project.description}</p>
-          </div>
-        )}
+        
+        {/* 任务创建/编辑对话框 */}
+        <TaskModal
+          isOpen={isTaskModalOpen}
+          onClose={() => {
+            setIsTaskModalOpen(false);
+            setEditingTask(null);
+          }}
+          onSubmit={editingTask ? handleUpdateTask : (data) => {
+            const taskData = { ...data, status_id: currentStatusId };
+            return handleCreateTask(taskData);
+          }}
+          task={editingTask}
+          title={editingTask ? '编辑任务' : '创建任务'}
+          projectId={projectId!}
+        />
+        
+        {/* 实时协作聊天 */}
+        <ChatWidget
+          projectId={projectIdNum}
+          isOpen={isChatOpen}
+          onToggle={() => setIsChatOpen(!isChatOpen)}
+          sendChatMessage={sendChatMessage}
+        />
+        
+        {/* 文件管理器 */}
+        <FileManager
+          projectId={projectIdNum}
+          isOpen={isFileManagerOpen}
+          onClose={() => setIsFileManagerOpen(false)}
+        />
+        
+        {/* 团队管理 */}
+        <TeamModal
+          projectId={projectIdNum}
+          isOpen={isTeamModalOpen}
+          onClose={() => setIsTeamModalOpen(false)}
+        />
       </div>
     </div>
   );

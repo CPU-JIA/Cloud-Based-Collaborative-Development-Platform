@@ -3,7 +3,7 @@ import { ApiResponse, ApiError } from '../types';
 
 // 创建API客户端
 const api = axios.create({
-  baseURL: '/api/v1',
+  baseURL: 'http://localhost:8082', // 连接Mock API服务
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
@@ -71,14 +71,26 @@ export const apiCall = async <T>(
 
 // 认证相关API
 export const authApi = {
-  login: (email: string, password: string) =>
-    apiCall('POST', '/auth/login', { email, password }),
+  login: async (email: string, password: string) => {
+    const response = await api.post('/auth/login', { email, password });
+    return response.data; // 直接返回Mock API的响应格式
+  },
+
+  register: async (userData: {
+    email: string;
+    password: string;
+    display_name: string;
+    username: string;
+  }) => {
+    const response = await api.post('/auth/register', userData);
+    return response.data;
+  },
     
   logout: () =>
     apiCall('POST', '/auth/logout', {}),
     
   getCurrentUser: () =>
-    apiCall('GET', '/auth/me', {}),
+    apiCall('GET', '/users/me', {}),
     
   refreshToken: () =>
     apiCall('POST', '/auth/refresh', {}),
@@ -110,8 +122,10 @@ export const taskApi = {
   getById: (taskId: string) =>
     apiCall('GET', `/tasks/${taskId}`),
     
-  create: (projectId: string, data: any) =>
-    apiCall('POST', `/projects/${projectId}/tasks`, data),
+  create: async (projectId: string, data: any) => {
+    const response = await api.post(`/tasks?project_id=${projectId}`, data);
+    return response.data;
+  },
     
   update: (taskId: string, data: any) =>
     apiCall('PUT', `/tasks/${taskId}`, data),
@@ -121,6 +135,15 @@ export const taskApi = {
     
   reorder: (data: any) =>
     apiCall('POST', '/tasks/reorder', data),
+};
+
+// 用户相关API
+export const userApi = {
+  getCurrentUser: () =>
+    apiCall('GET', '/users/me'),
+    
+  list: () =>
+    apiCall('GET', '/users'),
 };
 
 export default api;

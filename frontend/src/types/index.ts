@@ -1,13 +1,19 @@
 // 用户相关类型
 export interface User {
-  id: string;
-  username: string;
+  id: number;
   email: string;
-  display_name?: string;
-  avatar_url?: string;
-  status: 'active' | 'suspended' | 'deactivated';
-  is_platform_admin: boolean;
+  name: string;
+  display_name: string;
+  username: string;
+  avatar: string;
   created_at: string;
+}
+
+export interface RegisterRequest {
+  email: string;
+  password: string;
+  display_name: string;
+  username: string;
 }
 
 // 认证相关类型
@@ -17,40 +23,71 @@ export interface LoginRequest {
 }
 
 export interface LoginResponse {
+  success: boolean;
   user: User;
   access_token: string;
-  refresh_token: string;
-  expires_in: number;
+  refresh_token?: string;
+  expires_in?: number;
+  message: string;
 }
 
 // 项目相关类型
 export interface Project {
-  id: string;
-  tenant_id: string;
-  key: string;
+  id: number;
   name: string;
-  description?: string;
-  manager_id?: string;
-  status: 'active' | 'archived';
+  key: string;
+  description: string;
+  status: string;
   created_at: string;
   updated_at: string;
+  team_size: number;
+  owner_id: number;
+  tasks_count: number;
+}
+
+export interface CreateProjectRequest {
+  name: string;
+  description: string;
+  key?: string;
+}
+
+export interface UpdateProjectRequest {
+  name: string;
+  description: string;
+  status?: string;
 }
 
 // 任务相关类型
 export interface Task {
-  id: string;
-  project_id: string;
-  task_number: number;
+  id: number;
+  project_id: number;
   title: string;
-  description?: string;
-  status_id?: string;
-  assignee_id?: string;
-  creator_id: string;
-  parent_task_id?: string;
-  due_date?: string;
+  description: string;
+  task_number: string;
+  status_id: string;
   priority: 'low' | 'medium' | 'high' | 'urgent';
+  assignee_id?: string;
+  due_date?: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface CreateTaskRequest {
+  title: string;
+  description: string;
+  priority: string;
+  status_id: string;
+  assignee_id?: string;
+  due_date?: string;
+}
+
+export interface UpdateTaskRequest {
+  title: string;
+  description: string;
+  priority: string;
+  status_id: string;
+  assignee_id?: string;
+  due_date?: string;
 }
 
 // 任务状态类型
