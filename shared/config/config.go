@@ -3,9 +3,11 @@ package config
 import (
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
-	"github.com/spf13/viper"
+	"github.com/cloud-platform/collaborative-dev/shared/database"
+	"gorm.io/gorm/logger"
 )
 
 // Config 应用程序配置结构
@@ -20,6 +22,7 @@ type Config struct {
 	Security SecurityConfig `mapstructure:"security"`
 	Storage  StorageConfig  `mapstructure:"storage"`
 	CICD     CICDConfig     `mapstructure:"cicd"`
+	Git      GitConfig      `mapstructure:"git"`
 }
 
 // ServerConfig 服务器配置
@@ -52,8 +55,8 @@ type DatabaseConfig struct {
 }
 
 // ToDBConfig 转换为database.Config
-func (d *DatabaseConfig) ToDBConfig() DatabaseDBConfig {
-	return DatabaseDBConfig{
+func (d *DatabaseConfig) ToDBConfig() database.Config {
+	return database.Config{
 		Host:            d.Host,
 		Port:            d.Port,
 		Name:            d.Name,
@@ -64,7 +67,7 @@ func (d *DatabaseConfig) ToDBConfig() DatabaseDBConfig {
 		MaxIdleConns:    d.MaxIdleConns,
 		ConnMaxLifetime: d.ConnMaxLifetime,
 		ConnMaxIdleTime: d.ConnMaxIdleTime,
-		LogLevel:        "info",
+		LogLevel:        logger.Silent, // Silent mode for production
 	}
 }
 
@@ -163,92 +166,36 @@ type SecurityConfig struct {
 	MaxRequestSize     string   `mapstructure:"max_request_size" default:"10MB"`
 }
 
-// Load 加载配置
+// Load 加载配置（已废弃，请使用 LoadWithSecrets）
 func Load() (*Config, error) {
-	var cfg Config
-
-	// 设置配置文件路径
-	viper.SetConfigName("config")
-	viper.SetConfigType("yaml")
-	viper.AddConfigPath("./configs")
-	viper.AddConfigPath("/etc/collaborative-platform")
-	viper.AddConfigPath("$HOME/.collaborative-platform")
-
-	// 启用自动环境变量读取，但不设置前缀以避免限制
-	viper.AutomaticEnv()
-
-	// 直接绑定环境变量，支持多种命名格式
-	viper.BindEnv("database.host", "POSTGRES_HOST", "DATABASE_HOST")
-	viper.BindEnv("database.port", "POSTGRES_PORT", "DATABASE_PORT")
-	viper.BindEnv("database.name", "POSTGRES_DB", "DATABASE_NAME")
-	viper.BindEnv("database.user", "POSTGRES_USER", "DATABASE_USER")
-	viper.BindEnv("database.password", "POSTGRES_PASSWORD", "DATABASE_PASSWORD")
-	viper.BindEnv("redis.host", "REDIS_HOST")
-	viper.BindEnv("redis.port", "REDIS_PORT")
-	viper.BindEnv("redis.password", "REDIS_PASSWORD")
-	viper.BindEnv("kafka.brokers", "KAFKA_BROKERS")
-	viper.BindEnv("auth.jwt_secret", "JWT_SECRET_KEY", "JWT_SECRET")
-	viper.BindEnv("server.port", "SERVER_PORT")
-
-	// 添加配置调试日志
-	fmt.Printf("DEBUG: 尝试读取环境变量 POSTGRES_PASSWORD: %s\n", os.Getenv("POSTGRES_PASSWORD"))
-	fmt.Printf("DEBUG: 尝试读取环境变量 DATABASE_PASSWORD: %s\n", os.Getenv("DATABASE_PASSWORD"))
-
-	// 读取配置文件
-	if err := viper.ReadInConfig(); err != nil {
-		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
-			// 配置文件未找到，使用默认值
-			fmt.Println("配置文件未找到，使用默认配置")
-		} else {
-			return nil, fmt.Errorf("读取配置文件失败: %w", err)
-		}
+	// 获取环境
+	environment := os.Getenv("ENVIRONMENT")
+	if environment == "" {
+		environment = "development"
 	}
 
-	// 解析配置
-	if err := viper.Unmarshal(&cfg); err != nil {
-		return nil, fmt.Errorf("解析配置失败: %w", err)
+	return LoadWithSecrets(environment)
+}
+
+// LoadWithSecrets 使用密钥管理器加载配置
+func LoadWithSecrets(environment string) (*Config, error) {
+	// 创建配置加载器
+	loader, err := NewConfigLoader(environment)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create config loader: %w", err)
 	}
 
-	// 开发环境设置默认值以便调试
-	if cfg.IsDevelopment() || cfg.Server.Environment == "" {
-		// 设置默认服务器端口如果未配置
-		if cfg.Server.Port == 0 {
-			fmt.Println("WARN: 开发环境未设置服务器端口，使用默认端口 8082")
-			cfg.Server.Port = 8082
-		}
-		
-		// 设置默认数据库密码如果未配置
-		if cfg.Database.Password == "" {
-			fmt.Println("WARN: 开发环境未设置数据库密码，使用默认密码")
-			cfg.Database.Password = "dev_password_123" // 与Docker Compose一致
-		}
-
-		// 设置默认JWT密钥如果未配置
-		if cfg.Auth.JWTSecret == "" {
-			fmt.Println("WARN: 开发环境未设置JWT密钥，使用默认密钥")
-			cfg.Auth.JWTSecret = "development_jwt_secret_key_32_chars_minimum_here_safe"
-		}
-
-		// 输出调试信息
-		fmt.Printf("DEBUG: 解析后数据库密码: %s\n", cfg.Database.Password)
-		if len(cfg.Auth.JWTSecret) >= 16 {
-			fmt.Printf("DEBUG: 解析后JWT密钥: %s\n", cfg.Auth.JWTSecret[:16]+"...")
-		} else {
-			fmt.Printf("DEBUG: 解析后JWT密钥: %s (长度: %d)\n", cfg.Auth.JWTSecret, len(cfg.Auth.JWTSecret))
-		}
-		fmt.Printf("DEBUG: 服务器端口: %d\n", cfg.Server.Port)
-	}
-
-	// 验证必要的配置
-	if err := cfg.Validate(); err != nil {
-		return nil, fmt.Errorf("配置验证失败: %w", err)
-	}
-
-	return &cfg, nil
+	// 加载配置
+	return loader.LoadConfig()
 }
 
 // Validate 验证配置
 func (c *Config) Validate() error {
+	// 验证敏感信息是否已移除
+	if err := c.validateNoHardcodedSecrets(); err != nil {
+		return fmt.Errorf("security validation failed: %w", err)
+	}
+
 	// 在生产环境强制要求密码，开发环境允许为空（将使用默认值）
 	if c.IsProduction() && c.Database.Password == "" {
 		return fmt.Errorf("生产环境数据库密码不能为空")
@@ -271,6 +218,38 @@ func (c *Config) Validate() error {
 	// 验证CORS配置
 	if len(c.Security.CorsAllowedOrigins) == 0 && c.IsProduction() {
 		return fmt.Errorf("生产环境必须配置CORS允许的域名")
+	}
+
+	return nil
+}
+
+// validateNoHardcodedSecrets 验证没有硬编码的密钥
+func (c *Config) validateNoHardcodedSecrets() error {
+	// 检查常见的硬编码密码模式
+	weakPatterns := []string{
+		"password123", "admin", "default", "test", "demo",
+		"secret", "changeme", "123456", "qwerty",
+	}
+
+	// 检查数据库密码
+	for _, pattern := range weakPatterns {
+		if strings.Contains(strings.ToLower(c.Database.Password), pattern) {
+			return fmt.Errorf("database password contains weak pattern: %s", pattern)
+		}
+	}
+
+	// 检查JWT密钥
+	if strings.Contains(c.Auth.JWTSecret, "development_jwt_secret") && c.IsProduction() {
+		return fmt.Errorf("production environment cannot use development JWT secret")
+	}
+
+	// 检查Redis密码
+	if c.Redis.Password != "" {
+		for _, pattern := range weakPatterns {
+			if strings.Contains(strings.ToLower(c.Redis.Password), pattern) {
+				return fmt.Errorf("Redis password contains weak pattern: %s", pattern)
+			}
+		}
 	}
 
 	return nil
@@ -351,6 +330,19 @@ type CICDConfig struct {
 	Scheduler SchedulerConfig `mapstructure:"scheduler"`
 	Runner    RunnerConfig    `mapstructure:"runner"`
 	Executor  ExecutorConfig  `mapstructure:"executor"`
+}
+
+// GitConfig Git服务配置
+type GitConfig struct {
+	BaseURL       string `mapstructure:"base_url" default:"https://git.example.com"`
+	SSHHost       string `mapstructure:"ssh_host" default:"git.example.com"`
+	SSHPort       int    `mapstructure:"ssh_port" default:"22"`
+	ReposRootPath string `mapstructure:"repos_root_path" default:"/var/lib/git/repos"`
+	DefaultBranch string `mapstructure:"default_branch" default:"main"`
+	// 删除设置
+	AsyncDeleteEnabled  bool          `mapstructure:"async_delete_enabled" default:"true"`
+	DeleteRetryAttempts int           `mapstructure:"delete_retry_attempts" default:"3"`
+	DeleteRetryDelay    time.Duration `mapstructure:"delete_retry_delay" default:"5s"`
 }
 
 // SchedulerConfig 调度器配置

@@ -65,7 +65,7 @@ func main() {
 	defer zapLoggerInstance.Sync()
 
 	// 连接数据库
-	dbConfig := cfg.Database.ToDBConfig().(database.Config)
+	dbConfig := cfg.Database.ToDBConfig()
 	db, err := database.NewPostgresDB(dbConfig)
 	if err != nil {
 		zapLoggerInstance.Fatal("Failed to connect to database", zap.Error(err))
@@ -75,21 +75,21 @@ func main() {
 	gitRepo := repository.NewGitRepository(db.DB)
 	sqlxDB := sqlx.NewDb(db.SqlDB, "postgres")
 	webhookRepo := repository.NewWebhookRepository(sqlxDB, zapLoggerInstance)
-	
+
 	// 创建Webhook配置
 	webhookConfig := service.WebhookConfig{
-		MaxRetries:      3,
-		RetryInterval:   30 * time.Second,
-		RequestTimeout:  10 * time.Second,
-		MaxPayloadSize:  1024 * 1024, // 1MB
-		EnableBatching:  false,
-		BatchSize:       10,
-		BatchTimeout:    5 * time.Second,
+		MaxRetries:     3,
+		RetryInterval:  30 * time.Second,
+		RequestTimeout: 10 * time.Second,
+		MaxPayloadSize: 1024 * 1024, // 1MB
+		EnableBatching: false,
+		BatchSize:      10,
+		BatchTimeout:   5 * time.Second,
 	}
-	
-	gitService := service.NewGitService(gitRepo, zapLoggerInstance, "/var/git/repositories")
+
+	gitService := service.NewGitService(gitRepo, zapLoggerInstance, "/var/git/repositories", cfg)
 	webhookService := service.NewWebhookService(gitRepo, webhookRepo, nil, webhookConfig, zapLoggerInstance)
-	
+
 	gitHandler := handlers.NewGitHandler(gitService, zapLoggerInstance)
 	webhookHandler := handlers.NewWebhookHandler(webhookService, zapLoggerInstance)
 
@@ -116,13 +116,13 @@ func main() {
 		repositories.Use(middleware.JWTAuth(cfg.Auth.JWTSecret))
 		{
 			// 仓库CRUD
-			repositories.POST("", gitHandler.CreateRepository)                    // 创建仓库
-			repositories.GET("", gitHandler.ListRepositories)                     // 获取仓库列表  
-			repositories.GET("/search", gitHandler.SearchRepositories)            // 搜索仓库
-			repositories.GET("/:id", gitHandler.GetRepository)                    // 获取仓库详情
-			repositories.PUT("/:id", gitHandler.UpdateRepository)                 // 更新仓库
-			repositories.DELETE("/:id", gitHandler.DeleteRepository)              // 删除仓库
-			repositories.GET("/:id/stats", gitHandler.GetRepositoryStats)         // 获取仓库统计
+			repositories.POST("", gitHandler.CreateRepository)            // 创建仓库
+			repositories.GET("", gitHandler.ListRepositories)             // 获取仓库列表
+			repositories.GET("/search", gitHandler.SearchRepositories)    // 搜索仓库
+			repositories.GET("/:id", gitHandler.GetRepository)            // 获取仓库详情
+			repositories.PUT("/:id", gitHandler.UpdateRepository)         // 更新仓库
+			repositories.DELETE("/:id", gitHandler.DeleteRepository)      // 删除仓库
+			repositories.GET("/:id/stats", gitHandler.GetRepositoryStats) // 获取仓库统计
 
 			// 分支管理
 			repositories.POST("/:id/branches", gitHandler.CreateBranch)           // 创建分支
@@ -133,25 +133,25 @@ func main() {
 			repositories.POST("/:id/merge", gitHandler.MergeBranch)               // 合并分支
 
 			// 提交管理
-			repositories.POST("/:id/commits", gitHandler.CreateCommit)            // 创建提交
-			repositories.GET("/:id/commits", gitHandler.ListCommits)              // 获取提交列表
-			repositories.GET("/:id/commits/:sha", gitHandler.GetCommit)           // 获取提交详情
-			repositories.GET("/:id/commits/:sha/diff", gitHandler.GetCommitDiff)  // 获取提交差异
-			repositories.GET("/:id/compare", gitHandler.CompareBranches)          // 比较分支
+			repositories.POST("/:id/commits", gitHandler.CreateCommit)           // 创建提交
+			repositories.GET("/:id/commits", gitHandler.ListCommits)             // 获取提交列表
+			repositories.GET("/:id/commits/:sha", gitHandler.GetCommit)          // 获取提交详情
+			repositories.GET("/:id/commits/:sha/diff", gitHandler.GetCommitDiff) // 获取提交差异
+			repositories.GET("/:id/compare", gitHandler.CompareBranches)         // 比较分支
 
 			// 标签管理
-			repositories.POST("/:id/tags", gitHandler.CreateTag)                  // 创建标签
-			repositories.GET("/:id/tags", gitHandler.ListTags)                    // 获取标签列表
-			repositories.GET("/:id/tags/:tag", gitHandler.GetTag)                 // 获取标签详情
-			repositories.DELETE("/:id/tags/:tag", gitHandler.DeleteTag)           // 删除标签
+			repositories.POST("/:id/tags", gitHandler.CreateTag)        // 创建标签
+			repositories.GET("/:id/tags", gitHandler.ListTags)          // 获取标签列表
+			repositories.GET("/:id/tags/:tag", gitHandler.GetTag)       // 获取标签详情
+			repositories.DELETE("/:id/tags/:tag", gitHandler.DeleteTag) // 删除标签
 
 			// 文件操作
-			repositories.GET("/:id/files", gitHandler.GetFileContent)             // 获取文件内容
-			repositories.GET("/:id/tree", gitHandler.GetDirectoryContent)         // 获取目录内容
+			repositories.GET("/:id/files", gitHandler.GetFileContent)     // 获取文件内容
+			repositories.GET("/:id/tree", gitHandler.GetDirectoryContent) // 获取目录内容
 
 			// TODO: Pull Request管理 - 待实现
 			// repositories.POST("/:id/pull-requests", gitHandler.CreatePullRequest)         // 创建PR
-			// repositories.GET("/:id/pull-requests", gitHandler.ListPullRequests)           // 获取PR列表  
+			// repositories.GET("/:id/pull-requests", gitHandler.ListPullRequests)           // 获取PR列表
 			// repositories.GET("/:id/pull-requests/:number", gitHandler.GetPullRequest)     // 获取PR详情
 			// repositories.PUT("/:id/pull-requests/:number", gitHandler.UpdatePullRequest) // 更新PR
 			// repositories.POST("/:id/pull-requests/:number/merge", gitHandler.MergePullRequest) // 合并PR
@@ -180,12 +180,12 @@ func main() {
 			webhooks.DELETE("/events/:event_id", webhookHandler.DeleteWebhookEvent)        // 删除事件
 
 			// Webhook触发器管理
-			webhooks.POST("/triggers", webhookHandler.CreateWebhookTrigger)                        // 创建触发器
-			webhooks.GET("/triggers", webhookHandler.ListWebhookTriggers)                          // 列出触发器
-			webhooks.GET("/triggers/:trigger_id", webhookHandler.GetWebhookTrigger)                // 获取触发器详情
-			webhooks.PUT("/triggers/:trigger_id", webhookHandler.UpdateWebhookTrigger)             // 更新触发器
-			webhooks.DELETE("/triggers/:trigger_id", webhookHandler.DeleteWebhookTrigger)          // 删除触发器
-			webhooks.POST("/triggers/:trigger_id/enable", webhookHandler.EnableWebhookTrigger)     // 启用/禁用触发器
+			webhooks.POST("/triggers", webhookHandler.CreateWebhookTrigger)                    // 创建触发器
+			webhooks.GET("/triggers", webhookHandler.ListWebhookTriggers)                      // 列出触发器
+			webhooks.GET("/triggers/:trigger_id", webhookHandler.GetWebhookTrigger)            // 获取触发器详情
+			webhooks.PUT("/triggers/:trigger_id", webhookHandler.UpdateWebhookTrigger)         // 更新触发器
+			webhooks.DELETE("/triggers/:trigger_id", webhookHandler.DeleteWebhookTrigger)      // 删除触发器
+			webhooks.POST("/triggers/:trigger_id/enable", webhookHandler.EnableWebhookTrigger) // 启用/禁用触发器
 
 			// 统计信息
 			webhooks.GET("/statistics", webhookHandler.GetWebhookStatistics) // 获取统计信息

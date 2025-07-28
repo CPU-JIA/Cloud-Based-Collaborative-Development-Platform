@@ -36,13 +36,13 @@ func TestMockGitGatewayClient(t *testing.T) {
 	// 设置模拟行为
 	projectID := uuid.New()
 	repoID := uuid.New()
-	
+
 	mockRepo := &client.Repository{
-		ID:          repoID,
-		ProjectID:   projectID,
-		Name:        "test-repo",
-		Description: stringPtr("测试仓库"),
-		Visibility:  client.RepositoryVisibilityPrivate,
+		ID:            repoID,
+		ProjectID:     projectID,
+		Name:          "test-repo",
+		Description:   stringPtr("测试仓库"),
+		Visibility:    client.RepositoryVisibilityPrivate,
 		DefaultBranch: "main",
 	}
 
@@ -88,14 +88,14 @@ func TestMockGitGatewayClient(t *testing.T) {
 func TestDataModelConversion(t *testing.T) {
 	// Git网关的Repository模型
 	gitRepo := &client.Repository{
-		ID:          uuid.New(),
-		ProjectID:   uuid.New(),
-		Name:        "test-conversion-repo",
-		Description: stringPtr("数据模型转换测试"),
-		Visibility:  client.RepositoryVisibilityPublic,
+		ID:            uuid.New(),
+		ProjectID:     uuid.New(),
+		Name:          "test-conversion-repo",
+		Description:   stringPtr("数据模型转换测试"),
+		Visibility:    client.RepositoryVisibilityPublic,
 		DefaultBranch: "main",
-		CreatedAt:   time.Now(),
-		UpdatedAt:   time.Now(),
+		CreatedAt:     time.Now(),
+		UpdatedAt:     time.Now(),
 	}
 
 	// 验证枚举值转换

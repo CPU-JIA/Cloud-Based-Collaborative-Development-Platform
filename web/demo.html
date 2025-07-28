@@ -818,13 +818,29 @@
             const activityFeed = document.getElementById('activityFeed');
             const activityItem = document.createElement('div');
             activityItem.className = 'activity-item';
-            activityItem.innerHTML = `
-                <div class="activity-icon" style="background: #bee3f8; color: #2b6cb0;">🔔</div>
-                <div class="activity-content">
-                    <div class="activity-title">${data.message || '系统更新'}</div>
-                    <div class="activity-time">刚刚</div>
-                </div>
-            `;
+            
+            // 创建子元素安全地避免XSS
+            const iconDiv = document.createElement('div');
+            iconDiv.className = 'activity-icon';
+            iconDiv.style.background = '#bee3f8';
+            iconDiv.style.color = '#2b6cb0';
+            iconDiv.textContent = '🔔';
+            
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'activity-content';
+            
+            const titleDiv = document.createElement('div');
+            titleDiv.className = 'activity-title';
+            titleDiv.textContent = data.message || '系统更新';
+            
+            const timeDiv = document.createElement('div');
+            timeDiv.className = 'activity-time';
+            timeDiv.textContent = '刚刚';
+            
+            contentDiv.appendChild(titleDiv);
+            contentDiv.appendChild(timeDiv);
+            activityItem.appendChild(iconDiv);
+            activityItem.appendChild(contentDiv);
             
             // 插入到顶部
             activityFeed.insertBefore(activityItem, activityFeed.firstChild);
@@ -843,8 +859,8 @@
                 const data = await response.json();
                 
                 // 更新系统状态
-                document.getElementById('systemStatus').innerHTML = 
-                    `🟢 ${data.platform_status || '系统正常运行'} - 所有服务在线`;
+                const statusElement = document.getElementById('systemStatus');
+                statusElement.textContent = `🟢 ${data.platform_status || '系统正常运行'} - 所有服务在线`;
                 
                 // 更新性能指标
                 if (data.performance) {
@@ -853,8 +869,8 @@
                 
             } catch (error) {
                 console.error('加载系统数据失败:', error);
-                document.getElementById('systemStatus').innerHTML = 
-                    '⚠️ 系统状态：连接服务中...';
+                const statusElement = document.getElementById('systemStatus');
+                statusElement.textContent = '⚠️ 系统状态：连接服务中...';
             }
         }
         

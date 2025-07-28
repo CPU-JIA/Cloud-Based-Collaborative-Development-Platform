@@ -130,7 +130,7 @@ func (bus *AsyncEventBus) Publish(ctx context.Context, event *DomainEvent) error
 func (bus *AsyncEventBus) Subscribe(eventType EventType, handler EventHandler) error {
 	bus.logger.Info("异步事件总线订阅",
 		zap.String("event_type", string(eventType)))
-	
+
 	// 在异步模式下，处理器通过ProcessPendingEvents方法调用
 	return nil
 }

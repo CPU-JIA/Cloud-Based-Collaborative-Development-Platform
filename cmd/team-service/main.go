@@ -26,11 +26,11 @@ type User struct {
 }
 
 type Role struct {
-	ID          int      `json:"id"`
-	Name        string   `json:"name"`
-	Description string   `json:"description"`
-	Permissions []string `json:"permissions"`
-	IsSystem    bool     `json:"is_system"`
+	ID          int       `json:"id"`
+	Name        string    `json:"name"`
+	Description string    `json:"description"`
+	Permissions []string  `json:"permissions"`
+	IsSystem    bool      `json:"is_system"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 }
@@ -71,17 +71,17 @@ type Invitation struct {
 }
 
 type PermissionRequest struct {
-	ID          int       `json:"id"`
-	ProjectID   int       `json:"project_id"`
-	UserID      int       `json:"user_id"`
-	RequestType string    `json:"request_type"`
-	TargetID    *int      `json:"target_id"`
-	Permission  string    `json:"permission"`
-	Reason      string    `json:"reason"`
-	Status      string    `json:"status"`
-	ReviewedBy  *int      `json:"reviewed_by"`
+	ID          int        `json:"id"`
+	ProjectID   int        `json:"project_id"`
+	UserID      int        `json:"user_id"`
+	RequestType string     `json:"request_type"`
+	TargetID    *int       `json:"target_id"`
+	Permission  string     `json:"permission"`
+	Reason      string     `json:"reason"`
+	Status      string     `json:"status"`
+	ReviewedBy  *int       `json:"reviewed_by"`
 	ReviewedAt  *time.Time `json:"reviewed_at"`
-	CreatedAt   time.Time `json:"created_at"`
+	CreatedAt   time.Time  `json:"created_at"`
 }
 
 // 内存存储
@@ -119,7 +119,7 @@ var requestIDCounter = 1
 
 func main() {
 	r := gin.Default()
-	
+
 	// CORS配置
 	r.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"http://localhost:3000", "http://localhost:3001", "http://localhost:3002"},
@@ -129,13 +129,13 @@ func main() {
 		AllowCredentials: true,
 		MaxAge:           12 * time.Hour,
 	}))
-	
+
 	// API路由组
 	api := r.Group("/api/v1")
 	{
 		// 健康检查
 		api.GET("/health", healthCheck)
-		
+
 		// 团队管理
 		teams := api.Group("/teams")
 		{
@@ -144,14 +144,14 @@ func main() {
 			teams.GET("/:id", getTeam)
 			teams.PUT("/:id", updateTeam)
 			teams.DELETE("/:id", deleteTeam)
-			
+
 			// 团队成员管理
 			teams.GET("/:id/members", getTeamMembers)
 			teams.POST("/:id/members", addTeamMember)
 			teams.PUT("/:id/members/:userId", updateMemberRole)
 			teams.DELETE("/:id/members/:userId", removeTeamMember)
 		}
-		
+
 		// 用户管理
 		users := api.Group("/users")
 		{
@@ -159,7 +159,7 @@ func main() {
 			users.GET("/:id", getUser)
 			users.GET("/:id/permissions", getUserPermissions)
 		}
-		
+
 		// 角色管理
 		roles := api.Group("/roles")
 		{
@@ -168,7 +168,7 @@ func main() {
 			roles.PUT("/:id", updateRole)
 			roles.DELETE("/:id", deleteRole)
 		}
-		
+
 		// 邀请管理
 		invitations := api.Group("/invitations")
 		{
@@ -177,7 +177,7 @@ func main() {
 			invitations.POST("/:token/accept", acceptInvitation)
 			invitations.POST("/:token/reject", rejectInvitation)
 		}
-		
+
 		// 权限申请
 		requests := api.Group("/permission-requests")
 		{
@@ -186,20 +186,20 @@ func main() {
 			requests.POST("/:id/review", reviewPermissionRequest)
 		}
 	}
-	
+
 	log.Println("🚀 团队管理服务启动成功！")
 	log.Println("🌐 服务地址: http://localhost:8086")
 	log.Println("🔍 健康检查: http://localhost:8086/api/v1/health")
-	
+
 	r.Run(":8086")
 }
 
 func healthCheck(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"service": "团队管理服务",
-		"version": "1.0.0",
-		"status":  "healthy",
+		"success":     true,
+		"service":     "团队管理服务",
+		"version":     "1.0.0",
+		"status":      "healthy",
 		"teams_count": len(teams),
 		"users_count": len(users),
 		"roles_count": len(roles),
@@ -212,12 +212,12 @@ func createTeam(c *gin.Context) {
 		Name        string `json:"name" binding:"required"`
 		Description string `json:"description"`
 	}
-	
+
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "参数错误: " + err.Error()})
 		return
 	}
-	
+
 	team := Team{
 		ID:          teamIDCounter,
 		ProjectID:   req.ProjectID,
@@ -228,10 +228,10 @@ func createTeam(c *gin.Context) {
 		CreatedBy:   1, // 临时硬编码
 		CreatedAt:   time.Now(),
 	}
-	
+
 	teams = append(teams, team)
 	teamIDCounter++
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"team":    team,
@@ -244,14 +244,14 @@ func getProjectTeams(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "项目ID无效"})
 		return
 	}
-	
+
 	var projectTeams []Team
 	for _, team := range teams {
 		if team.ProjectID == projectID && team.IsActive {
 			projectTeams = append(projectTeams, team)
 		}
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"teams":   projectTeams,
@@ -265,7 +265,7 @@ func getTeam(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "团队ID无效"})
 		return
 	}
-	
+
 	for _, team := range teams {
 		if team.ID == teamID {
 			c.JSON(http.StatusOK, gin.H{
@@ -275,7 +275,7 @@ func getTeam(c *gin.Context) {
 			return
 		}
 	}
-	
+
 	c.JSON(http.StatusNotFound, gin.H{"error": "团队不存在"})
 }
 
@@ -285,22 +285,22 @@ func updateTeam(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "团队ID无效"})
 		return
 	}
-	
+
 	var req struct {
 		Name        string `json:"name"`
 		Description string `json:"description"`
 	}
-	
+
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "参数错误: " + err.Error()})
 		return
 	}
-	
+
 	for i, team := range teams {
 		if team.ID == teamID {
 			teams[i].Name = req.Name
 			teams[i].Description = req.Description
-			
+
 			c.JSON(http.StatusOK, gin.H{
 				"success": true,
 				"team":    teams[i],
@@ -308,7 +308,7 @@ func updateTeam(c *gin.Context) {
 			return
 		}
 	}
-	
+
 	c.JSON(http.StatusNotFound, gin.H{"error": "团队不存在"})
 }
 
@@ -318,11 +318,11 @@ func deleteTeam(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "团队ID无效"})
 		return
 	}
-	
+
 	for i, team := range teams {
 		if team.ID == teamID {
 			teams[i].IsActive = false
-			
+
 			c.JSON(http.StatusOK, gin.H{
 				"success": true,
 				"message": "团队已删除",
@@ -330,7 +330,7 @@ func deleteTeam(c *gin.Context) {
 			return
 		}
 	}
-	
+
 	c.JSON(http.StatusNotFound, gin.H{"error": "团队不存在"})
 }
 
@@ -340,7 +340,7 @@ func getTeamMembers(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "团队ID无效"})
 		return
 	}
-	
+
 	for _, team := range teams {
 		if team.ID == teamID {
 			var activeMembers []TeamMember
@@ -349,7 +349,7 @@ func getTeamMembers(c *gin.Context) {
 					activeMembers = append(activeMembers, member)
 				}
 			}
-			
+
 			c.JSON(http.StatusOK, gin.H{
 				"success": true,
 				"members": activeMembers,
@@ -358,7 +358,7 @@ func getTeamMembers(c *gin.Context) {
 			return
 		}
 	}
-	
+
 	c.JSON(http.StatusNotFound, gin.H{"error": "团队不存在"})
 }
 
@@ -368,45 +368,45 @@ func addTeamMember(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "团队ID无效"})
 		return
 	}
-	
+
 	var req struct {
 		UserID int `json:"user_id" binding:"required"`
 		RoleID int `json:"role_id" binding:"required"`
 	}
-	
+
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "参数错误: " + err.Error()})
 		return
 	}
-	
+
 	// 查找用户和角色
 	var user *User
 	var role *Role
-	
+
 	for _, u := range users {
 		if u.ID == req.UserID {
 			user = &u
 			break
 		}
 	}
-	
+
 	for _, r := range roles {
 		if r.ID == req.RoleID {
 			role = &r
 			break
 		}
 	}
-	
+
 	if user == nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "用户不存在"})
 		return
 	}
-	
+
 	if role == nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "角色不存在"})
 		return
 	}
-	
+
 	// 添加成员到团队
 	for i, team := range teams {
 		if team.ID == teamID {
@@ -417,7 +417,7 @@ func addTeamMember(c *gin.Context) {
 					return
 				}
 			}
-			
+
 			newMember := TeamMember{
 				ID:        memberIDCounter,
 				UserID:    req.UserID,
@@ -428,10 +428,10 @@ func addTeamMember(c *gin.Context) {
 				User:      *user,
 				Role:      *role,
 			}
-			
+
 			teams[i].Members = append(teams[i].Members, newMember)
 			memberIDCounter++
-			
+
 			c.JSON(http.StatusOK, gin.H{
 				"success": true,
 				"member":  newMember,
@@ -439,7 +439,7 @@ func addTeamMember(c *gin.Context) {
 			return
 		}
 	}
-	
+
 	c.JSON(http.StatusNotFound, gin.H{"error": "团队不存在"})
 }
 
@@ -449,22 +449,22 @@ func updateMemberRole(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "团队ID无效"})
 		return
 	}
-	
+
 	userID, err := strconv.Atoi(c.Param("userId"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "用户ID无效"})
 		return
 	}
-	
+
 	var req struct {
 		RoleID int `json:"role_id" binding:"required"`
 	}
-	
+
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "参数错误: " + err.Error()})
 		return
 	}
-	
+
 	// 查找角色
 	var role *Role
 	for _, r := range roles {
@@ -473,12 +473,12 @@ func updateMemberRole(c *gin.Context) {
 			break
 		}
 	}
-	
+
 	if role == nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "角色不存在"})
 		return
 	}
-	
+
 	// 更新成员角色
 	for i, team := range teams {
 		if team.ID == teamID {
@@ -486,7 +486,7 @@ func updateMemberRole(c *gin.Context) {
 				if member.UserID == userID && member.Status == "active" {
 					teams[i].Members[j].RoleID = req.RoleID
 					teams[i].Members[j].Role = *role
-					
+
 					c.JSON(http.StatusOK, gin.H{
 						"success": true,
 						"member":  teams[i].Members[j],
@@ -496,7 +496,7 @@ func updateMemberRole(c *gin.Context) {
 			}
 		}
 	}
-	
+
 	c.JSON(http.StatusNotFound, gin.H{"error": "团队成员不存在"})
 }
 
@@ -506,20 +506,20 @@ func removeTeamMember(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "团队ID无效"})
 		return
 	}
-	
+
 	userID, err := strconv.Atoi(c.Param("userId"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "用户ID无效"})
 		return
 	}
-	
+
 	// 移除团队成员
 	for i, team := range teams {
 		if team.ID == teamID {
 			for j, member := range team.Members {
 				if member.UserID == userID && member.Status == "active" {
 					teams[i].Members[j].Status = "inactive"
-					
+
 					c.JSON(http.StatusOK, gin.H{
 						"success": true,
 						"message": "成员已移除",
@@ -529,18 +529,18 @@ func removeTeamMember(c *gin.Context) {
 			}
 		}
 	}
-	
+
 	c.JSON(http.StatusNotFound, gin.H{"error": "团队成员不存在"})
 }
 
 func searchUsers(c *gin.Context) {
 	query := c.Query("q")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
-	
+
 	var results []User
 	for _, user := range users {
 		if user.Status == "active" {
-			if query == "" || 
+			if query == "" ||
 				contains(user.Username, query) ||
 				contains(user.Email, query) ||
 				contains(user.DisplayName, query) {
@@ -551,7 +551,7 @@ func searchUsers(c *gin.Context) {
 			}
 		}
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"users":   results,
@@ -565,7 +565,7 @@ func getUser(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "用户ID无效"})
 		return
 	}
-	
+
 	for _, user := range users {
 		if user.ID == userID {
 			c.JSON(http.StatusOK, gin.H{
@@ -575,7 +575,7 @@ func getUser(c *gin.Context) {
 			return
 		}
 	}
-	
+
 	c.JSON(http.StatusNotFound, gin.H{"error": "用户不存在"})
 }
 
@@ -585,16 +585,16 @@ func getUserPermissions(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "用户ID无效"})
 		return
 	}
-	
+
 	projectID, err := strconv.Atoi(c.Query("project_id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "项目ID无效"})
 		return
 	}
-	
+
 	var permissions []string
 	permissionMap := make(map[string]bool)
-	
+
 	// 查找用户在项目中的所有角色
 	for _, team := range teams {
 		if team.ProjectID == projectID && team.IsActive {
@@ -607,12 +607,12 @@ func getUserPermissions(c *gin.Context) {
 			}
 		}
 	}
-	
+
 	// 转换为切片
 	for permission := range permissionMap {
 		permissions = append(permissions, permission)
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"success":     true,
 		"permissions": permissions,
@@ -633,12 +633,12 @@ func createRole(c *gin.Context) {
 		Description string   `json:"description"`
 		Permissions []string `json:"permissions"`
 	}
-	
+
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "参数错误: " + err.Error()})
 		return
 	}
-	
+
 	role := Role{
 		ID:          len(roles) + 1,
 		Name:        req.Name,
@@ -648,9 +648,9 @@ func createRole(c *gin.Context) {
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
 	}
-	
+
 	roles = append(roles, role)
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"role":    role,
@@ -663,30 +663,30 @@ func updateRole(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "角色ID无效"})
 		return
 	}
-	
+
 	var req struct {
 		Name        string   `json:"name"`
 		Description string   `json:"description"`
 		Permissions []string `json:"permissions"`
 	}
-	
+
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "参数错误: " + err.Error()})
 		return
 	}
-	
+
 	for i, role := range roles {
 		if role.ID == roleID {
 			if role.IsSystem {
 				c.JSON(http.StatusBadRequest, gin.H{"error": "不能修改系统角色"})
 				return
 			}
-			
+
 			roles[i].Name = req.Name
 			roles[i].Description = req.Description
 			roles[i].Permissions = req.Permissions
 			roles[i].UpdatedAt = time.Now()
-			
+
 			c.JSON(http.StatusOK, gin.H{
 				"success": true,
 				"role":    roles[i],
@@ -694,7 +694,7 @@ func updateRole(c *gin.Context) {
 			return
 		}
 	}
-	
+
 	c.JSON(http.StatusNotFound, gin.H{"error": "角色不存在"})
 }
 
@@ -704,17 +704,17 @@ func deleteRole(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "角色ID无效"})
 		return
 	}
-	
+
 	for i, role := range roles {
 		if role.ID == roleID {
 			if role.IsSystem {
 				c.JSON(http.StatusBadRequest, gin.H{"error": "不能删除系统角色"})
 				return
 			}
-			
+
 			// 移除角色
 			roles = append(roles[:i], roles[i+1:]...)
-			
+
 			c.JSON(http.StatusOK, gin.H{
 				"success": true,
 				"message": "角色已删除",
@@ -722,7 +722,7 @@ func deleteRole(c *gin.Context) {
 			return
 		}
 	}
-	
+
 	c.JSON(http.StatusNotFound, gin.H{"error": "角色不存在"})
 }
 
@@ -733,12 +733,12 @@ func createInvitation(c *gin.Context) {
 		RoleID  int    `json:"role_id" binding:"required"`
 		Message string `json:"message"`
 	}
-	
+
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "参数错误: " + err.Error()})
 		return
 	}
-	
+
 	invitation := Invitation{
 		ID:        invitationIDCounter,
 		TeamID:    req.TeamID,
@@ -751,10 +751,10 @@ func createInvitation(c *gin.Context) {
 		InvitedBy: 1, // 临时硬编码
 		CreatedAt: time.Now(),
 	}
-	
+
 	invitations = append(invitations, invitation)
 	invitationIDCounter++
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"success":    true,
 		"invitation": invitation,
@@ -767,14 +767,14 @@ func getTeamInvitations(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "团队ID无效"})
 		return
 	}
-	
+
 	var teamInvitations []Invitation
 	for _, inv := range invitations {
 		if inv.TeamID == teamID {
 			teamInvitations = append(teamInvitations, inv)
 		}
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"success":     true,
 		"invitations": teamInvitations,
@@ -784,11 +784,11 @@ func getTeamInvitations(c *gin.Context) {
 
 func acceptInvitation(c *gin.Context) {
 	token := c.Param("token")
-	
+
 	for i, inv := range invitations {
 		if inv.Token == token && inv.Status == "pending" && time.Now().Before(inv.ExpiresAt) {
 			invitations[i].Status = "accepted"
-			
+
 			c.JSON(http.StatusOK, gin.H{
 				"success": true,
 				"message": "邀请已接受",
@@ -796,17 +796,17 @@ func acceptInvitation(c *gin.Context) {
 			return
 		}
 	}
-	
+
 	c.JSON(http.StatusNotFound, gin.H{"error": "邀请不存在或已过期"})
 }
 
 func rejectInvitation(c *gin.Context) {
 	token := c.Param("token")
-	
+
 	for i, inv := range invitations {
 		if inv.Token == token && inv.Status == "pending" {
 			invitations[i].Status = "rejected"
-			
+
 			c.JSON(http.StatusOK, gin.H{
 				"success": true,
 				"message": "邀请已拒绝",
@@ -814,7 +814,7 @@ func rejectInvitation(c *gin.Context) {
 			return
 		}
 	}
-	
+
 	c.JSON(http.StatusNotFound, gin.H{"error": "邀请不存在"})
 }
 
@@ -827,12 +827,12 @@ func createPermissionRequest(c *gin.Context) {
 		Permission  string `json:"permission" binding:"required"`
 		Reason      string `json:"reason"`
 	}
-	
+
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "参数错误: " + err.Error()})
 		return
 	}
-	
+
 	request := PermissionRequest{
 		ID:          requestIDCounter,
 		ProjectID:   req.ProjectID,
@@ -844,10 +844,10 @@ func createPermissionRequest(c *gin.Context) {
 		Status:      "pending",
 		CreatedAt:   time.Now(),
 	}
-	
+
 	permissionRequests = append(permissionRequests, request)
 	requestIDCounter++
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"request": request,
@@ -860,14 +860,14 @@ func getPermissionRequests(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "项目ID无效"})
 		return
 	}
-	
+
 	var projectRequests []PermissionRequest
 	for _, req := range permissionRequests {
 		if req.ProjectID == projectID {
 			projectRequests = append(projectRequests, req)
 		}
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"success":  true,
 		"requests": projectRequests,
@@ -881,17 +881,17 @@ func reviewPermissionRequest(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "申请ID无效"})
 		return
 	}
-	
+
 	var req struct {
 		Approved     bool   `json:"approved"`
 		ReviewReason string `json:"review_reason"`
 	}
-	
+
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "参数错误: " + err.Error()})
 		return
 	}
-	
+
 	for i, request := range permissionRequests {
 		if request.ID == requestID && request.Status == "pending" {
 			if req.Approved {
@@ -899,12 +899,12 @@ func reviewPermissionRequest(c *gin.Context) {
 			} else {
 				permissionRequests[i].Status = "rejected"
 			}
-			
+
 			reviewerID := 1 // 临时硬编码
 			now := time.Now()
 			permissionRequests[i].ReviewedBy = &reviewerID
 			permissionRequests[i].ReviewedAt = &now
-			
+
 			c.JSON(http.StatusOK, gin.H{
 				"success": true,
 				"request": permissionRequests[i],
@@ -912,26 +912,26 @@ func reviewPermissionRequest(c *gin.Context) {
 			return
 		}
 	}
-	
+
 	c.JSON(http.StatusNotFound, gin.H{"error": "权限申请不存在"})
 }
 
 // 工具函数
 func contains(s, substr string) bool {
-	return len(s) > 0 && len(substr) > 0 && 
-		(s == substr || 
-		 len(s) >= len(substr) && 
-		 (s[:len(substr)] == substr || 
-		  s[len(s)-len(substr):] == substr ||
-		  len(s) > len(substr) && 
-		  func() bool {
-		  	for i := 1; i <= len(s)-len(substr); i++ {
-		  		if s[i:i+len(substr)] == substr {
-		  			return true
-		  		}
-		  	}
-		  	return false
-		  }()))
+	return len(s) > 0 && len(substr) > 0 &&
+		(s == substr ||
+			len(s) >= len(substr) &&
+				(s[:len(substr)] == substr ||
+					s[len(s)-len(substr):] == substr ||
+					len(s) > len(substr) &&
+						func() bool {
+							for i := 1; i <= len(s)-len(substr); i++ {
+								if s[i:i+len(substr)] == substr {
+									return true
+								}
+							}
+							return false
+						}()))
 }
 
 func generateToken() string {

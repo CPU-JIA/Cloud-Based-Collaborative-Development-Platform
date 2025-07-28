@@ -1,0 +1,95 @@
+# Production Environment Configuration
+# This file contains production-specific settings
+# Sensitive values should be provided via environment variables or secret manager
+
+server:
+  port: 8080
+  environment: production
+  read_timeout: 30s
+  write_timeout: 30s
+  idle_timeout: 120s
+
+database:
+  # Host and credentials should be provided via environment variables
+  ssl_mode: require
+  max_open_conns: 50
+  max_idle_conns: 10
+  conn_max_lifetime: 300s
+  conn_max_idle_time: 60s
+
+redis:
+  # Host and credentials should be provided via environment variables
+  pool_size: 20
+  dial_timeout: 5s
+  read_timeout: 3s
+  write_timeout: 3s
+
+kafka:
+  # Brokers should be provided via environment variables
+  group_id: collaborative-platform-prod
+
+auth:
+  password_min_length: 12
+  max_login_attempts: 5
+  lockout_duration: 15m
+  session_timeout: 30m
+  two_factor_enabled: true
+  jwt_expiration: 24h
+  refresh_token_expiry: 168h  # 7 days
+
+log:
+  level: info
+  format: json
+  output: stdout
+  max_size: 100     # MB
+  max_backups: 10
+  max_age: 30       # days
+  compress: true
+
+monitor:
+  enabled: true
+  metrics_port: 9090
+  tracing_enabled: true
+  # Tracing endpoint should be provided via environment variable
+  sampling_rate: 0.01  # 1% sampling in production
+
+security:
+  # CORS origins should be provided via environment variables
+  cors_allowed_origins: []
+  trusted_proxies: []
+  max_request_size: 10MB
+
+storage:
+  type: s3
+  s3:
+    # Credentials and bucket info should be provided via environment variables
+    use_ssl: true
+  cache:
+    type: redis
+    ttl: 30m
+    max_size: 104857600    # 100MB
+    max_entries: 10000
+  artifact:
+    retention_days: 90
+    max_size_per_job: 1073741824     # 1GB
+    max_total_size: 107374182400     # 100GB
+    compression_type: gzip
+
+cicd:
+  scheduler:
+    worker_count: 10
+    queue_size: 1000
+    poll_interval: 10s
+    job_timeout: 60m
+    max_retries: 3
+    enable_priority: true
+    enable_load_balance: true
+  runner:
+    pool_size: 20
+    heartbeat_interval: 30s
+    max_idle_time: 10m
+    enable_auto_scale: true
+  executor:
+    max_concurrent_jobs: 20
+    default_timeout: 60m
+    enable_auto_cleanup: true

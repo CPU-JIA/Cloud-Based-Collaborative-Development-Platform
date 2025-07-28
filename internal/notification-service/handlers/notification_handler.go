@@ -324,8 +324,8 @@ func (h *NotificationHandler) GetNotificationsByCorrelationID(c *gin.Context) {
 	}
 
 	response.Success(c, http.StatusOK, "Success", map[string]interface{}{
-		"notifications":   notifications,
-		"correlation_id":  correlationID,
+		"notifications":  notifications,
+		"correlation_id": correlationID,
 		"total":          len(notifications),
 	})
 }

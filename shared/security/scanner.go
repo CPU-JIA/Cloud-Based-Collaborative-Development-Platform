@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -141,19 +142,21 @@ type ToolConfig struct {
 
 // securityScanner 安全扫描器实现
 type securityScanner struct {
-	logger logger.Logger
-	config *ScanConfig
+	logger     logger.Logger
+	config     *ScanConfig
+	repository ScanResultRepository
 }
 
 // NewSecurityScanner 创建安全扫描器实例
-func NewSecurityScanner(logger logger.Logger, config *ScanConfig) SecurityScanner {
+func NewSecurityScanner(logger logger.Logger, config *ScanConfig, repository ScanResultRepository) SecurityScanner {
 	if config == nil {
 		config = getDefaultScanConfig()
 	}
 
 	return &securityScanner{
-		logger: logger,
-		config: config,
+		logger:     logger,
+		config:     config,
+		repository: repository,
 	}
 }
 
@@ -168,6 +171,7 @@ func (s *securityScanner) ScanProject(ctx context.Context, projectPath string, s
 		StartTime:   startTime,
 		Status:      "running",
 		Summary:     ScanSummary{BySeverity: make(map[Severity]int)},
+		Metadata:    make(map[string]interface{}),
 	}
 
 	s.logger.Info("开始安全扫描", "scan_id", scanID, "project_path", projectPath, "scan_types", scanTypes)
@@ -210,6 +214,14 @@ func (s *securityScanner) ScanProject(ctx context.Context, projectPath string, s
 		"critical", result.Summary.BySeverity[SeverityCritical],
 		"high", result.Summary.BySeverity[SeverityHigh],
 	)
+
+	// 保存扫描结果到数据库
+	if s.repository != nil {
+		if err := s.repository.Create(ctx, result); err != nil {
+			s.logger.Error("保存扫描结果失败", "error", err)
+			// 不影响返回结果
+		}
+	}
 
 	return result, nil
 }
@@ -482,10 +494,36 @@ func getDefaultScanConfig() *ScanConfig {
 	}
 }
 
-// 其他接口方法的实现...
+// ScanRepository 扫描Git仓库
 func (s *securityScanner) ScanRepository(ctx context.Context, repoURL string, scanTypes []ScanType) (*ScanResult, error) {
-	// TODO: 实现仓库扫描
-	return nil, fmt.Errorf("仓库扫描功能尚未实现")
+	s.logger.Info("开始扫描Git仓库", "repo_url", repoURL)
+
+	// 创建临时目录
+	tempDir, err := os.MkdirTemp("", "security-scan-*")
+	if err != nil {
+		return nil, fmt.Errorf("创建临时目录失败: %w", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// 克隆仓库
+	s.logger.Info("克隆仓库到临时目录", "temp_dir", tempDir)
+	cmd := exec.CommandContext(ctx, "git", "clone", "--depth", "1", repoURL, tempDir)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		return nil, fmt.Errorf("克隆仓库失败: %w, output: %s", err, output)
+	}
+
+	// 使用项目扫描
+	result, err := s.ScanProject(ctx, tempDir, scanTypes)
+	if err != nil {
+		return nil, err
+	}
+
+	// 更新结果中的项目路径为仓库URL
+	result.ProjectPath = repoURL
+	result.Metadata["repo_url"] = repoURL
+	result.Metadata["scan_type"] = "repository"
+
+	return result, nil
 }
 
 func (s *securityScanner) ScanContainer(ctx context.Context, imageName string) (*ScanResult, error) {
@@ -494,18 +532,27 @@ func (s *securityScanner) ScanContainer(ctx context.Context, imageName string) (
 }
 
 func (s *securityScanner) GetScanResult(ctx context.Context, scanID uuid.UUID) (*ScanResult, error) {
-	// TODO: 从存储中获取扫描结果
-	return nil, fmt.Errorf("获取扫描结果功能尚未实现")
+	if s.repository == nil {
+		return nil, fmt.Errorf("存储未配置")
+	}
+
+	return s.repository.GetByID(ctx, scanID)
 }
 
 func (s *securityScanner) ListScanResults(ctx context.Context, projectID uuid.UUID, limit int) ([]*ScanResult, error) {
-	// TODO: 列出扫描结果
-	return nil, fmt.Errorf("列出扫描结果功能尚未实现")
+	if s.repository == nil {
+		return nil, fmt.Errorf("存储未配置")
+	}
+
+	return s.repository.ListByProject(ctx, projectID, limit)
 }
 
 func (s *securityScanner) DeleteScanResult(ctx context.Context, scanID uuid.UUID) error {
-	// TODO: 删除扫描结果
-	return fmt.Errorf("删除扫描结果功能尚未实现")
+	if s.repository == nil {
+		return fmt.Errorf("存储未配置")
+	}
+
+	return s.repository.Delete(ctx, scanID)
 }
 
 func (s *securityScanner) UpdateScanConfig(ctx context.Context, config *ScanConfig) error {

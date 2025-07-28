@@ -89,7 +89,7 @@ func (ds *DeliveryService) DeliverNotification(ctx context.Context, notification
 		if err := ds.updateNotificationStatus(ctx, notification.ID, models.StatusSent); err != nil {
 			return fmt.Errorf("failed to update notification status to sent: %w", err)
 		}
-		
+
 		// 更新发送时间
 		now := time.Now()
 		notification.SentAt = &now
@@ -97,7 +97,7 @@ func (ds *DeliveryService) DeliverNotification(ctx context.Context, notification
 			ds.logger.Error(fmt.Sprintf("Failed to update sent timestamp: %v", err))
 		}
 
-		ds.logger.Info(fmt.Sprintf("Notification delivered successfully: id=%s, duration=%v", 
+		ds.logger.Info(fmt.Sprintf("Notification delivered successfully: id=%s, duration=%v",
 			notification.ID, time.Since(startTime)))
 	} else {
 		if err := ds.updateNotificationStatus(ctx, notification.ID, models.StatusFailed); err != nil {
@@ -163,7 +163,7 @@ func (ds *DeliveryService) deliverViaEmail(ctx context.Context, notification *mo
 			deliveryLog.Status = models.DeliveryStatusFailed
 			deliveryLog.FailedAt = &now
 			deliveryLog.ErrorMessage = err.Error()
-			
+
 			if updateErr := ds.deliveryLogRepo.Update(ctx, deliveryLog); updateErr != nil {
 				ds.logger.Error(fmt.Sprintf("Failed to update delivery log: %v", updateErr))
 			}
@@ -175,7 +175,7 @@ func (ds *DeliveryService) deliverViaEmail(ctx context.Context, notification *mo
 		now := time.Now()
 		deliveryLog.Status = models.DeliveryStatusSent
 		deliveryLog.SentAt = &now
-		
+
 		if err := ds.deliveryLogRepo.Update(ctx, deliveryLog); err != nil {
 			ds.logger.Error(fmt.Sprintf("Failed to update delivery log: %v", err))
 		}
@@ -230,7 +230,7 @@ func (ds *DeliveryService) deliverViaWebhook(ctx context.Context, notification *
 		deliveryLog.Status = models.DeliveryStatusFailed
 		deliveryLog.FailedAt = &now
 		deliveryLog.ErrorMessage = err.Error()
-		
+
 		if updateErr := ds.deliveryLogRepo.Update(ctx, deliveryLog); updateErr != nil {
 			ds.logger.Error(fmt.Sprintf("Failed to update delivery log: %v", updateErr))
 		}
@@ -243,7 +243,7 @@ func (ds *DeliveryService) deliverViaWebhook(ctx context.Context, notification *
 	deliveryLog.Status = models.DeliveryStatusSent
 	deliveryLog.SentAt = &now
 	deliveryLog.Response = response
-	
+
 	if err := ds.deliveryLogRepo.Update(ctx, deliveryLog); err != nil {
 		ds.logger.Error(fmt.Sprintf("Failed to update delivery log: %v", err))
 	}
@@ -291,7 +291,7 @@ func (ds *DeliveryService) deliverViaInApp(ctx context.Context, notification *mo
 		deliveryLog.Status = models.DeliveryStatusFailed
 		deliveryLog.FailedAt = &now
 		deliveryLog.ErrorMessage = err.Error()
-		
+
 		if updateErr := ds.deliveryLogRepo.Update(ctx, deliveryLog); updateErr != nil {
 			ds.logger.Error(fmt.Sprintf("Failed to update delivery log: %v", updateErr))
 		}
@@ -303,7 +303,7 @@ func (ds *DeliveryService) deliverViaInApp(ctx context.Context, notification *mo
 	now := time.Now()
 	deliveryLog.Status = models.DeliveryStatusSent
 	deliveryLog.SentAt = &now
-	
+
 	if err := ds.deliveryLogRepo.Update(ctx, deliveryLog); err != nil {
 		ds.logger.Error(fmt.Sprintf("Failed to update delivery log: %v", err))
 	}

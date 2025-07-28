@@ -75,7 +75,6 @@ func (m *MockProjectRepository) GetUserProjects(ctx context.Context, userID, ten
 	return nil, nil
 }
 
-
 // TestCompensationManager 测试补偿管理器
 func TestCompensationManager(t *testing.T) {
 	// 创建模拟Git客户端

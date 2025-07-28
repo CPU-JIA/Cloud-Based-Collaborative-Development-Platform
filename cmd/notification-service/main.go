@@ -58,7 +58,7 @@ func main() {
 	}
 
 	// 连接数据库
-	dbConfig := cfg.Database.ToDBConfig().(database.Config)
+	dbConfig := cfg.Database.ToDBConfig()
 	postgresDB, err := database.NewPostgresDB(dbConfig)
 	if err != nil {
 		appLogger.Fatal("Failed to connect to database:", err)
@@ -73,7 +73,7 @@ func main() {
 
 	// 初始化服务
 	templateEngine := services.NewTemplateEngine()
-	
+
 	// TODO: 实现实际的邮件、Webhook、应用内通知服务
 	var emailService services.EmailService = &services.MockEmailService{}
 	var webhookService services.WebhookService = &services.MockWebhookService{}
@@ -106,7 +106,7 @@ func main() {
 		GroupID: "notification-service",
 		Topic:   "platform-events",
 	}
-	
+
 	eventConsumer := consumer.NewEventConsumer(kafkaConfig, notificationService, appLogger)
 
 	// 启动Kafka消费者

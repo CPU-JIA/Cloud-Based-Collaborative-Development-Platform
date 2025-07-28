@@ -66,15 +66,15 @@ func main() {
 			status = "✅"
 			successCount++
 		}
-		fmt.Printf("%d. %s %s %s - %s (%v)\n", 
-			i+1, status, result.Method, result.Endpoint, 
+		fmt.Printf("%d. %s %s %s - %s (%v)\n",
+			i+1, status, result.Method, result.Endpoint,
 			result.Description, result.Duration)
 		if result.Error != "" {
 			fmt.Printf("   错误: %s\n", result.Error)
 		}
 	}
 
-	fmt.Printf("\n📊 总计: %d/%d 测试通过 (%.1f%%)\n", 
+	fmt.Printf("\n📊 总计: %d/%d 测试通过 (%.1f%%)\n",
 		successCount, len(results), float64(successCount)/float64(len(results))*100)
 
 	if successCount == len(results) {
@@ -86,7 +86,7 @@ func main() {
 
 func testHealthCheck() APITestResult {
 	start := time.Now()
-	
+
 	// 创建路由
 	router := gin.New()
 	v1 := router.Group("/api/v1")
@@ -119,24 +119,24 @@ func testHealthCheck() APITestResult {
 
 func testAuthStructure() APITestResult {
 	start := time.Now()
-	
+
 	// 创建路由
 	router := gin.New()
 	v1 := router.Group("/api/v1")
 	auth := v1.Group("/auth")
-	
+
 	// 模拟登录端点
 	auth.POST("/login", func(c *gin.Context) {
 		var reqBody struct {
 			Email    string `json:"email" binding:"required,email"`
 			Password string `json:"password" binding:"required"`
 		}
-		
+
 		if err := c.ShouldBindJSON(&reqBody); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
-		
+
 		// 模拟成功响应
 		c.JSON(http.StatusOK, gin.H{
 			"token": "mock-jwt-token",
@@ -164,7 +164,7 @@ func testAuthStructure() APITestResult {
 
 	return APITestResult{
 		Endpoint:    "/api/v1/auth/login",
-		Method:      "POST", 
+		Method:      "POST",
 		StatusCode:  w.Code,
 		Duration:    duration,
 		Success:     success,
@@ -175,11 +175,11 @@ func testAuthStructure() APITestResult {
 
 func testProjectAPI() APITestResult {
 	start := time.Now()
-	
+
 	router := gin.New()
 	v1 := router.Group("/api/v1")
 	projects := v1.Group("/projects")
-	
+
 	// 模拟项目列表端点
 	projects.GET("", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
@@ -211,11 +211,11 @@ func testProjectAPI() APITestResult {
 
 func testCICDAPI() APITestResult {
 	start := time.Now()
-	
+
 	router := gin.New()
 	v1 := router.Group("/api/v1")
 	pipelines := v1.Group("/pipelines")
-	
+
 	// 模拟流水线状态端点
 	pipelines.GET("/:id/status", func(c *gin.Context) {
 		pipelineId := c.Param("id")
@@ -246,15 +246,15 @@ func testCICDAPI() APITestResult {
 
 func testMiddleware(cfg *config.Config) APITestResult {
 	start := time.Now()
-	
+
 	router := gin.New()
-	
+
 	// 模拟CORS中间件
 	router.Use(func(c *gin.Context) {
 		c.Header("Access-Control-Allow-Origin", "*")
 		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		c.Header("Access-Control-Allow-Headers", "Origin, Content-Type, Authorization")
-		
+
 		if c.Request.Method == "OPTIONS" {
 			c.AbortWithStatus(http.StatusNoContent)
 			return
@@ -279,7 +279,7 @@ func testMiddleware(cfg *config.Config) APITestResult {
 	router.ServeHTTP(w, req)
 
 	duration := time.Since(start)
-	success := w.Code == 200 && 
+	success := w.Code == 200 &&
 		w.Header().Get("Access-Control-Allow-Origin") == "*" &&
 		w.Header().Get("X-RateLimit-Limit") == "100"
 

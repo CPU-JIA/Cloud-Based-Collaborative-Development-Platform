@@ -1,0 +1,72 @@
+# Test Environment Configuration
+# This file contains test-specific settings
+
+server:
+  port: 8081
+  environment: test
+  read_timeout: 5s
+  write_timeout: 5s
+
+database:
+  host: localhost
+  port: 5433  # Different port for test database
+  name: devcollab_test
+  user: devcollab_test
+  ssl_mode: disable
+  max_open_conns: 5
+  max_idle_conns: 2
+
+redis:
+  host: localhost
+  port: 6380  # Different port for test Redis
+  db: 1
+
+kafka:
+  brokers:
+    - localhost:9093  # Different port for test Kafka
+
+auth:
+  password_min_length: 6  # Relaxed for testing
+  max_login_attempts: 3
+  lockout_duration: 1m
+  two_factor_enabled: false
+  jwt_expiration: 1h  # Shorter for testing
+  refresh_token_expiry: 2h
+
+log:
+  level: warn  # Less verbose in tests
+  format: text
+  output: stdout
+
+monitor:
+  enabled: false  # Disabled for tests
+  metrics_port: 9091
+  tracing_enabled: false
+
+security:
+  cors_allowed_origins:
+    - http://localhost:3001
+    - http://test.localhost
+  max_request_size: 5MB
+
+storage:
+  type: local
+  local:
+    base_path: ./test-data/storage
+    max_file_size: 10485760  # 10MB for tests
+
+cicd:
+  scheduler:
+    worker_count: 1
+    queue_size: 10
+    poll_interval: 1s
+    job_timeout: 5m
+    max_retries: 1
+  runner:
+    pool_size: 2
+    heartbeat_interval: 10s
+    max_idle_time: 1m
+  executor:
+    max_concurrent_jobs: 2
+    default_timeout: 5m
+    enable_auto_cleanup: true

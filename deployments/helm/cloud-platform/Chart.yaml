@@ -1,0 +1,30 @@
+apiVersion: v2
+name: cloud-platform
+description: Cloud-Based Collaborative Development Platform
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+keywords:
+  - development
+  - collaboration
+  - cicd
+  - git
+home: https://github.com/cloud-platform/collaborative-dev
+sources:
+  - https://github.com/cloud-platform/collaborative-dev
+maintainers:
+  - name: Cloud Platform Team
+    email: team@cloudplatform.com
+dependencies:
+  - name: postgresql
+    version: "12.x.x"
+    repository: https://charts.bitnami.com/bitnami
+    condition: postgresql.enabled
+  - name: redis
+    version: "17.x.x"
+    repository: https://charts.bitnami.com/bitnami
+    condition: redis.enabled
+  - name: nginx-ingress
+    version: "4.x.x"
+    repository: https://kubernetes.github.io/ingress-nginx
+    condition: nginx-ingress.enabled

@@ -26,12 +26,12 @@ type WebhookHandler struct {
 
 // GitEvent Git事件基础结构
 type GitEvent struct {
-	EventType    string    `json:"event_type"`
-	EventID      string    `json:"event_id"`
-	Timestamp    time.Time `json:"timestamp"`
-	ProjectID    string    `json:"project_id"`
-	RepositoryID string    `json:"repository_id"`
-	UserID       string    `json:"user_id,omitempty"`
+	EventType    string          `json:"event_type"`
+	EventID      string          `json:"event_id"`
+	Timestamp    time.Time       `json:"timestamp"`
+	ProjectID    string          `json:"project_id"`
+	RepositoryID string          `json:"repository_id"`
+	UserID       string          `json:"user_id,omitempty"`
 	Payload      json.RawMessage `json:"payload"`
 }
 
@@ -135,7 +135,7 @@ func (h *WebhookHandler) HandleWebhook(c *gin.Context) {
 	// 解析Git事件
 	var gitEvent GitEvent
 	if err := json.Unmarshal(body, &gitEvent); err != nil {
-		h.logger.Error("解析Git事件失败", 
+		h.logger.Error("解析Git事件失败",
 			zap.Error(err),
 			zap.String("body", string(body)))
 		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的事件格式"})
@@ -144,7 +144,7 @@ func (h *WebhookHandler) HandleWebhook(c *gin.Context) {
 
 	// 验证事件基本信息
 	if err := h.validateEvent(&gitEvent); err != nil {
-		h.logger.Error("事件验证失败", 
+		h.logger.Error("事件验证失败",
 			zap.Error(err),
 			zap.String("event_id", gitEvent.EventID),
 			zap.String("event_type", gitEvent.EventType))

@@ -82,7 +82,7 @@ func (s *SimpleTransactionService) CreateProjectWithRepository(
 		zap.String("user_id", req.UserID.String()))
 
 	var project *models.Project
-	
+
 	// 数据库事务处理核心业务逻辑
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		// 1. 创建项目
@@ -327,13 +327,13 @@ func (s *SimpleTransactionService) CreateRepositoryForProject(
 // ProcessPendingEvents 处理待处理事件（可由定时任务调用）
 func (s *SimpleTransactionService) ProcessPendingEvents(ctx context.Context) error {
 	var events []DomainEvent
-	
+
 	// 获取待处理事件（最多100个）
 	err := s.db.Where("processed = false AND retry_count < 5").
 		Order("created_at ASC").
 		Limit(100).
 		Find(&events).Error
-	
+
 	if err != nil {
 		return fmt.Errorf("获取待处理事件失败: %w", err)
 	}

@@ -67,7 +67,7 @@ type pipelineService struct {
 // NewPipelineService 创建流水线服务实例
 func NewPipelineService(repo repository.PipelineRepository, storage storage.StorageManager, logger *zap.Logger) PipelineService {
 	pipelineEngine := engine.NewPipelineEngine(repo, storage, logger)
-	
+
 	return &pipelineService{
 		repo:    repo,
 		storage: storage,
@@ -294,7 +294,7 @@ func (s *pipelineService) TriggerPipeline(ctx context.Context, pipelineID uuid.U
 		return nil, fmt.Errorf("启动流水线执行失败: %w", err)
 	}
 
-	s.logger.Info("流水线触发成功", 
+	s.logger.Info("流水线触发成功",
 		zap.String("pipeline_id", pipelineID.String()),
 		zap.String("run_id", run.ID.String()),
 		zap.String("commit_sha", req.CommitSHA))
@@ -391,7 +391,7 @@ func (s *pipelineService) RetryPipelineRun(ctx context.Context, id uuid.UUID, us
 		return nil, fmt.Errorf("创建重试运行失败: %w", err)
 	}
 
-	s.logger.Info("流水线运行重试成功", 
+	s.logger.Info("流水线运行重试成功",
 		zap.String("original_run_id", id.String()),
 		zap.String("new_run_id", newRun.ID.String()))
 
@@ -405,7 +405,7 @@ func (s *pipelineService) validateCreatePipelineRequest(req *models.CreatePipeli
 	if err := s.validatePipelineName(req.Name); err != nil {
 		return err
 	}
-	
+
 	if err := s.validateDefinitionFilePath(req.DefinitionFilePath); err != nil {
 		return err
 	}
@@ -422,7 +422,7 @@ func (s *pipelineService) validatePipelineName(name string) error {
 	if name == "" {
 		return errors.New("流水线名称不能为空")
 	}
-	
+
 	if len(name) > 255 {
 		return errors.New("流水线名称不能超过255个字符")
 	}
@@ -441,7 +441,7 @@ func (s *pipelineService) validateDefinitionFilePath(path string) error {
 	if path == "" {
 		return errors.New("定义文件路径不能为空")
 	}
-	
+
 	if len(path) > 512 {
 		return errors.New("定义文件路径不能超过512个字符")
 	}
@@ -522,7 +522,7 @@ func (s *pipelineService) UpdateJobStatus(ctx context.Context, jobID uuid.UUID, 
 		return fmt.Errorf("更新作业状态失败: %w", err)
 	}
 
-	s.logger.Info("作业状态更新成功", 
+	s.logger.Info("作业状态更新成功",
 		zap.String("job_id", jobID.String()),
 		zap.String("status", string(status)))
 
@@ -763,8 +763,8 @@ func (s *pipelineService) ProcessPendingJobs(ctx context.Context) error {
 			// 分配给第一个可用执行器
 			runner := runners[0]
 			updates := map[string]interface{}{
-				"status":    models.JobStatusRunning,
-				"runner_id": runner.ID,
+				"status":     models.JobStatusRunning,
+				"runner_id":  runner.ID,
 				"started_at": time.Now().UTC(),
 			}
 
@@ -778,7 +778,7 @@ func (s *pipelineService) ProcessPendingJobs(ctx context.Context) error {
 				s.logger.Error("更新执行器状态失败", zap.Error(err), zap.String("runner_id", runner.ID.String()))
 			}
 
-			s.logger.Info("作业分配成功", 
+			s.logger.Info("作业分配成功",
 				zap.String("job_id", job.ID.String()),
 				zap.String("runner_id", runner.ID.String()))
 		}
@@ -794,13 +794,13 @@ func (s *pipelineService) CleanupOldRuns(ctx context.Context, retentionDays int)
 	}
 
 	cutoffDate := time.Now().UTC().AddDate(0, 0, -retentionDays)
-	
+
 	// 这里应该实现清理逻辑，删除旧的运行记录
 	// 由于涉及多个表的关联删除，需要谨慎处理
 	s.logger.Info("开始清理旧运行记录", zap.Time("cutoff_date", cutoffDate))
-	
+
 	// TODO: 实现具体的清理逻辑
-	
+
 	return nil
 }
 
@@ -836,7 +836,7 @@ func (s *pipelineService) validateRunnerName(name string) error {
 	if name == "" {
 		return errors.New("执行器名称不能为空")
 	}
-	
+
 	if len(name) > 255 {
 		return errors.New("执行器名称不能超过255个字符")
 	}

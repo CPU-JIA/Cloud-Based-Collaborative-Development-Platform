@@ -14,11 +14,11 @@ import (
 
 // EventConsumer Kafka事件消费者
 type EventConsumer struct {
-	reader             *kafka.Reader
+	reader              *kafka.Reader
 	notificationService *services.NotificationService
-	logger             logger.Logger
-	ctx                context.Context
-	cancel             context.CancelFunc
+	logger              logger.Logger
+	ctx                 context.Context
+	cancel              context.CancelFunc
 }
 
 // NewEventConsumer 创建新的事件消费者
@@ -104,7 +104,7 @@ func (ec *EventConsumer) processMessage(message kafka.Message) error {
 	}
 
 	// 记录事件接收日志
-	ec.logger.Info(fmt.Sprintf("Processing event: type=%s, source=%s, tenant_id=%s", 
+	ec.logger.Info(fmt.Sprintf("Processing event: type=%s, source=%s, tenant_id=%s",
 		event.Type, event.Source, event.TenantID))
 
 	// 根据事件类型进行处理
@@ -173,14 +173,14 @@ func (ec *EventConsumer) handleTaskAssignedEvent(event models.Event) error {
 
 	// 创建通知请求
 	request := &services.CreateNotificationRequest{
-		UserID:      &eventData.AssigneeID,
-		TenantID:    event.TenantID,
-		ProjectID:   &eventData.ProjectID,
-		Type:        models.EventTypeTaskAssigned,
-		Category:    models.CategoryProject,
-		Priority:    ec.getPriorityFromTaskPriority(eventData.Priority),
-		EventData:   event.Data,
-		TemplateID:  nil, // 将由服务自动选择模板
+		UserID:     &eventData.AssigneeID,
+		TenantID:   event.TenantID,
+		ProjectID:  &eventData.ProjectID,
+		Type:       models.EventTypeTaskAssigned,
+		Category:   models.CategoryProject,
+		Priority:   ec.getPriorityFromTaskPriority(eventData.Priority),
+		EventData:  event.Data,
+		TemplateID: nil, // 将由服务自动选择模板
 		Channels: &models.Channels{
 			Email: &models.EmailChannel{
 				Enabled: true,
@@ -384,10 +384,10 @@ func (ec *EventConsumer) handleSystemAlertEvent(event models.Event) error {
 
 	// 系统告警通常需要立即通知管理员
 	request := &services.CreateNotificationRequest{
-		TenantID: event.TenantID,
-		Type:     models.EventTypeSystemAlert,
-		Category: models.CategorySystem,
-		Priority: ec.getPriorityFromSeverity(eventData.Severity),
+		TenantID:  event.TenantID,
+		Type:      models.EventTypeSystemAlert,
+		Category:  models.CategorySystem,
+		Priority:  ec.getPriorityFromSeverity(eventData.Severity),
 		EventData: event.Data,
 		Channels: &models.Channels{
 			Email: &models.EmailChannel{
@@ -414,11 +414,11 @@ func (ec *EventConsumer) handleSecurityAlertEvent(event models.Event) error {
 
 	// 安全告警优先级高，需要立即通知
 	request := &services.CreateNotificationRequest{
-		UserID:   eventData.UserID,
-		TenantID: event.TenantID,
-		Type:     models.EventTypeSecurityAlert,
-		Category: models.CategorySecurity,
-		Priority: models.PriorityHigh,
+		UserID:    eventData.UserID,
+		TenantID:  event.TenantID,
+		Type:      models.EventTypeSecurityAlert,
+		Category:  models.CategorySecurity,
+		Priority:  models.PriorityHigh,
 		EventData: event.Data,
 		Channels: &models.Channels{
 			Email: &models.EmailChannel{

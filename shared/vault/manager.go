@@ -11,14 +11,14 @@ import (
 
 // Manager Vault管理器
 type Manager struct {
-	client      VaultClient
-	config      *Config
-	logger      *zap.Logger
-	
+	client VaultClient
+	config *Config
+	logger *zap.Logger
+
 	// 缓存的秘钥
 	jwtSecret   string
 	jwtSecretMu sync.RWMutex
-	
+
 	// 后台任务控制
 	stopCh   chan struct{}
 	stopOnce sync.Once
@@ -28,7 +28,7 @@ type Manager struct {
 func NewManager(config *Config, logger *zap.Logger) (*Manager, error) {
 	var client VaultClient
 	var err error
-	
+
 	// 根据配置决定使用真实客户端还是模拟客户端
 	if config == nil || config.Address == "" {
 		logger.Warn("Vault未配置，使用模拟客户端")
@@ -40,23 +40,23 @@ func NewManager(config *Config, logger *zap.Logger) (*Manager, error) {
 			client = NewMockVaultClient(logger)
 		}
 	}
-	
+
 	manager := &Manager{
 		client: client,
 		config: config,
 		logger: logger,
 		stopCh: make(chan struct{}),
 	}
-	
+
 	// 初始化JWT秘钥
 	if err := manager.initializeJWTSecret(context.Background()); err != nil {
 		logger.Error("初始化JWT秘钥失败", zap.Error(err))
 		return nil, err
 	}
-	
+
 	// 启动后台任务
 	go manager.runBackgroundTasks()
-	
+
 	logger.Info("Vault管理器初始化成功")
 	return manager, nil
 }
@@ -64,39 +64,39 @@ func NewManager(config *Config, logger *zap.Logger) (*Manager, error) {
 // initializeJWTSecret 初始化JWT秘钥
 func (m *Manager) initializeJWTSecret(ctx context.Context) error {
 	m.logger.Info("初始化JWT秘钥")
-	
+
 	// 尝试从Vault获取现有的JWT秘钥
 	jwtSecret, err := m.client.GetJWTSecret(ctx)
 	if err != nil {
 		m.logger.Warn("获取JWT秘钥失败，生成新秘钥", zap.Error(err))
-		
+
 		// 生成新的JWT秘钥
 		newSecret := generateRandomSecret(64)
-		
+
 		// 保存到Vault
 		secretPath := "app/jwt"
 		if m.config != nil && m.config.SecretPaths.JWT != "" {
 			secretPath = m.config.SecretPaths.JWT
 		}
-		
+
 		data := map[string]interface{}{
 			"secret":     newSecret,
 			"created_at": time.Now().Unix(),
 			"created_by": "vault-manager",
 		}
-		
+
 		if err := m.client.PutSecret(ctx, secretPath, data); err != nil {
 			return fmt.Errorf("保存JWT秘钥失败: %w", err)
 		}
-		
+
 		jwtSecret = newSecret
 	}
-	
+
 	// 缓存JWT秘钥
 	m.jwtSecretMu.Lock()
 	m.jwtSecret = jwtSecret
 	m.jwtSecretMu.Unlock()
-	
+
 	m.logger.Info("JWT秘钥初始化完成")
 	return nil
 }
@@ -111,22 +111,22 @@ func (m *Manager) GetJWTSecret() string {
 // RotateJWTSecret 轮换JWT秘钥
 func (m *Manager) RotateJWTSecret(ctx context.Context) (string, error) {
 	m.logger.Info("开始轮换JWT秘钥")
-	
+
 	newSecret, err := m.client.RotateJWTSecret(ctx)
 	if err != nil {
 		return "", fmt.Errorf("轮换JWT秘钥失败: %w", err)
 	}
-	
+
 	// 更新缓存
 	m.jwtSecretMu.Lock()
 	oldSecret := m.jwtSecret
 	m.jwtSecret = newSecret
 	m.jwtSecretMu.Unlock()
-	
+
 	m.logger.Info("JWT秘钥轮换完成",
 		zap.String("old_secret_prefix", oldSecret[:8]+"..."),
 		zap.String("new_secret_prefix", newSecret[:8]+"..."))
-	
+
 	return newSecret, nil
 }
 
@@ -169,7 +169,7 @@ func (m *Manager) HealthCheck(ctx context.Context) error {
 func (m *Manager) runBackgroundTasks() {
 	ticker := time.NewTicker(1 * time.Hour) // 每小时检查一次
 	defer ticker.Stop()
-	
+
 	for {
 		select {
 		case <-ticker.C:
@@ -184,14 +184,14 @@ func (m *Manager) runBackgroundTasks() {
 // performPeriodicTasks 执行周期性任务
 func (m *Manager) performPeriodicTasks() {
 	ctx := context.Background()
-	
+
 	// 健康检查
 	if err := m.client.HealthCheck(ctx); err != nil {
 		m.logger.Error("Vault健康检查失败", zap.Error(err))
 	} else {
 		m.logger.Debug("Vault健康检查通过")
 	}
-	
+
 	// 可以在这里添加其他周期性任务，如：
 	// - 检查秘钥过期时间
 	// - 自动轮换过期的秘钥
@@ -203,12 +203,12 @@ func (m *Manager) Close() error {
 	m.stopOnce.Do(func() {
 		close(m.stopCh)
 	})
-	
+
 	if err := m.client.Close(); err != nil {
 		m.logger.Error("关闭Vault客户端失败", zap.Error(err))
 		return err
 	}
-	
+
 	m.logger.Info("Vault管理器已关闭")
 	return nil
 }
@@ -258,7 +258,7 @@ func NewVaultInitializer(config *Config, logger *zap.Logger) (*VaultInitializer,
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return &VaultInitializer{
 		manager: manager,
 		logger:  logger,
@@ -268,7 +268,7 @@ func NewVaultInitializer(config *Config, logger *zap.Logger) (*VaultInitializer,
 // InitializeSecrets 初始化应用需要的秘钥
 func (v *VaultInitializer) InitializeSecrets(ctx context.Context) error {
 	v.logger.Info("开始初始化应用秘钥")
-	
+
 	// 初始化应用默认秘钥
 	defaultSecrets := map[string]map[string]interface{}{
 		"app/database": {
@@ -286,7 +286,7 @@ func (v *VaultInitializer) InitializeSecrets(ctx context.Context) error {
 			"secret": generateRandomSecret(32),
 		},
 	}
-	
+
 	for path, data := range defaultSecrets {
 		// 检查秘钥是否已存在
 		_, err := v.manager.GetSecret(ctx, path)
@@ -294,7 +294,7 @@ func (v *VaultInitializer) InitializeSecrets(ctx context.Context) error {
 			// 秘钥不存在，创建默认秘钥
 			v.logger.Info("创建默认秘钥", zap.String("path", path))
 			if err := v.manager.PutSecret(ctx, path, data); err != nil {
-				v.logger.Error("创建默认秘钥失败", 
+				v.logger.Error("创建默认秘钥失败",
 					zap.String("path", path), zap.Error(err))
 				return err
 			}
@@ -302,7 +302,7 @@ func (v *VaultInitializer) InitializeSecrets(ctx context.Context) error {
 			v.logger.Debug("秘钥已存在，跳过创建", zap.String("path", path))
 		}
 	}
-	
+
 	v.logger.Info("应用秘钥初始化完成")
 	return nil
 }

@@ -1,0 +1,207 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    outputs:
+      release_url: ${{ steps.create_release.outputs.upload_url }}
+      version: ${{ steps.get_version.outputs.version }}
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Get version
+      id: get_version
+      run: echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+      
+    - name: Generate changelog
+      id: changelog
+      uses: requarks/changelog-action@v1
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        tag: ${{ steps.get_version.outputs.version }}
+        
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ steps.get_version.outputs.version }}
+        release_name: Release ${{ steps.get_version.outputs.version }}
+        body: ${{ steps.changelog.outputs.changes }}
+        draft: false
+        prerelease: false
+
+  build-binaries:
+    name: Build Binaries
+    needs: release
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        goos: [linux, darwin, windows]
+        goarch: [amd64, arm64]
+        service: [iam-service, project-service, file-service, git-gateway-service, 
+                  cicd-service, notification-service, team-service, tenant-service]
+        exclude:
+          - goos: windows
+            goarch: arm64
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.23'
+        
+    - name: Build binary
+      env:
+        GOOS: ${{ matrix.goos }}
+        GOARCH: ${{ matrix.goarch }}
+      run: |
+        ext=""
+        if [ "$GOOS" = "windows" ]; then ext=".exe"; fi
+        output="cloud-platform-${{ matrix.service }}-${{ needs.release.outputs.version }}-${{ matrix.goos }}-${{ matrix.goarch }}${ext}"
+        CGO_ENABLED=0 go build -ldflags="-s -w -X main.version=${{ needs.release.outputs.version }}" -o "$output" ./cmd/${{ matrix.service }}
+        tar czf "${output}.tar.gz" "$output"
+        
+    - name: Upload Release Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ needs.release.outputs.release_url }}
+        asset_path: ./cloud-platform-${{ matrix.service }}-${{ needs.release.outputs.version }}-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz
+        asset_name: cloud-platform-${{ matrix.service }}-${{ needs.release.outputs.version }}-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz
+        asset_content_type: application/gzip
+
+  docker-release:
+    name: Docker Release
+    needs: release
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [iam-service, project-service, file-service, git-gateway-service, 
+                  cicd-service, notification-service, team-service, tenant-service]
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v3
+      
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      
+    - name: Log in to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+        
+    - name: Log in to GitHub Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./cmd/${{ matrix.service }}/Dockerfile
+        platforms: linux/amd64,linux/arm64
+        push: true
+        tags: |
+          ${{ secrets.DOCKER_USERNAME }}/cloud-platform-${{ matrix.service }}:${{ needs.release.outputs.version }}
+          ${{ secrets.DOCKER_USERNAME }}/cloud-platform-${{ matrix.service }}:latest
+          ghcr.io/${{ github.repository }}-${{ matrix.service }}:${{ needs.release.outputs.version }}
+          ghcr.io/${{ github.repository }}-${{ matrix.service }}:latest
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+  helm-release:
+    name: Helm Chart Release
+    needs: [release, docker-release]
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Install Helm
+      uses: azure/setup-helm@v3
+      with:
+        version: '3.13.0'
+        
+    - name: Package Helm chart
+      run: |
+        mkdir -p helm-output
+        helm package ./deployments/helm/cloud-platform \
+          --version ${{ needs.release.outputs.version }} \
+          --app-version ${{ needs.release.outputs.version }} \
+          --destination helm-output
+          
+    - name: Upload Helm chart to release
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ needs.release.outputs.release_url }}
+        asset_path: ./helm-output/cloud-platform-${{ needs.release.outputs.version }}.tgz
+        asset_name: cloud-platform-${{ needs.release.outputs.version }}.tgz
+        asset_content_type: application/gzip
+        
+    - name: Update Helm repository index
+      run: |
+        git config user.name github-actions
+        git config user.email github-actions@github.com
+        git checkout gh-pages || git checkout --orphan gh-pages
+        mkdir -p charts
+        cp helm-output/*.tgz charts/
+        helm repo index charts --url https://github.com/${{ github.repository }}/releases/download/${{ needs.release.outputs.version }}
+        git add charts
+        git commit -m "Update Helm repository for ${{ needs.release.outputs.version }}"
+        git push origin gh-pages
+
+  create-sbom:
+    name: Generate SBOM
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Generate SBOM for Go
+      uses: anchore/sbom-action@v0
+      with:
+        artifact-name: cloud-platform-go-sbom
+        format: spdx-json
+        
+    - name: Generate SBOM for Node
+      uses: anchore/sbom-action@v0
+      with:
+        artifact-name: cloud-platform-node-sbom
+        format: spdx-json
+        path: ./frontend
+        
+    - name: Upload SBOM to release
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ needs.release.outputs.release_url }}
+        asset_path: ./cloud-platform-go-sbom.spdx.json
+        asset_name: cloud-platform-${{ needs.release.outputs.version }}-sbom.spdx.json
+        asset_content_type: application/json

@@ -72,7 +72,7 @@ func (suite *APIIntegrationTestSuite) TearDownSuite() {
 // setupRoutes 设置API路由
 func (suite *APIIntegrationTestSuite) setupRoutes(router *gin.Engine) {
 	api := router.Group("/api/v1")
-	
+
 	// 团队相关路由
 	teams := api.Group("/teams")
 	{
@@ -224,7 +224,7 @@ func (suite *APIIntegrationTestSuite) updateMemberRole(c *gin.Context) {
 
 	teamID := parseIntOrDefault(c.Param("id"), 0)
 	userID := parseIntOrDefault(c.Param("userId"), 0)
-	
+
 	err := suite.teamService.UpdateMemberRoleCompat(teamID, userID, req.RoleID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -237,7 +237,7 @@ func (suite *APIIntegrationTestSuite) updateMemberRole(c *gin.Context) {
 func (suite *APIIntegrationTestSuite) removeTeamMember(c *gin.Context) {
 	teamID := parseIntOrDefault(c.Param("id"), 0)
 	userID := parseIntOrDefault(c.Param("userId"), 0)
-	
+
 	err := suite.teamService.RemoveTeamMemberCompat(teamID, userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -382,7 +382,7 @@ func (suite *APIIntegrationTestSuite) TestCreateTeamAPI() {
 	}
 
 	jsonData, _ := json.Marshal(teamData)
-	
+
 	resp, err := http.Post(
 		suite.server.URL+"/api/v1/teams",
 		"application/json",
@@ -418,7 +418,7 @@ func (suite *APIIntegrationTestSuite) TestGetProjectTeamsAPI() {
 	err = json.NewDecoder(resp.Body).Decode(&response)
 	suite.NoError(err)
 	suite.Greater(len(response.Teams), 0)
-	
+
 	// 验证包含我们创建的团队
 	found := false
 	for _, t := range response.Teams {
@@ -442,7 +442,7 @@ func (suite *APIIntegrationTestSuite) TestAddTeamMemberAPI() {
 	}
 
 	jsonData, _ := json.Marshal(memberData)
-	
+
 	resp, err := http.Post(
 		fmt.Sprintf("%s/api/v1/teams/%d/members", suite.server.URL, team.ID),
 		"application/json",
@@ -474,7 +474,7 @@ func (suite *APIIntegrationTestSuite) TestCreateInvitationAPI() {
 	}
 
 	jsonData, _ := json.Marshal(invitationData)
-	
+
 	resp, err := http.Post(
 		suite.server.URL+"/api/v1/invitations",
 		"application/json",
@@ -504,7 +504,7 @@ func (suite *APIIntegrationTestSuite) TestCreatePermissionRequestAPI() {
 	}
 
 	jsonData, _ := json.Marshal(requestData)
-	
+
 	resp, err := http.Post(
 		suite.server.URL+"/api/v1/permission-requests",
 		"application/json",
@@ -535,7 +535,7 @@ func (suite *APIIntegrationTestSuite) TestReviewPermissionRequestAPI() {
 	}
 
 	jsonData, _ := json.Marshal(reviewData)
-	
+
 	resp, err := http.Post(
 		fmt.Sprintf("%s/api/v1/permission-requests/%d/review", suite.server.URL, request.ID),
 		"application/json",
@@ -573,7 +573,7 @@ func (suite *APIIntegrationTestSuite) TestAPIErrorHandling() {
 	}
 
 	jsonData, _ := json.Marshal(teamData)
-	
+
 	resp, err = http.Post(
 		suite.server.URL+"/api/v1/teams",
 		"application/json",
@@ -599,7 +599,7 @@ func (suite *APIIntegrationTestSuite) TestConcurrentRequests() {
 			}
 
 			jsonData, _ := json.Marshal(teamData)
-			
+
 			resp, err := http.Post(
 				suite.server.URL+"/api/v1/teams",
 				"application/json",
@@ -630,7 +630,7 @@ func (suite *APIIntegrationTestSuite) TestConcurrentRequests() {
 // Benchmark tests
 func (suite *APIIntegrationTestSuite) TestAPIPerformance() {
 	start := time.Now()
-	
+
 	for i := 0; i < 100; i++ {
 		teamData := map[string]interface{}{
 			"project_id":  1,
@@ -639,7 +639,7 @@ func (suite *APIIntegrationTestSuite) TestAPIPerformance() {
 		}
 
 		jsonData, _ := json.Marshal(teamData)
-		
+
 		resp, err := http.Post(
 			suite.server.URL+"/api/v1/teams",
 			"application/json",

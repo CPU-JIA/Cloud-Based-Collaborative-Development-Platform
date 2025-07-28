@@ -18,30 +18,30 @@ import (
 
 // 简化的文件模型（内存存储）
 type File struct {
-	ID           int       `json:"id"`
-	Name         string    `json:"name"`
-	OriginalName string    `json:"original_name"`
-	Path         string    `json:"path"`
-	Size         int64     `json:"size"`
-	MimeType     string    `json:"mime_type"`
-	Extension    string    `json:"extension"`
-	FileType     string    `json:"file_type"`
-	FormattedSize string   `json:"formatted_size"`
-	CanPreview   bool      `json:"can_preview"`
-	PreviewURL   string    `json:"preview_url,omitempty"`
-	DownloadURL  string    `json:"download_url"`
-	ShareURL     string    `json:"share_url,omitempty"`
-	FolderID     *int      `json:"folder_id"`
-	Tags         []string  `json:"tags"`
-	Description  string    `json:"description"`
-	UploadedBy   int       `json:"uploaded_by"`
-	DownloadCount int      `json:"download_count"`
-	IsShared     bool      `json:"is_shared"`
-	ShareToken   string    `json:"share_token,omitempty"`
-	SharePassword string   `json:"share_password,omitempty"`
-	ShareExpires *time.Time `json:"share_expires,omitempty"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
+	ID            int        `json:"id"`
+	Name          string     `json:"name"`
+	OriginalName  string     `json:"original_name"`
+	Path          string     `json:"path"`
+	Size          int64      `json:"size"`
+	MimeType      string     `json:"mime_type"`
+	Extension     string     `json:"extension"`
+	FileType      string     `json:"file_type"`
+	FormattedSize string     `json:"formatted_size"`
+	CanPreview    bool       `json:"can_preview"`
+	PreviewURL    string     `json:"preview_url,omitempty"`
+	DownloadURL   string     `json:"download_url"`
+	ShareURL      string     `json:"share_url,omitempty"`
+	FolderID      *int       `json:"folder_id"`
+	Tags          []string   `json:"tags"`
+	Description   string     `json:"description"`
+	UploadedBy    int        `json:"uploaded_by"`
+	DownloadCount int        `json:"download_count"`
+	IsShared      bool       `json:"is_shared"`
+	ShareToken    string     `json:"share_token,omitempty"`
+	SharePassword string     `json:"share_password,omitempty"`
+	ShareExpires  *time.Time `json:"share_expires,omitempty"`
+	CreatedAt     time.Time  `json:"created_at"`
+	UpdatedAt     time.Time  `json:"updated_at"`
 }
 
 type Folder struct {
@@ -70,10 +70,10 @@ func main() {
 	if err := os.MkdirAll(uploadDir, 0755); err != nil {
 		log.Fatal("无法创建上传目录:", err)
 	}
-	
+
 	// 初始化Gin路由
 	r := gin.Default()
-	
+
 	// CORS配置
 	r.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"http://localhost:3000", "http://localhost:3001", "http://localhost:3002"},
@@ -83,16 +83,16 @@ func main() {
 		AllowCredentials: true,
 		MaxAge:           12 * time.Hour,
 	}))
-	
+
 	// 设置静态文件服务
 	r.Static("/uploads", uploadDir)
-	
+
 	// API路由组
 	api := r.Group("/api/v1")
 	{
 		// 健康检查
 		api.GET("/health", healthCheck)
-		
+
 		// 文件管理
 		files := api.Group("/files")
 		{
@@ -104,33 +104,33 @@ func main() {
 			files.POST("/:id/share", createShareLink)
 			files.DELETE("/:id/share", revokeShareLink)
 		}
-		
+
 		// 公共分享访问
 		api.GET("/share/:token", getSharedFile)
 		api.GET("/share/:token/download", downloadSharedFile)
 		api.POST("/share/:token/verify", verifySharePassword)
-		
+
 		// 文件夹管理
 		api.POST("/folders", createFolder)
 		api.GET("/folders/project/:projectId", listFolders)
 	}
-	
+
 	log.Println("🚀 模拟文件管理服务启动成功！")
 	log.Println("📁 文件上传目录:", uploadDir)
 	log.Println("🌐 服务地址: http://localhost:8085")
 	log.Println("🔍 健康检查: http://localhost:8085/api/v1/health")
-	
+
 	r.Run(":8085")
 }
 
 func healthCheck(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
-		"success":    true,
-		"service":    "模拟文件管理服务",
-		"version":    "1.0.0",
-		"status":     "healthy",
-		"upload_dir": uploadDir,
-		"files_count": len(files),
+		"success":       true,
+		"service":       "模拟文件管理服务",
+		"version":       "1.0.0",
+		"status":        "healthy",
+		"upload_dir":    uploadDir,
+		"files_count":   len(files),
 		"folders_count": len(folders),
 	})
 }
@@ -140,42 +140,42 @@ func uploadFiles(c *gin.Context) {
 	folderIDStr := c.PostForm("folder_id")
 	description := c.PostForm("description")
 	tags := c.PostForm("tags")
-	
+
 	projectID, err := strconv.Atoi(projectIDStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "项目ID无效"})
 		return
 	}
-	
+
 	var folderID *int
 	if folderIDStr != "" && folderIDStr != "null" {
 		if fid, err := strconv.Atoi(folderIDStr); err == nil {
 			folderID = &fid
 		}
 	}
-	
+
 	// 获取上传的文件
 	form, err := c.MultipartForm()
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "获取文件失败: " + err.Error()})
 		return
 	}
-	
+
 	uploadedFiles := form.File["files"]
 	if len(uploadedFiles) == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "未选择文件"})
 		return
 	}
-	
+
 	var savedFiles []File
-	
+
 	// 创建项目上传目录
 	projectUploadDir := filepath.Join(uploadDir, fmt.Sprintf("project_%d", projectID))
 	if err := os.MkdirAll(projectUploadDir, 0755); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建目录失败"})
 		return
 	}
-	
+
 	for _, fileHeader := range uploadedFiles {
 		// 打开上传的文件
 		src, err := fileHeader.Open()
@@ -184,26 +184,26 @@ func uploadFiles(c *gin.Context) {
 			continue
 		}
 		defer src.Close()
-		
+
 		// 生成唯一文件名
 		ext := filepath.Ext(fileHeader.Filename)
 		fileName := fmt.Sprintf("%s_%s%s", uuid.New().String(), strconv.FormatInt(time.Now().Unix(), 10), ext)
 		filePath := filepath.Join(projectUploadDir, fileName)
-		
+
 		// 保存文件
 		dst, err := os.Create(filePath)
 		if err != nil {
 			log.Printf("创建文件失败 %s: %v", filePath, err)
 			continue
 		}
-		
+
 		if _, err := io.Copy(dst, src); err != nil {
 			dst.Close()
 			log.Printf("复制文件失败 %s: %v", filePath, err)
 			continue
 		}
 		dst.Close()
-		
+
 		// 解析标签
 		var fileTags []string
 		if tags != "" {
@@ -212,38 +212,38 @@ func uploadFiles(c *gin.Context) {
 				fileTags[i] = strings.TrimSpace(tag)
 			}
 		}
-		
+
 		// 创建文件记录
 		file := File{
-			ID:           fileIDCounter,
-			Name:         fileName,
-			OriginalName: fileHeader.Filename,
-			Path:         filePath,
-			Size:         fileHeader.Size,
-			MimeType:     fileHeader.Header.Get("Content-Type"),
-			Extension:    ext,
-			FileType:     getFileType(fileHeader.Header.Get("Content-Type"), ext),
+			ID:            fileIDCounter,
+			Name:          fileName,
+			OriginalName:  fileHeader.Filename,
+			Path:          filePath,
+			Size:          fileHeader.Size,
+			MimeType:      fileHeader.Header.Get("Content-Type"),
+			Extension:     ext,
+			FileType:      getFileType(fileHeader.Header.Get("Content-Type"), ext),
 			FormattedSize: formatSize(fileHeader.Size),
-			CanPreview:   canPreview(fileHeader.Header.Get("Content-Type")),
-			DownloadURL:  fmt.Sprintf("/api/v1/files/%d/download", fileIDCounter),
-			FolderID:     folderID,
-			Tags:         fileTags,
-			Description:  description,
-			UploadedBy:   1,
+			CanPreview:    canPreview(fileHeader.Header.Get("Content-Type")),
+			DownloadURL:   fmt.Sprintf("/api/v1/files/%d/download", fileIDCounter),
+			FolderID:      folderID,
+			Tags:          fileTags,
+			Description:   description,
+			UploadedBy:    1,
 			DownloadCount: 0,
-			CreatedAt:    time.Now(),
-			UpdatedAt:    time.Now(),
+			CreatedAt:     time.Now(),
+			UpdatedAt:     time.Now(),
 		}
-		
+
 		if file.CanPreview {
 			file.PreviewURL = fmt.Sprintf("/api/v1/files/%d/preview", fileIDCounter)
 		}
-		
+
 		files = append(files, file)
 		savedFiles = append(savedFiles, file)
 		fileIDCounter++
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"files":   savedFiles,
@@ -257,16 +257,16 @@ func listFiles(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "项目ID无效"})
 		return
 	}
-	
+
 	folderIDStr := c.Query("folder_id")
 	search := c.Query("search")
 	fileType := c.Query("type")
-	
+
 	var filteredFiles []File
 	for _, file := range files {
 		// 项目过滤（这里简化处理，实际应该根据项目ID过滤）
 		_ = projectID
-		
+
 		// 文件夹过滤
 		if folderIDStr != "" {
 			if folderIDStr == "null" {
@@ -279,20 +279,20 @@ func listFiles(c *gin.Context) {
 				}
 			}
 		}
-		
+
 		// 搜索过滤
 		if search != "" && !strings.Contains(strings.ToLower(file.OriginalName), strings.ToLower(search)) {
 			continue
 		}
-		
+
 		// 类型过滤
 		if fileType != "" && fileType != "all" && file.FileType != fileType {
 			continue
 		}
-		
+
 		filteredFiles = append(filteredFiles, file)
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"success":   true,
 		"files":     filteredFiles,
@@ -308,7 +308,7 @@ func downloadFile(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "文件ID无效"})
 		return
 	}
-	
+
 	// 查找文件
 	var file *File
 	for i := range files {
@@ -317,15 +317,15 @@ func downloadFile(c *gin.Context) {
 			break
 		}
 	}
-	
+
 	if file == nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "文件不存在"})
 		return
 	}
-	
+
 	// 更新下载计数
 	file.DownloadCount++
-	
+
 	// 设置响应头
 	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", file.OriginalName))
 	c.Header("Content-Type", file.MimeType)
@@ -338,7 +338,7 @@ func previewFile(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "文件ID无效"})
 		return
 	}
-	
+
 	// 查找文件
 	var file *File
 	for i := range files {
@@ -347,17 +347,17 @@ func previewFile(c *gin.Context) {
 			break
 		}
 	}
-	
+
 	if file == nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "文件不存在"})
 		return
 	}
-	
+
 	if !file.CanPreview {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "该文件类型不支持预览"})
 		return
 	}
-	
+
 	// 设置适当的Content-Type
 	c.Header("Content-Type", file.MimeType)
 	c.File(file.Path)
@@ -370,12 +370,12 @@ func createFolder(c *gin.Context) {
 		ParentID    *int   `json:"parent_id"`
 		Description string `json:"description"`
 	}
-	
+
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "参数错误: " + err.Error()})
 		return
 	}
-	
+
 	// 构建路径
 	path := req.Name
 	level := 0
@@ -389,7 +389,7 @@ func createFolder(c *gin.Context) {
 			}
 		}
 	}
-	
+
 	folder := Folder{
 		ID:          folderIDCounter,
 		Name:        req.Name,
@@ -402,10 +402,10 @@ func createFolder(c *gin.Context) {
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
 	}
-	
+
 	folders = append(folders, folder)
 	folderIDCounter++
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"folder":  folder,
@@ -418,14 +418,14 @@ func listFolders(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "项目ID无效"})
 		return
 	}
-	
+
 	parentIDStr := c.Query("parent_id")
-	
+
 	var filteredFolders []Folder
 	for _, folder := range folders {
 		// 项目过滤（这里简化处理）
 		_ = projectID
-		
+
 		// 父文件夹过滤
 		if parentIDStr != "" {
 			if parentIDStr == "null" {
@@ -438,10 +438,10 @@ func listFolders(c *gin.Context) {
 				}
 			}
 		}
-		
+
 		filteredFolders = append(filteredFolders, folder)
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"folders": filteredFolders,
@@ -454,7 +454,7 @@ func getFile(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "文件ID无效"})
 		return
 	}
-	
+
 	// 查找文件
 	for _, file := range files {
 		if file.ID == fileID {
@@ -465,7 +465,7 @@ func getFile(c *gin.Context) {
 			return
 		}
 	}
-	
+
 	c.JSON(http.StatusNotFound, gin.H{"error": "文件不存在"})
 }
 
@@ -526,19 +526,19 @@ func createShareLink(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "文件ID无效"})
 		return
 	}
-	
+
 	// 解析请求参数
 	var req struct {
-		Password   string    `json:"password"`
-		ExpiresAt  *string   `json:"expires_at"`
-		Permission string    `json:"permission"`
+		Password   string  `json:"password"`
+		ExpiresAt  *string `json:"expires_at"`
+		Permission string  `json:"permission"`
 	}
-	
+
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "参数错误: " + err.Error()})
 		return
 	}
-	
+
 	// 查找文件
 	var file *File
 	for i := range files {
@@ -547,15 +547,15 @@ func createShareLink(c *gin.Context) {
 			break
 		}
 	}
-	
+
 	if file == nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "文件不存在"})
 		return
 	}
-	
+
 	// 生成分享令牌
 	shareToken := uuid.New().String()
-	
+
 	// 处理过期时间
 	var expiresAt *time.Time
 	if req.ExpiresAt != nil && *req.ExpiresAt != "" {
@@ -563,7 +563,7 @@ func createShareLink(c *gin.Context) {
 			expiresAt = &t
 		}
 	}
-	
+
 	// 更新文件分享信息
 	file.IsShared = true
 	file.ShareToken = shareToken
@@ -571,19 +571,19 @@ func createShareLink(c *gin.Context) {
 	file.ShareExpires = expiresAt
 	file.ShareURL = fmt.Sprintf("/api/v1/share/%s", shareToken)
 	file.UpdatedAt = time.Now()
-	
+
 	// 添加到分享链接映射
 	shareLinks[shareToken] = file
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"share": gin.H{
-			"token":       shareToken,
-			"share_url":   fmt.Sprintf("/api/v1/share/%s", shareToken),
+			"token":        shareToken,
+			"share_url":    fmt.Sprintf("/api/v1/share/%s", shareToken),
 			"download_url": fmt.Sprintf("/api/v1/share/%s/download", shareToken),
-			"password":    req.Password != "",
-			"expires_at":  expiresAt,
-			"permission":  req.Permission,
+			"password":     req.Password != "",
+			"expires_at":   expiresAt,
+			"permission":   req.Permission,
 		},
 	})
 }
@@ -594,7 +594,7 @@ func revokeShareLink(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "文件ID无效"})
 		return
 	}
-	
+
 	// 查找文件
 	var file *File
 	for i := range files {
@@ -603,24 +603,24 @@ func revokeShareLink(c *gin.Context) {
 			break
 		}
 	}
-	
+
 	if file == nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "文件不存在"})
 		return
 	}
-	
+
 	// 移除分享
 	if file.ShareToken != "" {
 		delete(shareLinks, file.ShareToken)
 	}
-	
+
 	file.IsShared = false
 	file.ShareToken = ""
 	file.SharePassword = ""
 	file.ShareExpires = nil
 	file.ShareURL = ""
 	file.UpdatedAt = time.Now()
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "分享已撤销",
@@ -629,69 +629,69 @@ func revokeShareLink(c *gin.Context) {
 
 func getSharedFile(c *gin.Context) {
 	token := c.Param("token")
-	
+
 	file, exists := shareLinks[token]
 	if !exists {
 		c.JSON(http.StatusNotFound, gin.H{"error": "分享链接不存在或已失效"})
 		return
 	}
-	
+
 	// 检查过期时间
 	if file.ShareExpires != nil && time.Now().After(*file.ShareExpires) {
 		c.JSON(http.StatusGone, gin.H{"error": "分享链接已过期"})
 		return
 	}
-	
+
 	// 如果有密码保护，需要先验证密码
 	if file.SharePassword != "" {
 		password := c.Query("password")
 		if password != file.SharePassword {
 			c.JSON(http.StatusUnauthorized, gin.H{
-				"error": "需要密码验证",
+				"error":             "需要密码验证",
 				"password_required": true,
 			})
 			return
 		}
 	}
-	
+
 	// 返回文件信息（不包含敏感信息）
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"file": gin.H{
-			"id":            file.ID,
-			"original_name": file.OriginalName,
-			"size":         file.Size,
+			"id":             file.ID,
+			"original_name":  file.OriginalName,
+			"size":           file.Size,
 			"formatted_size": file.FormattedSize,
-			"mime_type":    file.MimeType,
-			"file_type":    file.FileType,
-			"can_preview":  file.CanPreview,
-			"preview_url":  fmt.Sprintf("/api/v1/share/%s/preview", token),
-			"download_url": fmt.Sprintf("/api/v1/share/%s/download", token),
-			"created_at":   file.CreatedAt,
+			"mime_type":      file.MimeType,
+			"file_type":      file.FileType,
+			"can_preview":    file.CanPreview,
+			"preview_url":    fmt.Sprintf("/api/v1/share/%s/preview", token),
+			"download_url":   fmt.Sprintf("/api/v1/share/%s/download", token),
+			"created_at":     file.CreatedAt,
 		},
 		"share": gin.H{
-			"token":        token,
+			"token":             token,
 			"password_required": file.SharePassword != "",
-			"expires_at":   file.ShareExpires,
+			"expires_at":        file.ShareExpires,
 		},
 	})
 }
 
 func downloadSharedFile(c *gin.Context) {
 	token := c.Param("token")
-	
+
 	file, exists := shareLinks[token]
 	if !exists {
 		c.JSON(http.StatusNotFound, gin.H{"error": "分享链接不存在或已失效"})
 		return
 	}
-	
+
 	// 检查过期时间
 	if file.ShareExpires != nil && time.Now().After(*file.ShareExpires) {
 		c.JSON(http.StatusGone, gin.H{"error": "分享链接已过期"})
 		return
 	}
-	
+
 	// 检查密码
 	if file.SharePassword != "" {
 		password := c.Query("password")
@@ -700,10 +700,10 @@ func downloadSharedFile(c *gin.Context) {
 			return
 		}
 	}
-	
+
 	// 更新下载计数
 	file.DownloadCount++
-	
+
 	// 设置响应头
 	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", file.OriginalName))
 	c.Header("Content-Type", file.MimeType)
@@ -712,37 +712,37 @@ func downloadSharedFile(c *gin.Context) {
 
 func verifySharePassword(c *gin.Context) {
 	token := c.Param("token")
-	
+
 	var req struct {
 		Password string `json:"password" binding:"required"`
 	}
-	
+
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "密码不能为空"})
 		return
 	}
-	
+
 	file, exists := shareLinks[token]
 	if !exists {
 		c.JSON(http.StatusNotFound, gin.H{"error": "分享链接不存在或已失效"})
 		return
 	}
-	
+
 	// 检查过期时间
 	if file.ShareExpires != nil && time.Now().After(*file.ShareExpires) {
 		c.JSON(http.StatusGone, gin.H{"error": "分享链接已过期"})
 		return
 	}
-	
+
 	// 验证密码
 	if file.SharePassword != req.Password {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
-			"error": "密码错误",
+			"error":   "密码错误",
 		})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "密码验证成功",

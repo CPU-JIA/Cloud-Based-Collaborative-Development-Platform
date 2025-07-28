@@ -55,23 +55,23 @@ func (suite *TeamServiceTestSuite) seedTestData() {
 	// 创建测试用户
 	users := []models.User{
 		{
-			ID: 1, Username: "owner", Email: "owner@test.com", 
+			ID: 1, Username: "owner", Email: "owner@test.com",
 			DisplayName: "团队所有者", Status: models.UserStatusActive,
 		},
 		{
-			ID: 2, Username: "admin", Email: "admin@test.com", 
+			ID: 2, Username: "admin", Email: "admin@test.com",
 			DisplayName: "团队管理员", Status: models.UserStatusActive,
 		},
 		{
-			ID: 3, Username: "member", Email: "member@test.com", 
+			ID: 3, Username: "member", Email: "member@test.com",
 			DisplayName: "团队成员", Status: models.UserStatusActive,
 		},
 		{
-			ID: 4, Username: "viewer", Email: "viewer@test.com", 
+			ID: 4, Username: "viewer", Email: "viewer@test.com",
 			DisplayName: "团队观察者", Status: models.UserStatusActive,
 		},
 		{
-			ID: 5, Username: "inactive", Email: "inactive@test.com", 
+			ID: 5, Username: "inactive", Email: "inactive@test.com",
 			DisplayName: "非活跃用户", Status: models.UserStatusInactive,
 		},
 	}
@@ -83,28 +83,28 @@ func (suite *TeamServiceTestSuite) seedTestData() {
 	// 创建测试角色
 	roles := []models.Role{
 		{
-			ID: 1, TenantID: "default", ProjectID: 1, 
+			ID: 1, TenantID: "default", ProjectID: 1,
 			Name: models.RoleOwner, Description: "团队所有者",
 			Permissions: models.GetDefaultRolePermissions(models.RoleOwner),
-			IsSystem: true,
+			IsSystem:    true,
 		},
 		{
-			ID: 2, TenantID: "default", ProjectID: 1, 
+			ID: 2, TenantID: "default", ProjectID: 1,
 			Name: models.RoleAdmin, Description: "团队管理员",
 			Permissions: models.GetDefaultRolePermissions(models.RoleAdmin),
-			IsSystem: true,
+			IsSystem:    true,
 		},
 		{
-			ID: 3, TenantID: "default", ProjectID: 1, 
+			ID: 3, TenantID: "default", ProjectID: 1,
 			Name: models.RoleMember, Description: "团队成员",
 			Permissions: models.GetDefaultRolePermissions(models.RoleMember),
-			IsSystem: true,
+			IsSystem:    true,
 		},
 		{
-			ID: 4, TenantID: "default", ProjectID: 1, 
+			ID: 4, TenantID: "default", ProjectID: 1,
 			Name: models.RoleViewer, Description: "团队观察者",
 			Permissions: models.GetDefaultRolePermissions(models.RoleViewer),
-			IsSystem: true,
+			IsSystem:    true,
 		},
 	}
 
@@ -125,19 +125,19 @@ func (suite *TeamServiceTestSuite) TestCreateTeam() {
 		expectError bool
 	}{
 		{
-			name: "成功创建团队",
+			name:     "成功创建团队",
 			tenantID: "default", projectID: 1,
 			teamName: "开发团队", description: "负责产品开发",
 			createdBy: 1, expectError: false,
 		},
 		{
-			name: "团队名称为空",
+			name:     "团队名称为空",
 			tenantID: "default", projectID: 1,
 			teamName: "", description: "描述",
 			createdBy: 1, expectError: true,
 		},
 		{
-			name: "创建者不存在",
+			name:     "创建者不存在",
 			tenantID: "default", projectID: 1,
 			teamName: "测试团队", description: "描述",
 			createdBy: 999, expectError: true,
@@ -187,22 +187,22 @@ func (suite *TeamServiceTestSuite) TestAddTeamMember() {
 		expectError bool
 	}{
 		{
-			name: "成功添加成员",
+			name:   "成功添加成员",
 			teamID: team.ID, userID: 2, roleID: 2, invitedBy: 1,
 			expectError: false,
 		},
 		{
-			name: "添加不存在的用户",
+			name:   "添加不存在的用户",
 			teamID: team.ID, userID: 999, roleID: 3, invitedBy: 1,
 			expectError: true,
 		},
 		{
-			name: "重复添加成员",
+			name:   "重复添加成员",
 			teamID: team.ID, userID: 2, roleID: 3, invitedBy: 1,
 			expectError: true,
 		},
 		{
-			name: "添加非活跃用户",
+			name:   "添加非活跃用户",
 			teamID: team.ID, userID: 5, roleID: 4, invitedBy: 1,
 			expectError: true,
 		},
@@ -232,25 +232,25 @@ func (suite *TeamServiceTestSuite) TestAddTeamMember() {
 // TestUpdateMemberRole 测试更新成员角色
 func (suite *TeamServiceTestSuite) TestUpdateMemberRole() {
 	testCases := []struct {
-		name        string
-		setupUserID int
-		setupRoleID int
+		name         string
+		setupUserID  int
+		setupRoleID  int
 		updateUserID int
-		newRoleID   int
-		expectError bool
+		newRoleID    int
+		expectError  bool
 	}{
 		{
-			name: "成功更新角色",
+			name:        "成功更新角色",
 			setupUserID: 2, setupRoleID: 3, updateUserID: 2, newRoleID: 2,
 			expectError: false,
 		},
 		{
-			name: "更新不存在的成员",
+			name:        "更新不存在的成员",
 			setupUserID: 2, setupRoleID: 3, updateUserID: 999, newRoleID: 3,
 			expectError: true,
 		},
 		{
-			name: "角色ID不存在",
+			name:        "角色ID不存在",
 			setupUserID: 3, setupRoleID: 3, updateUserID: 3, newRoleID: 999,
 			expectError: true,
 		},
@@ -261,17 +261,17 @@ func (suite *TeamServiceTestSuite) TestUpdateMemberRole() {
 			// 为每个测试用例创建独立的团队和成员
 			team, err := suite.teamService.CreateTeam("default", 1, "测试团队", "描述", 1)
 			suite.Require().NoError(err)
-			
+
 			_, err = suite.teamService.AddTeamMemberCompat(team.ID, tc.setupUserID, tc.setupRoleID, 1)
 			suite.Require().NoError(err)
-			
+
 			err = suite.teamService.UpdateMemberRoleCompat(team.ID, tc.updateUserID, tc.newRoleID)
 
 			if tc.expectError {
 				suite.Error(err)
 			} else {
 				suite.NoError(err)
-				
+
 				// 验证角色已更新
 				var updatedMember models.TeamMember
 				err = suite.db.Where("team_id = ? AND user_id = ?", team.ID, tc.updateUserID).First(&updatedMember).Error
@@ -287,7 +287,7 @@ func (suite *TeamServiceTestSuite) TestRemoveTeamMember() {
 	// 创建测试团队和成员
 	team, err := suite.teamService.CreateTeam("default", 1, "测试团队", "描述", 1)
 	suite.Require().NoError(err)
-	
+
 	_, err = suite.teamService.AddTeamMemberCompat(team.ID, 2, 3, 1)
 	suite.Require().NoError(err)
 
@@ -298,17 +298,17 @@ func (suite *TeamServiceTestSuite) TestRemoveTeamMember() {
 		expectError bool
 	}{
 		{
-			name: "成功移除成员",
+			name:   "成功移除成员",
 			teamID: team.ID, userID: 2,
 			expectError: false,
 		},
 		{
-			name: "移除不存在的成员",
+			name:   "移除不存在的成员",
 			teamID: team.ID, userID: 999,
 			expectError: true,
 		},
 		{
-			name: "尝试移除团队所有者",
+			name:   "尝试移除团队所有者",
 			teamID: team.ID, userID: 1,
 			expectError: true,
 		},
@@ -322,7 +322,7 @@ func (suite *TeamServiceTestSuite) TestRemoveTeamMember() {
 				suite.Error(err)
 			} else {
 				suite.NoError(err)
-				
+
 				// 验证成员状态已变为inactive
 				var member models.TeamMember
 				err = suite.db.Where("team_id = ? AND user_id = ?", tc.teamID, tc.userID).First(&member).Error
@@ -349,25 +349,25 @@ func (suite *TeamServiceTestSuite) TestInviteUser() {
 		expectError bool
 	}{
 		{
-			name: "成功邀请用户",
+			name:   "成功邀请用户",
 			teamID: team.ID, email: "newuser@test.com", roleID: 3,
 			message: "欢迎加入我们的团队", invitedBy: 1,
 			expectError: false,
 		},
 		{
-			name: "邮箱格式错误",
+			name:   "邮箱格式错误",
 			teamID: team.ID, email: "invalid-email", roleID: 3,
 			message: "测试消息", invitedBy: 1,
 			expectError: true,
 		},
 		{
-			name: "角色ID不存在",
+			name:   "角色ID不存在",
 			teamID: team.ID, email: "test2@test.com", roleID: 999,
 			message: "测试消息", invitedBy: 1,
 			expectError: true,
 		},
 		{
-			name: "重复邀请",
+			name:   "重复邀请",
 			teamID: team.ID, email: "newuser@test.com", roleID: 3,
 			message: "重复邀请", invitedBy: 1,
 			expectError: true,
@@ -402,7 +402,7 @@ func (suite *TeamServiceTestSuite) TestAcceptInvitation() {
 	// 创建测试团队和邀请
 	team, err := suite.teamService.CreateTeam("default", 1, "测试团队", "描述", 1)
 	suite.Require().NoError(err)
-	
+
 	invitation, err := suite.teamService.InviteUserCompat(team.ID, "newuser@test.com", 3, "欢迎", 1)
 	suite.Require().NoError(err)
 
@@ -420,17 +420,17 @@ func (suite *TeamServiceTestSuite) TestAcceptInvitation() {
 		expectError bool
 	}{
 		{
-			name: "成功接受邀请",
+			name:  "成功接受邀请",
 			token: invitation.Token, userID: 6,
 			expectError: false,
 		},
 		{
-			name: "Token不存在",
+			name:  "Token不存在",
 			token: "invalid-token", userID: 6,
 			expectError: true,
 		},
 		{
-			name: "用户邮箱不匹配",
+			name:  "用户邮箱不匹配",
 			token: invitation.Token, userID: 2,
 			expectError: true,
 		},
@@ -444,7 +444,7 @@ func (suite *TeamServiceTestSuite) TestAcceptInvitation() {
 				suite.Error(err)
 			} else {
 				suite.NoError(err)
-				
+
 				// 验证成员已创建
 				var member models.TeamMember
 				err = suite.db.Where("team_id = ? AND user_id = ?", team.ID, tc.userID).First(&member).Error
@@ -475,19 +475,19 @@ func (suite *TeamServiceTestSuite) TestCreatePermissionRequest() {
 		expectError bool
 	}{
 		{
-			name: "成功创建权限申请",
+			name:      "成功创建权限申请",
 			projectID: 1, userID: 3, reqType: "role",
 			permission: "admin", reason: "需要管理权限处理项目",
 			expectError: false,
 		},
 		{
-			name: "申请理由为空",
+			name:      "申请理由为空",
 			projectID: 1, userID: 3, reqType: "role",
 			permission: "admin", reason: "",
 			expectError: true,
 		},
 		{
-			name: "用户不存在",
+			name:      "用户不存在",
 			projectID: 1, userID: 999, reqType: "role",
 			permission: "admin", reason: "测试理由",
 			expectError: true,
@@ -534,12 +534,12 @@ func (suite *TeamServiceTestSuite) TestReviewPermissionRequest() {
 		expectError  bool
 	}{
 		{
-			name: "批准权限申请",
+			name:      "批准权限申请",
 			requestID: request.ID, reviewerID: 1, approved: true,
 			reviewReason: "申请合理，批准", expectError: false,
 		},
 		{
-			name: "请求不存在",
+			name:      "请求不存在",
 			requestID: 999, reviewerID: 1, approved: true,
 			reviewReason: "测试", expectError: true,
 		},
@@ -555,12 +555,12 @@ func (suite *TeamServiceTestSuite) TestReviewPermissionRequest() {
 				suite.Error(err)
 			} else {
 				suite.NoError(err)
-				
+
 				// 验证申请状态已更新
 				var updatedRequest models.PermissionRequest
 				err = suite.db.First(&updatedRequest, tc.requestID).Error
 				suite.NoError(err)
-				
+
 				expectedStatus := models.RequestStatusApproved
 				if !tc.approved {
 					expectedStatus = models.RequestStatusRejected
@@ -583,7 +583,7 @@ func (suite *TeamServiceTestSuite) TestGetTeamsByProject() {
 	teams, err := suite.teamService.GetTeamsByProject("default", 1)
 	suite.NoError(err)
 	suite.Len(teams, 2)
-	
+
 	teamIDs := []int{teams[0].ID, teams[1].ID}
 	suite.Contains(teamIDs, team1.ID)
 	suite.Contains(teamIDs, team2.ID)
@@ -594,7 +594,7 @@ func (suite *TeamServiceTestSuite) TestCheckUserPermission() {
 	// 创建测试团队和成员
 	team, err := suite.teamService.CreateTeam("default", 1, "测试团队", "描述", 1)
 	suite.Require().NoError(err)
-	
+
 	// 添加不同角色的成员
 	_, err = suite.teamService.AddTeamMemberCompat(team.ID, 2, 2, 1) // 管理员
 	suite.Require().NoError(err)
@@ -609,27 +609,27 @@ func (suite *TeamServiceTestSuite) TestCheckUserPermission() {
 		expected   bool
 	}{
 		{
-			name: "所有者有所有权限",
+			name:   "所有者有所有权限",
 			userID: 1, projectID: 1, permission: models.PermissionAdmin,
 			expected: true,
 		},
 		{
-			name: "管理员有管理权限",
+			name:   "管理员有管理权限",
 			userID: 2, projectID: 1, permission: models.PermissionDelete,
 			expected: true,
 		},
 		{
-			name: "普通成员没有删除权限",
+			name:   "普通成员没有删除权限",
 			userID: 3, projectID: 1, permission: models.PermissionDelete,
 			expected: false,
 		},
 		{
-			name: "普通成员有读取权限",
+			name:   "普通成员有读取权限",
 			userID: 3, projectID: 1, permission: models.PermissionRead,
 			expected: true,
 		},
 		{
-			name: "非团队成员无权限",
+			name:   "非团队成员无权限",
 			userID: 4, projectID: 1, permission: models.PermissionRead,
 			expected: false,
 		},
@@ -653,14 +653,14 @@ func TestTeamServiceTestSuite(t *testing.T) {
 func BenchmarkCreateTeam(b *testing.B) {
 	db, _ := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	db.AutoMigrate(&models.Team{}, &models.TeamMember{}, &models.User{}, &models.Role{})
-	
+
 	// 创建测试数据
 	user := models.User{ID: 1, Username: "test", Email: "test@test.com", Status: models.UserStatusActive}
 	db.Create(&user)
-	
+
 	permissionService := NewPermissionService(db)
 	teamService := NewTeamService(db, permissionService)
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		teamService.CreateTeam("default", 1, "测试团队", "描述", 1)
@@ -670,7 +670,7 @@ func BenchmarkCreateTeam(b *testing.B) {
 func BenchmarkAddTeamMember(b *testing.B) {
 	db, _ := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	db.AutoMigrate(&models.Team{}, &models.TeamMember{}, &models.User{}, &models.Role{})
-	
+
 	// 创建测试数据
 	users := []models.User{
 		{ID: 1, Username: "owner", Email: "owner@test.com", Status: models.UserStatusActive},
@@ -679,14 +679,14 @@ func BenchmarkAddTeamMember(b *testing.B) {
 	for _, user := range users {
 		db.Create(&user)
 	}
-	
+
 	role := models.Role{ID: 1, TenantID: "default", ProjectID: 1, Name: "member"}
 	db.Create(&role)
-	
+
 	permissionService := NewPermissionService(db)
 	teamService := NewTeamService(db, permissionService)
 	team, _ := teamService.CreateTeam("default", 1, "测试团队", "描述", 1)
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		teamService.AddTeamMemberCompat(team.ID, 2, 1, 1)

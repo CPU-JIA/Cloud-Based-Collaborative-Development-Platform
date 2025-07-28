@@ -17,23 +17,23 @@ type Repository struct {
 	Visibility    RepositoryVisibility `json:"visibility"`
 	Status        RepositoryStatus     `json:"status"`
 	DefaultBranch string               `json:"default_branch"`
-	
+
 	// Git配置
-	GitPath       string  `json:"git_path"`
-	CloneURL      string  `json:"clone_url"`
-	SSHURL        string  `json:"ssh_url"`
-	
+	GitPath  string `json:"git_path"`
+	CloneURL string `json:"clone_url"`
+	SSHURL   string `json:"ssh_url"`
+
 	// 统计信息
-	Size          int64   `json:"size"`
-	CommitCount   int64   `json:"commit_count"`
-	BranchCount   int32   `json:"branch_count"`
-	TagCount      int32   `json:"tag_count"`
-	
+	Size        int64 `json:"size"`
+	CommitCount int64 `json:"commit_count"`
+	BranchCount int32 `json:"branch_count"`
+	TagCount    int32 `json:"tag_count"`
+
 	// 时间戳
-	CreatedAt     time.Time  `json:"created_at"`
-	UpdatedAt     time.Time  `json:"updated_at"`
-	DeletedAt     *time.Time `json:"deleted_at"`
-	LastPushedAt  *time.Time `json:"last_pushed_at"`
+	CreatedAt    time.Time  `json:"created_at"`
+	UpdatedAt    time.Time  `json:"updated_at"`
+	DeletedAt    *time.Time `json:"deleted_at"`
+	LastPushedAt *time.Time `json:"last_pushed_at"`
 }
 
 // Branch 分支模型
@@ -51,30 +51,30 @@ type Branch struct {
 
 // Commit 提交模型
 type Commit struct {
-	ID             uuid.UUID  `json:"id"`
-	RepositoryID   uuid.UUID  `json:"repository_id"`
-	SHA            string     `json:"sha"`
-	Message        string     `json:"message"`
-	Author         string     `json:"author"`
-	AuthorEmail    string     `json:"author_email"`
-	Committer      string     `json:"committer"`
-	CommitterEmail string     `json:"committer_email"`
-	
+	ID             uuid.UUID `json:"id"`
+	RepositoryID   uuid.UUID `json:"repository_id"`
+	SHA            string    `json:"sha"`
+	Message        string    `json:"message"`
+	Author         string    `json:"author"`
+	AuthorEmail    string    `json:"author_email"`
+	Committer      string    `json:"committer"`
+	CommitterEmail string    `json:"committer_email"`
+
 	// Git信息
-	ParentSHAs     []string   `json:"parent_shas"`
-	TreeSHA        string     `json:"tree_sha"`
-	
+	ParentSHAs []string `json:"parent_shas"`
+	TreeSHA    string   `json:"tree_sha"`
+
 	// 统计信息
-	AddedLines     int32      `json:"added_lines"`
-	DeletedLines   int32      `json:"deleted_lines"`
-	ChangedFiles   int32      `json:"changed_files"`
-	
+	AddedLines   int32 `json:"added_lines"`
+	DeletedLines int32 `json:"deleted_lines"`
+	ChangedFiles int32 `json:"changed_files"`
+
 	// 时间戳
-	CommittedAt    time.Time  `json:"committed_at"`
-	CreatedAt      time.Time  `json:"created_at"`
-	
+	CommittedAt time.Time `json:"committed_at"`
+	CreatedAt   time.Time `json:"created_at"`
+
 	// 关联文件（可选）
-	Files          []CommitFile `json:"files,omitempty"`
+	Files []CommitFile `json:"files,omitempty"`
 }
 
 // CommitFile 提交文件变更模型
@@ -90,15 +90,15 @@ type CommitFile struct {
 
 // Tag 标签模型
 type Tag struct {
-	ID           uuid.UUID  `json:"id"`
-	RepositoryID uuid.UUID  `json:"repository_id"`
-	Name         string     `json:"name"`
-	CommitSHA    string     `json:"commit_sha"`
-	Message      *string    `json:"message"`
-	Tagger       string     `json:"tagger"`
-	TaggerEmail  string     `json:"tagger_email"`
-	TaggedAt     time.Time  `json:"tagged_at"`
-	CreatedAt    time.Time  `json:"created_at"`
+	ID           uuid.UUID `json:"id"`
+	RepositoryID uuid.UUID `json:"repository_id"`
+	Name         string    `json:"name"`
+	CommitSHA    string    `json:"commit_sha"`
+	Message      *string   `json:"message"`
+	Tagger       string    `json:"tagger"`
+	TaggerEmail  string    `json:"tagger_email"`
+	TaggedAt     time.Time `json:"tagged_at"`
+	CreatedAt    time.Time `json:"created_at"`
 }
 
 // FileInfo 文件信息

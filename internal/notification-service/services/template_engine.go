@@ -3,8 +3,8 @@ package services
 import (
 	"bytes"
 	"fmt"
-	textTemplate "text/template"
 	htmlTemplate "html/template"
+	textTemplate "text/template"
 )
 
 // TemplateEngine 模板引擎

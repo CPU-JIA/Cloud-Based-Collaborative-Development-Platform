@@ -75,9 +75,9 @@ func (suite *SecurityTestSuite) setupRoutes(router *gin.Engine) {
 	// 添加安全中间件
 	router.Use(suite.securityMiddleware())
 	router.Use(suite.tenantValidationMiddleware())
-	
+
 	api := router.Group("/api/v1")
-	
+
 	// 需要认证的路由
 	authenticated := api.Group("", suite.authMiddleware())
 	{
@@ -133,28 +133,28 @@ func (suite *SecurityTestSuite) seedTestData() {
 	// 创建测试角色和权限
 	roles := []models.Role{
 		{
-			ID: 1, TenantID: "default", ProjectID: 1, 
+			ID: 1, TenantID: "default", ProjectID: 1,
 			Name: "admin", Description: "系统管理员",
 			Permissions: []string{"create_team", "read_team", "update_team", "delete_team", "manage_members", "invite_user", "read_invitations", "read_requests", "review_requests"},
-			IsSystem: true,
+			IsSystem:    true,
 		},
 		{
-			ID: 2, TenantID: "default", ProjectID: 1, 
+			ID: 2, TenantID: "default", ProjectID: 1,
 			Name: "team_owner", Description: "团队所有者",
 			Permissions: []string{"create_team", "read_team", "update_team", "manage_members", "invite_user", "read_invitations", "read_requests"},
-			IsSystem: true,
+			IsSystem:    true,
 		},
 		{
-			ID: 3, TenantID: "default", ProjectID: 1, 
+			ID: 3, TenantID: "default", ProjectID: 1,
 			Name: "member", Description: "团队成员",
 			Permissions: []string{"read_team", "read_invitations"},
-			IsSystem: true,
+			IsSystem:    true,
 		},
 		{
-			ID: 4, TenantID: "default", ProjectID: 1, 
+			ID: 4, TenantID: "default", ProjectID: 1,
 			Name: "viewer", Description: "只读用户",
 			Permissions: []string{"read_team"},
-			IsSystem: true,
+			IsSystem:    true,
 		},
 	}
 	for _, role := range roles {
@@ -487,7 +487,7 @@ func (suite *SecurityTestSuite) TestSecurityHeaders() {
 // TestSQLInjectionPrevention 测试SQL注入防护
 func (suite *SecurityTestSuite) TestSQLInjectionPrevention() {
 	maliciousInput := `{"name": "test'; DROP TABLE teams; --", "description": "test"}`
-	
+
 	req, _ := http.NewRequest("POST", suite.server.URL+"/api/v1/teams", bytes.NewBuffer([]byte(maliciousInput)))
 	req.Header.Set("Authorization", "Bearer admin-token")
 	req.Header.Set("Content-Type", "application/json")
@@ -514,7 +514,7 @@ func (suite *SecurityTestSuite) TestRateLimiting() {
 
 	for i := 0; i < numRequests; i++ {
 		req, _ := http.NewRequest("GET", suite.server.URL+"/api/v1/public/health", nil)
-		
+
 		client := &http.Client{Timeout: time.Millisecond * 100}
 		resp, err := client.Do(req)
 		if err == nil {
@@ -580,11 +580,11 @@ func (suite *SecurityTestSuite) TestInputValidation() {
 // validateToken 验证令牌并返回用户ID（简化版）
 func (suite *SecurityTestSuite) validateToken(token string) int {
 	tokenToUserMap := map[string]int{
-		"admin-token":     1,
-		"owner-token":     2,
-		"member-token":    3,
-		"viewer-token":    4,
-		"inactive-token":  5,
+		"admin-token":    1,
+		"owner-token":    2,
+		"member-token":   3,
+		"viewer-token":   4,
+		"inactive-token": 5,
 	}
 
 	if userID, exists := tokenToUserMap[token]; exists {
@@ -599,12 +599,12 @@ func isValidTenantID(tenantID string) bool {
 	if len(tenantID) > 50 {
 		return false
 	}
-	
+
 	for _, char := range tenantID {
-		if !((char >= 'a' && char <= 'z') || 
-			 (char >= 'A' && char <= 'Z') || 
-			 (char >= '0' && char <= '9') || 
-			 char == '-' || char == '_') {
+		if !((char >= 'a' && char <= 'z') ||
+			(char >= 'A' && char <= 'Z') ||
+			(char >= '0' && char <= '9') ||
+			char == '-' || char == '_') {
 			return false
 		}
 	}

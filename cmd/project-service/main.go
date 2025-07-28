@@ -78,19 +78,19 @@ func main() {
 
 	// 初始化依赖
 	projectRepo := repository.NewProjectRepository(db.DB)
-	
+
 	// 初始化补偿管理器和分布式事务管理器
 	compensationMgr := compensation.NewCompensationManager(gitGatewayClient, zapLoggerInstance)
 	transactionMgr := transaction.NewDistributedTransactionManager(projectRepo, gitGatewayClient, compensationMgr, zapLoggerInstance)
-	
+
 	projectService := service.NewProjectServiceWithTransaction(projectRepo, gitGatewayClient, transactionMgr, zapLoggerInstance)
-	
+
 	// 初始化敏捷服务
 	agileService := service.NewAgileService(db.DB, zapLoggerInstance)
-	
+
 	// 初始化Dashboard服务 (暂时注释)
 	// dashboardService := service.NewDashboardService(db.DB, agileService, zapLoggerInstance)
-	
+
 	// 初始化webhook系统
 	eventProcessor := webhook.NewDefaultEventProcessor(projectRepo, projectService, zapLoggerInstance)
 	webhookSecret := os.Getenv("WEBHOOK_SECRET") // 从环境变量获取webhook密钥
@@ -98,7 +98,7 @@ func main() {
 		zapLoggerInstance.Warn("WEBHOOK_SECRET未设置，webhook签名验证将被跳过")
 	}
 	webhookHandler := webhook.NewWebhookHandler(eventProcessor, webhookSecret, zapLoggerInstance)
-	
+
 	projectHandler := handlers.NewProjectHandler(projectService, webhookHandler, zapLoggerInstance)
 	gitHandler := handler.NewGitHandler(projectService, zapLoggerInstance)
 	agileHandler := handler.NewAgileHandler(agileService, zapLoggerInstance)
@@ -155,68 +155,68 @@ func main() {
 			projects.DELETE("/:id", projectHandler.DeleteProject)     // 删除项目
 
 			// 项目成员管理
-			projects.GET("/:id/members", projectHandler.GetMembers)         // 获取项目成员
-			projects.POST("/:id/members", projectHandler.AddMember)         // 添加项目成员
+			projects.GET("/:id/members", projectHandler.GetMembers)               // 获取项目成员
+			projects.POST("/:id/members", projectHandler.AddMember)               // 添加项目成员
 			projects.DELETE("/:id/members/:user_id", projectHandler.RemoveMember) // 移除项目成员
 
 			// Git仓库管理
-			projects.POST("/:id/repositories", projectHandler.CreateRepository)    // 创建仓库
-			projects.GET("/:id/repositories", projectHandler.ListRepositories)     // 获取项目仓库列表
-			
+			projects.POST("/:id/repositories", projectHandler.CreateRepository) // 创建仓库
+			projects.GET("/:id/repositories", projectHandler.ListRepositories)  // 获取项目仓库列表
+
 			// 敏捷管理 - Sprint
-			projects.POST("/:id/sprints", agileHandler.CreateSprint)           // 创建Sprint
-			projects.GET("/:id/sprints", agileHandler.ListSprints)             // 获取Sprint列表
-			projects.GET("/:id/sprints/:sprintId", agileHandler.GetSprint)     // 获取Sprint详情
-			projects.PUT("/:id/sprints/:sprintId", agileHandler.UpdateSprint)  // 更新Sprint
-			projects.DELETE("/:id/sprints/:sprintId", agileHandler.DeleteSprint) // 删除Sprint
-			projects.POST("/:id/sprints/:sprintId/start", agileHandler.StartSprint)  // 启动Sprint
-			projects.POST("/:id/sprints/:sprintId/close", agileHandler.CloseSprint)  // 关闭Sprint
+			projects.POST("/:id/sprints", agileHandler.CreateSprint)                            // 创建Sprint
+			projects.GET("/:id/sprints", agileHandler.ListSprints)                              // 获取Sprint列表
+			projects.GET("/:id/sprints/:sprintId", agileHandler.GetSprint)                      // 获取Sprint详情
+			projects.PUT("/:id/sprints/:sprintId", agileHandler.UpdateSprint)                   // 更新Sprint
+			projects.DELETE("/:id/sprints/:sprintId", agileHandler.DeleteSprint)                // 删除Sprint
+			projects.POST("/:id/sprints/:sprintId/start", agileHandler.StartSprint)             // 启动Sprint
+			projects.POST("/:id/sprints/:sprintId/close", agileHandler.CloseSprint)             // 关闭Sprint
 			projects.GET("/:id/sprints/:sprintId/burndown", agileHandler.GetSprintBurndownData) // 燃尽图数据
-			
+
 			// 敏捷管理 - Epic
-			projects.POST("/:id/epics", agileHandler.CreateEpic)               // 创建Epic
-			projects.GET("/:id/epics", agileHandler.ListEpics)                 // 获取Epic列表
-			projects.GET("/:id/epics/:epicId", agileHandler.GetEpic)           // 获取Epic详情
-			
+			projects.POST("/:id/epics", agileHandler.CreateEpic)     // 创建Epic
+			projects.GET("/:id/epics", agileHandler.ListEpics)       // 获取Epic列表
+			projects.GET("/:id/epics/:epicId", agileHandler.GetEpic) // 获取Epic详情
+
 			// 敏捷管理 - 任务
 			projects.POST("/:id/tasks", agileHandler.CreateTask)               // 创建任务
 			projects.GET("/:id/tasks", agileHandler.ListTasks)                 // 获取任务列表
 			projects.GET("/:id/statistics", agileHandler.GetProjectStatistics) // 获取项目统计数据
-			
+
 			// 任务排序管理
-			projects.POST("/:id/tasks/rebalance", agileHandler.RebalanceTaskRanks)     // 重新平衡任务排名
+			projects.POST("/:id/tasks/rebalance", agileHandler.RebalanceTaskRanks)    // 重新平衡任务排名
 			projects.GET("/:id/tasks/validate-order", agileHandler.ValidateTaskOrder) // 验证任务排序
 		}
 
-		// 任务管理路由 
+		// 任务管理路由
 		tasks := v1.Group("/tasks")
 		tasks.Use(middleware.JWTAuth(cfg.Auth.JWTSecret))
 		{
-			tasks.GET("/:taskId", agileHandler.GetTask)                    // 获取任务详情
-			tasks.PUT("/:taskId", agileHandler.UpdateTask)                 // 更新任务
-			tasks.DELETE("/:taskId", agileHandler.DeleteTask)              // 删除任务
-			tasks.POST("/:taskId/status", agileHandler.UpdateTaskStatus)   // 更新任务状态
-			tasks.POST("/:taskId/assign", agileHandler.AssignTask)         // 分配任务
-			
+			tasks.GET("/:taskId", agileHandler.GetTask)                  // 获取任务详情
+			tasks.PUT("/:taskId", agileHandler.UpdateTask)               // 更新任务
+			tasks.DELETE("/:taskId", agileHandler.DeleteTask)            // 删除任务
+			tasks.POST("/:taskId/status", agileHandler.UpdateTaskStatus) // 更新任务状态
+			tasks.POST("/:taskId/assign", agileHandler.AssignTask)       // 分配任务
+
 			// 任务拖拽排序
-			tasks.POST("/reorder", agileHandler.ReorderTasks)              // 重新排序任务
-			tasks.POST("/move", agileHandler.MoveTask)                     // 精确移动任务
-			tasks.POST("/batch-reorder", agileHandler.BatchReorderTasks)   // 批量重排序任务
-			
+			tasks.POST("/reorder", agileHandler.ReorderTasks)            // 重新排序任务
+			tasks.POST("/move", agileHandler.MoveTask)                   // 精确移动任务
+			tasks.POST("/batch-reorder", agileHandler.BatchReorderTasks) // 批量重排序任务
+
 			// 任务评论
-			tasks.POST("/:taskId/comments", agileHandler.AddTaskComment)   // 添加评论
-			tasks.GET("/:taskId/comments", agileHandler.ListTaskComments)  // 获取评论列表
-			
+			tasks.POST("/:taskId/comments", agileHandler.AddTaskComment)  // 添加评论
+			tasks.GET("/:taskId/comments", agileHandler.ListTaskComments) // 获取评论列表
+
 			// 工作日志
-			tasks.POST("/:taskId/worklogs", agileHandler.LogWork)          // 记录工作日志
-			tasks.GET("/:taskId/worklogs", agileHandler.ListWorkLogs)      // 获取工作日志
+			tasks.POST("/:taskId/worklogs", agileHandler.LogWork)     // 记录工作日志
+			tasks.GET("/:taskId/worklogs", agileHandler.ListWorkLogs) // 获取工作日志
 		}
-		
+
 		// 用户工作负载路由
 		users := v1.Group("/users")
 		users.Use(middleware.JWTAuth(cfg.Auth.JWTSecret))
 		{
-			users.GET("/:userId/workload", agileHandler.GetUserWorkload)   // 获取用户工作负载
+			users.GET("/:userId/workload", agileHandler.GetUserWorkload) // 获取用户工作负载
 		}
 
 		/* 暂时注释Dashboard相关路由
@@ -228,7 +228,7 @@ func main() {
 			dashboards.POST("", dashboardHandler.CreateDashboard)                 // 创建仪表板
 			dashboards.PUT("/:dashboard_id", dashboardHandler.UpdateDashboard)    // 更新仪表板
 			projects.GET("/:project_id/dashboard", dashboardHandler.GetDashboard)  // 获取项目仪表板
-			
+
 			// 组件管理
 			dashboards.POST("/widgets", dashboardHandler.CreateWidget)            // 创建组件
 			dashboards.PUT("/widgets/:widget_id", dashboardHandler.UpdateWidget) // 更新组件
@@ -263,12 +263,12 @@ func main() {
 		repositories.Use(middleware.JWTAuth(cfg.Auth.JWTSecret))
 		{
 			repositories.GET("/:repositoryId", gitHandler.GetRepository)       // 获取仓库详情
-			repositories.PUT("/:repositoryId", gitHandler.UpdateRepository)   // 更新仓库
+			repositories.PUT("/:repositoryId", gitHandler.UpdateRepository)    // 更新仓库
 			repositories.DELETE("/:repositoryId", gitHandler.DeleteRepository) // 删除仓库
 
 			// 分支管理
-			repositories.POST("/:repositoryId/branches", gitHandler.CreateBranch)           // 创建分支
-			repositories.GET("/:repositoryId/branches", gitHandler.ListBranches)            // 获取分支列表
+			repositories.POST("/:repositoryId/branches", gitHandler.CreateBranch)               // 创建分支
+			repositories.GET("/:repositoryId/branches", gitHandler.ListBranches)                // 获取分支列表
 			repositories.DELETE("/:repositoryId/branches/:branchName", gitHandler.DeleteBranch) // 删除分支
 
 			// 合并请求管理 (预留路由，等待Git网关实现)
@@ -279,8 +279,8 @@ func main() {
 		// Webhook路由 - 无需JWT认证（来自Git网关的内部调用）
 		webhooks := v1.Group("/webhooks")
 		{
-			webhooks.GET("/health", projectHandler.GetWebhookHealth)   // Webhook健康检查
-			webhooks.POST("/git", projectHandler.HandleGitWebhook)     // 处理Git事件
+			webhooks.GET("/health", projectHandler.GetWebhookHealth) // Webhook健康检查
+			webhooks.POST("/git", projectHandler.HandleGitWebhook)   // 处理Git事件
 		}
 	}
 

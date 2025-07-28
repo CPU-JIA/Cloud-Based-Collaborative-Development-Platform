@@ -17,6 +17,59 @@ import (
 	"github.com/cloud-platform/collaborative-dev/shared/models"
 )
 
+// Test models for SQLite compatibility
+type TestUser struct {
+	ID          uuid.UUID `gorm:"type:text;primaryKey"`
+	TenantID    uuid.UUID `gorm:"type:text;not null;index"`
+	Email       string    `gorm:"uniqueIndex;not null"`
+	Username    string    `gorm:"uniqueIndex;not null"`
+	Password    string    `gorm:"not null"`
+	FirstName   string
+	LastName    string
+	AvatarURL   string
+	IsActive    bool `gorm:"default:true"`
+	LastLoginAt *time.Time
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}
+
+type TestTenant struct {
+	ID          uuid.UUID `gorm:"type:text;primaryKey"`
+	Name        string    `gorm:"not null"`
+	Description string
+	IsActive    bool `gorm:"default:true"`
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}
+
+type TestRole struct {
+	ID          uuid.UUID `gorm:"type:text;primaryKey"`
+	TenantID    uuid.UUID `gorm:"type:text;not null;index"`
+	Name        string    `gorm:"not null"`
+	Description string
+	IsActive    bool `gorm:"default:true"`
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}
+
+type TestPermission struct {
+	ID          uuid.UUID `gorm:"type:text;primaryKey"`
+	Name        string    `gorm:"uniqueIndex;not null"`
+	Resource    string    `gorm:"not null"`
+	Action      string    `gorm:"not null"`
+	Description string
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}
+
+type TestRefreshToken struct {
+	ID        uuid.UUID `gorm:"type:text;primaryKey"`
+	UserID    uuid.UUID `gorm:"type:text;not null;index"`
+	Token     string    `gorm:"uniqueIndex;not null"`
+	ExpiresAt time.Time `gorm:"not null"`
+	CreatedAt time.Time
+}
+
 // MockJWTService JWT服务模拟 - 由于目前使用具体类型，我们创建一个包装器
 type MockJWTService struct {
 	mock.Mock
@@ -61,32 +114,6 @@ func (m *MockJWTService) GeneratePasswordResetToken(userID, tenantID uuid.UUID, 
 func (m *MockJWTService) ValidatePasswordResetToken(tokenString string) (*auth.Claims, error) {
 	args := m.Called(tokenString)
 	return args.Get(0).(*auth.Claims), args.Error(1)
-}
-
-// TestUser 用于测试的简化用户模型，避免UUID兼容性问题
-type TestUser struct {
-	ID                string `gorm:"primary_key"`
-	TenantID          string `gorm:"not null;index"`
-	Email             string `gorm:"uniqueIndex;not null"`
-	Username          string `gorm:"uniqueIndex;not null"`
-	PasswordHash      string `gorm:"not null"`
-	FirstName         string
-	LastName          string
-	Avatar            string
-	Phone             string
-	IsActive          bool `gorm:"default:true"`
-	IsEmailVerified   bool `gorm:"default:false"`
-	EmailVerifiedAt   *time.Time
-	LastLoginAt       *time.Time
-	FailedLoginCount  int `gorm:"default:0"`
-	LockedUntil       *time.Time
-	TwoFactorEnabled  bool `gorm:"default:false"`
-	TwoFactorSecret   string
-	PasswordResetAt   *time.Time
-	PasswordChangedAt *time.Time
-	CreatedAt         time.Time
-	UpdatedAt         time.Time
-	DeletedAt         *time.Time `gorm:"index"`
 }
 
 // TableName 指定表名

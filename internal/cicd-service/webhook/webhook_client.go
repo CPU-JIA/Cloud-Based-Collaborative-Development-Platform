@@ -17,10 +17,10 @@ type WebhookClient interface {
 	HandleBranchEvent(ctx context.Context, event *GitBranchEvent) error
 	HandleTagEvent(ctx context.Context, event *GitTagEvent) error
 	HandlePullRequestEvent(ctx context.Context, event *GitPullRequestEvent) error
-	
+
 	// 触发流水线
 	TriggerPipeline(ctx context.Context, repositoryID, pipelineID uuid.UUID, variables map[string]interface{}) error
-	
+
 	// 注册事件监听器
 	RegisterEventListener(eventType string, listener EventListener) error
 	UnregisterEventListener(eventType string, listener EventListener) error
@@ -37,30 +37,30 @@ type EventListener interface {
 // GitPushEvent Git推送事件
 type GitPushEvent struct {
 	RepositoryID uuid.UUID              `json:"repository_id"`
-	Ref          string                 `json:"ref"`          // refs/heads/main
-	Before       string                 `json:"before"`       // 推送前SHA
-	After        string                 `json:"after"`        // 推送后SHA  
-	Created      bool                   `json:"created"`      // 是否新建分支
-	Deleted      bool                   `json:"deleted"`      // 是否删除分支
-	Forced       bool                   `json:"forced"`       // 是否强制推送
-	Commits      []GitCommit            `json:"commits"`      // 提交列表
-	HeadCommit   *GitCommit             `json:"head_commit"`  // 头部提交
-	Pusher       GitUser                `json:"pusher"`       // 推送者
-	Repository   GitRepository          `json:"repository"`   // 仓库信息
-	Variables    map[string]interface{} `json:"variables"`    // 自定义变量
+	Ref          string                 `json:"ref"`         // refs/heads/main
+	Before       string                 `json:"before"`      // 推送前SHA
+	After        string                 `json:"after"`       // 推送后SHA
+	Created      bool                   `json:"created"`     // 是否新建分支
+	Deleted      bool                   `json:"deleted"`     // 是否删除分支
+	Forced       bool                   `json:"forced"`      // 是否强制推送
+	Commits      []GitCommit            `json:"commits"`     // 提交列表
+	HeadCommit   *GitCommit             `json:"head_commit"` // 头部提交
+	Pusher       GitUser                `json:"pusher"`      // 推送者
+	Repository   GitRepository          `json:"repository"`  // 仓库信息
+	Variables    map[string]interface{} `json:"variables"`   // 自定义变量
 }
 
 // GitBranchEvent Git分支事件
 type GitBranchEvent struct {
 	RepositoryID uuid.UUID     `json:"repository_id"`
-	Action       string        `json:"action"`     // created, deleted
+	Action       string        `json:"action"` // created, deleted
 	BranchName   string        `json:"branch_name"`
 	SHA          string        `json:"sha"`
 	Repository   GitRepository `json:"repository"`
 	Sender       GitUser       `json:"sender"`
 }
 
-// GitTagEvent Git标签事件  
+// GitTagEvent Git标签事件
 type GitTagEvent struct {
 	RepositoryID uuid.UUID     `json:"repository_id"`
 	Action       string        `json:"action"` // created, deleted
@@ -72,12 +72,12 @@ type GitTagEvent struct {
 
 // GitPullRequestEvent Git拉取请求事件
 type GitPullRequestEvent struct {
-	RepositoryID  uuid.UUID     `json:"repository_id"`
-	Action        string        `json:"action"`        // opened, closed, merged
-	Number        int           `json:"number"`        // PR编号
-	PullRequest   GitPullRequest `json:"pull_request"` // PR详情
-	Repository    GitRepository `json:"repository"`    // 仓库信息
-	Sender        GitUser       `json:"sender"`        // 发送者
+	RepositoryID uuid.UUID      `json:"repository_id"`
+	Action       string         `json:"action"`       // opened, closed, merged
+	Number       int            `json:"number"`       // PR编号
+	PullRequest  GitPullRequest `json:"pull_request"` // PR详情
+	Repository   GitRepository  `json:"repository"`   // 仓库信息
+	Sender       GitUser        `json:"sender"`       // 发送者
 }
 
 // Git辅助结构体
@@ -109,45 +109,45 @@ type GitRepository struct {
 }
 
 type GitPullRequest struct {
-	ID     int    `json:"id"`
-	Number int    `json:"number"`
-	Title  string `json:"title"`
-	Body   string `json:"body"`
-	State  string `json:"state"`
-	Base   GitRef `json:"base"`
-	Head   GitRef `json:"head"`
+	ID     int     `json:"id"`
+	Number int     `json:"number"`
+	Title  string  `json:"title"`
+	Body   string  `json:"body"`
+	State  string  `json:"state"`
+	Base   GitRef  `json:"base"`
+	Head   GitRef  `json:"head"`
 	User   GitUser `json:"user"`
 }
 
 type GitRef struct {
-	Ref    string        `json:"ref"`
-	SHA    string        `json:"sha"`
-	Repo   GitRepository `json:"repo"`
+	Ref  string        `json:"ref"`
+	SHA  string        `json:"sha"`
+	Repo GitRepository `json:"repo"`
 }
 
 // webhookClient Webhook客户端实现
 type webhookClient struct {
-	scheduler   scheduler.JobScheduler
-	logger      *zap.Logger
-	listeners   map[string][]EventListener
-	config      WebhookClientConfig
+	scheduler scheduler.JobScheduler
+	logger    *zap.Logger
+	listeners map[string][]EventListener
+	config    WebhookClientConfig
 }
 
 // WebhookClientConfig Webhook客户端配置
 type WebhookClientConfig struct {
-	DefaultPipelineID uuid.UUID         `yaml:"default_pipeline_id"`
-	EventMappings     map[string]string `yaml:"event_mappings"`     // 事件类型映射
+	DefaultPipelineID uuid.UUID              `yaml:"default_pipeline_id"`
+	EventMappings     map[string]string      `yaml:"event_mappings"`    // 事件类型映射
 	DefaultVariables  map[string]interface{} `yaml:"default_variables"` // 默认变量
-	AutoTrigger       bool              `yaml:"auto_trigger"`       // 自动触发
-	FilterRules       []FilterRule      `yaml:"filter_rules"`       // 过滤规则
+	AutoTrigger       bool                   `yaml:"auto_trigger"`      // 自动触发
+	FilterRules       []FilterRule           `yaml:"filter_rules"`      // 过滤规则
 }
 
 // FilterRule 过滤规则
 type FilterRule struct {
 	EventType string   `yaml:"event_type"`
-	Branches  []string `yaml:"branches"`  // 匹配的分支
-	Paths     []string `yaml:"paths"`     // 匹配的路径
-	Authors   []string `yaml:"authors"`   // 匹配的作者
+	Branches  []string `yaml:"branches"` // 匹配的分支
+	Paths     []string `yaml:"paths"`    // 匹配的路径
+	Authors   []string `yaml:"authors"`  // 匹配的作者
 }
 
 // NewWebhookClient 创建Webhook客户端
@@ -162,7 +162,7 @@ func NewWebhookClient(scheduler scheduler.JobScheduler, config WebhookClientConf
 
 // HandleGitPushEvent 处理Git推送事件
 func (c *webhookClient) HandleGitPushEvent(ctx context.Context, event *GitPushEvent) error {
-	c.logger.Info("处理Git推送事件", 
+	c.logger.Info("处理Git推送事件",
 		zap.String("repository_id", event.RepositoryID.String()),
 		zap.String("ref", event.Ref),
 		zap.String("after", event.After))
@@ -175,7 +175,7 @@ func (c *webhookClient) HandleGitPushEvent(ctx context.Context, event *GitPushEv
 
 	// 构建流水线变量
 	variables := c.buildPushVariables(event)
-	
+
 	// 触发监听器
 	if err := c.triggerListeners(ctx, "push", event); err != nil {
 		c.logger.Error("触发事件监听器失败", zap.Error(err))
@@ -197,7 +197,7 @@ func (c *webhookClient) HandleGitPushEvent(ctx context.Context, event *GitPushEv
 
 // HandleBranchEvent 处理分支事件
 func (c *webhookClient) HandleBranchEvent(ctx context.Context, event *GitBranchEvent) error {
-	c.logger.Info("处理Git分支事件", 
+	c.logger.Info("处理Git分支事件",
 		zap.String("repository_id", event.RepositoryID.String()),
 		zap.String("action", event.Action),
 		zap.String("branch", event.BranchName))
@@ -216,9 +216,9 @@ func (c *webhookClient) HandleBranchEvent(ctx context.Context, event *GitBranchE
 	// 对于分支创建事件，可能需要触发初始化流水线
 	if event.Action == "created" && c.config.AutoTrigger {
 		variables := map[string]interface{}{
-			"EVENT_TYPE":     "branch_created",
-			"BRANCH_NAME":    event.BranchName,
-			"REPOSITORY_ID":  event.RepositoryID.String(),
+			"EVENT_TYPE":    "branch_created",
+			"BRANCH_NAME":   event.BranchName,
+			"REPOSITORY_ID": event.RepositoryID.String(),
 			"SHA":           event.SHA,
 			"SENDER":        event.Sender.Username,
 		}
@@ -238,7 +238,7 @@ func (c *webhookClient) HandleBranchEvent(ctx context.Context, event *GitBranchE
 
 // HandleTagEvent 处理标签事件
 func (c *webhookClient) HandleTagEvent(ctx context.Context, event *GitTagEvent) error {
-	c.logger.Info("处理Git标签事件", 
+	c.logger.Info("处理Git标签事件",
 		zap.String("repository_id", event.RepositoryID.String()),
 		zap.String("action", event.Action),
 		zap.String("tag", event.TagName))
@@ -260,9 +260,9 @@ func (c *webhookClient) HandleTagEvent(ctx context.Context, event *GitTagEvent) 
 			"EVENT_TYPE":    "tag_created",
 			"TAG_NAME":      event.TagName,
 			"REPOSITORY_ID": event.RepositoryID.String(),
-			"SHA":          event.SHA,
-			"SENDER":       event.Sender.Username,
-			"IS_RELEASE":   c.isReleaseTag(event.TagName),
+			"SHA":           event.SHA,
+			"SENDER":        event.Sender.Username,
+			"IS_RELEASE":    c.isReleaseTag(event.TagName),
 		}
 
 		// 合并默认变量
@@ -280,7 +280,7 @@ func (c *webhookClient) HandleTagEvent(ctx context.Context, event *GitTagEvent) 
 
 // HandlePullRequestEvent 处理拉取请求事件
 func (c *webhookClient) HandlePullRequestEvent(ctx context.Context, event *GitPullRequestEvent) error {
-	c.logger.Info("处理Git拉取请求事件", 
+	c.logger.Info("处理Git拉取请求事件",
 		zap.String("repository_id", event.RepositoryID.String()),
 		zap.String("action", event.Action),
 		zap.Int("number", event.Number))
@@ -299,15 +299,15 @@ func (c *webhookClient) HandlePullRequestEvent(ctx context.Context, event *GitPu
 	// PR事件通常触发CI流水线
 	if (event.Action == "opened" || event.Action == "synchronize") && c.config.AutoTrigger {
 		variables := map[string]interface{}{
-			"EVENT_TYPE":       "pull_request",
-			"PR_ACTION":        event.Action,
-			"PR_NUMBER":        event.Number,
-			"PR_TITLE":         event.PullRequest.Title,
-			"PR_BASE_BRANCH":   event.PullRequest.Base.Ref,
-			"PR_HEAD_BRANCH":   event.PullRequest.Head.Ref,
-			"PR_HEAD_SHA":      event.PullRequest.Head.SHA,
-			"REPOSITORY_ID":    event.RepositoryID.String(),
-			"SENDER":          event.Sender.Username,
+			"EVENT_TYPE":     "pull_request",
+			"PR_ACTION":      event.Action,
+			"PR_NUMBER":      event.Number,
+			"PR_TITLE":       event.PullRequest.Title,
+			"PR_BASE_BRANCH": event.PullRequest.Base.Ref,
+			"PR_HEAD_BRANCH": event.PullRequest.Head.Ref,
+			"PR_HEAD_SHA":    event.PullRequest.Head.SHA,
+			"REPOSITORY_ID":  event.RepositoryID.String(),
+			"SENDER":         event.Sender.Username,
 		}
 
 		// 合并默认变量
@@ -325,27 +325,27 @@ func (c *webhookClient) HandlePullRequestEvent(ctx context.Context, event *GitPu
 
 // TriggerPipeline 触发流水线
 func (c *webhookClient) TriggerPipeline(ctx context.Context, repositoryID, pipelineID uuid.UUID, variables map[string]interface{}) error {
-	c.logger.Info("触发流水线", 
+	c.logger.Info("触发流水线",
 		zap.String("repository_id", repositoryID.String()),
 		zap.String("pipeline_id", pipelineID.String()))
 
 	// 创建流水线运行作业
 	job := &scheduler.ScheduleJob{
-		JobID:         uuid.New(),
-		PipelineRunID: uuid.New(), // 这里需要从Pipeline服务获取实际的RunID
-		Name:          fmt.Sprintf("webhook-trigger-%s", repositoryID.String()),
-		Stage:         "trigger",
-		Priority:      5, // 中等优先级
-		RequiredTags:  []string{}, // 可以根据仓库配置设置
-		CreatedAt:     time.Now(),
-		Config:        variables,
-		Dependencies:  []uuid.UUID{}, // 无依赖
-		MaxRetries:    3,
-		RetryCount:    0,
+		JobID:             uuid.New(),
+		PipelineRunID:     uuid.New(), // 这里需要从Pipeline服务获取实际的RunID
+		Name:              fmt.Sprintf("webhook-trigger-%s", repositoryID.String()),
+		Stage:             "trigger",
+		Priority:          5,          // 中等优先级
+		RequiredTags:      []string{}, // 可以根据仓库配置设置
+		CreatedAt:         time.Now(),
+		Config:            variables,
+		Dependencies:      []uuid.UUID{}, // 无依赖
+		MaxRetries:        3,
+		RetryCount:        0,
 		EstimatedDuration: 5 * time.Minute, // 预估5分钟
 		ResourceRequests: &scheduler.ResourceRequests{
-			CPU:    1.0,    // 1核CPU
-			Memory: 512 * 1024 * 1024, // 512MB内存
+			CPU:    1.0,                // 1核CPU
+			Memory: 512 * 1024 * 1024,  // 512MB内存
 			Disk:   1024 * 1024 * 1024, // 1GB磁盘
 		},
 	}
@@ -355,7 +355,7 @@ func (c *webhookClient) TriggerPipeline(ctx context.Context, repositoryID, pipel
 		return fmt.Errorf("提交流水线触发作业失败: %w", err)
 	}
 
-	c.logger.Info("流水线触发作业已提交", 
+	c.logger.Info("流水线触发作业已提交",
 		zap.String("job_id", job.JobID.String()),
 		zap.String("pipeline_run_id", job.PipelineRunID.String()))
 
@@ -367,13 +367,13 @@ func (c *webhookClient) RegisterEventListener(eventType string, listener EventLi
 	if c.listeners[eventType] == nil {
 		c.listeners[eventType] = make([]EventListener, 0)
 	}
-	
+
 	c.listeners[eventType] = append(c.listeners[eventType], listener)
-	
-	c.logger.Info("注册事件监听器", 
+
+	c.logger.Info("注册事件监听器",
 		zap.String("event_type", eventType),
 		zap.Int("listener_count", len(c.listeners[eventType])))
-	
+
 	return nil
 }
 
@@ -452,7 +452,7 @@ func (c *webhookClient) matchesPushRule(rule FilterRule, event *GitPushEvent) bo
 	}
 
 	// TODO: 检查路径匹配
-	
+
 	return true
 }
 
@@ -536,7 +536,7 @@ func (c *webhookClient) triggerListeners(ctx context.Context, eventType string, 
 	for _, listener := range listeners {
 		if err := listener.HandleEvent(ctx, event); err != nil {
 			errors = append(errors, err)
-			c.logger.Error("事件监听器处理失败", 
+			c.logger.Error("事件监听器处理失败",
 				zap.String("event_type", eventType),
 				zap.Error(err))
 		}
@@ -552,17 +552,17 @@ func (c *webhookClient) triggerListeners(ctx context.Context, eventType string, 
 // buildPushVariables 构建推送事件的变量
 func (c *webhookClient) buildPushVariables(event *GitPushEvent) map[string]interface{} {
 	variables := map[string]interface{}{
-		"EVENT_TYPE":     "push",
-		"GIT_REF":        event.Ref,
-		"GIT_BEFORE":     event.Before,
-		"GIT_AFTER":      event.After,
-		"GIT_CREATED":    event.Created,
-		"GIT_DELETED":    event.Deleted,
-		"GIT_FORCED":     event.Forced,
-		"REPOSITORY_ID":  event.RepositoryID.String(),
+		"EVENT_TYPE":      "push",
+		"GIT_REF":         event.Ref,
+		"GIT_BEFORE":      event.Before,
+		"GIT_AFTER":       event.After,
+		"GIT_CREATED":     event.Created,
+		"GIT_DELETED":     event.Deleted,
+		"GIT_FORCED":      event.Forced,
+		"REPOSITORY_ID":   event.RepositoryID.String(),
 		"REPOSITORY_NAME": event.Repository.Name,
-		"PUSHER_NAME":    event.Pusher.Name,
-		"PUSHER_EMAIL":   event.Pusher.Email,
+		"PUSHER_NAME":     event.Pusher.Name,
+		"PUSHER_EMAIL":    event.Pusher.Email,
 	}
 
 	// 提取分支名
@@ -599,8 +599,8 @@ func (c *webhookClient) buildPushVariables(event *GitPushEvent) map[string]inter
 // isReleaseTag 判断是否为发布标签
 func (c *webhookClient) isReleaseTag(tagName string) bool {
 	// 简单的发布标签判断逻辑
-	return len(tagName) > 0 && (tagName[0] == 'v' || 
-		contains(tagName, "release") || 
+	return len(tagName) > 0 && (tagName[0] == 'v' ||
+		contains(tagName, "release") ||
 		contains(tagName, "stable"))
 }
 
@@ -615,7 +615,7 @@ func extractBranchName(ref string) string {
 
 // contains 检查字符串是否包含子字符串
 func contains(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || 
+	return len(s) >= len(substr) && (s == substr ||
 		(len(s) > len(substr) && findSubstring(s, substr)))
 }
 

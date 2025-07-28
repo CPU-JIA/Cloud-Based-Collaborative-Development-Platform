@@ -9,8 +9,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	"github.com/cloud-platform/collaborative-dev/shared/middleware"
+	"github.com/gin-gonic/gin"
 )
 
 func main() {
@@ -74,8 +74,8 @@ func main() {
 					"uptime":        "99.9%",
 				},
 				"services": gin.H{
-					"project_service": "healthy",
-					"auth_service":    "healthy",
+					"project_service":  "healthy",
+					"auth_service":     "healthy",
 					"frontend_service": "healthy",
 				},
 			})

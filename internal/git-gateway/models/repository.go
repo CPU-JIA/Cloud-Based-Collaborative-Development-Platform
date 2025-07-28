@@ -35,30 +35,30 @@ type Repository struct {
 	Visibility    RepositoryVisibility `json:"visibility" gorm:"size:20;not null;default:'private'"`
 	Status        RepositoryStatus     `json:"status" gorm:"size:20;not null;default:'active'"`
 	DefaultBranch string               `json:"default_branch" gorm:"size:255;not null;default:'main'"`
-	
+
 	// Git配置
-	GitPath       string  `json:"git_path" gorm:"size:512;not null"` // 实际Git仓库路径
-	CloneURL      string  `json:"clone_url" gorm:"size:512"`         // 克隆URL
-	SSHURL        string  `json:"ssh_url" gorm:"size:512"`           // SSH URL
-	
+	GitPath  string `json:"git_path" gorm:"size:512;not null"` // 实际Git仓库路径
+	CloneURL string `json:"clone_url" gorm:"size:512"`         // 克隆URL
+	SSHURL   string `json:"ssh_url" gorm:"size:512"`           // SSH URL
+
 	// 统计信息
-	Size          int64   `json:"size" gorm:"default:0"`             // 仓库大小（字节）
-	CommitCount   int64   `json:"commit_count" gorm:"default:0"`     // 提交数量
-	BranchCount   int32   `json:"branch_count" gorm:"default:0"`     // 分支数量
-	TagCount      int32   `json:"tag_count" gorm:"default:0"`        // 标签数量
-	
+	Size        int64 `json:"size" gorm:"default:0"`         // 仓库大小（字节）
+	CommitCount int64 `json:"commit_count" gorm:"default:0"` // 提交数量
+	BranchCount int32 `json:"branch_count" gorm:"default:0"` // 分支数量
+	TagCount    int32 `json:"tag_count" gorm:"default:0"`    // 标签数量
+
 	// 时间戳
-	CreatedAt     time.Time  `json:"created_at" gorm:"not null;default:now()"`
-	UpdatedAt     time.Time  `json:"updated_at" gorm:"not null;default:now()"`
-	DeletedAt     *time.Time `json:"deleted_at" gorm:"index"`
-	LastPushedAt  *time.Time `json:"last_pushed_at"`
+	CreatedAt    time.Time  `json:"created_at" gorm:"not null;default:now()"`
+	UpdatedAt    time.Time  `json:"updated_at" gorm:"not null;default:now()"`
+	DeletedAt    *time.Time `json:"deleted_at" gorm:"index"`
+	LastPushedAt *time.Time `json:"last_pushed_at"`
 
 	// 关联关系
-	Project       *Project  `json:"project,omitempty" gorm:"foreignKey:ProjectID"`
-	Branches      []Branch  `json:"branches,omitempty" gorm:"foreignKey:RepositoryID"`
-	Commits       []Commit  `json:"commits,omitempty" gorm:"foreignKey:RepositoryID"`
-	Tags          []Tag     `json:"tags,omitempty" gorm:"foreignKey:RepositoryID"`
-	Webhooks      []Webhook `json:"webhooks,omitempty" gorm:"foreignKey:RepositoryID"`
+	Project  *Project  `json:"project,omitempty" gorm:"foreignKey:ProjectID"`
+	Branches []Branch  `json:"branches,omitempty" gorm:"foreignKey:RepositoryID"`
+	Commits  []Commit  `json:"commits,omitempty" gorm:"foreignKey:RepositoryID"`
+	Tags     []Tag     `json:"tags,omitempty" gorm:"foreignKey:RepositoryID"`
+	Webhooks []Webhook `json:"webhooks,omitempty" gorm:"foreignKey:RepositoryID"`
 }
 
 // Branch 分支模型
@@ -74,85 +74,85 @@ type Branch struct {
 	DeletedAt    *time.Time `json:"deleted_at" gorm:"index"`
 
 	// 关联关系
-	Repository   *Repository `json:"repository,omitempty" gorm:"foreignKey:RepositoryID"`
-	Commit       *Commit     `json:"commit,omitempty" gorm:"foreignKey:CommitSHA;references:SHA"`
+	Repository *Repository `json:"repository,omitempty" gorm:"foreignKey:RepositoryID"`
+	Commit     *Commit     `json:"commit,omitempty" gorm:"foreignKey:CommitSHA;references:SHA"`
 }
 
 // Commit 提交模型
 type Commit struct {
-	ID           uuid.UUID  `json:"id" gorm:"type:uuid;primary_key;default:uuid_generate_v7()"`
-	RepositoryID uuid.UUID  `json:"repository_id" gorm:"type:uuid;not null;index"`
-	SHA          string     `json:"sha" gorm:"size:40;not null;uniqueIndex:idx_repo_commit"`
-	Message      string     `json:"message" gorm:"type:text;not null"`
-	Author       string     `json:"author" gorm:"size:255;not null"`
-	AuthorEmail  string     `json:"author_email" gorm:"size:255;not null"`
-	Committer    string     `json:"committer" gorm:"size:255;not null"`
-	CommitterEmail string   `json:"committer_email" gorm:"size:255;not null"`
-	
+	ID             uuid.UUID `json:"id" gorm:"type:uuid;primary_key;default:uuid_generate_v7()"`
+	RepositoryID   uuid.UUID `json:"repository_id" gorm:"type:uuid;not null;index"`
+	SHA            string    `json:"sha" gorm:"size:40;not null;uniqueIndex:idx_repo_commit"`
+	Message        string    `json:"message" gorm:"type:text;not null"`
+	Author         string    `json:"author" gorm:"size:255;not null"`
+	AuthorEmail    string    `json:"author_email" gorm:"size:255;not null"`
+	Committer      string    `json:"committer" gorm:"size:255;not null"`
+	CommitterEmail string    `json:"committer_email" gorm:"size:255;not null"`
+
 	// Git信息
-	ParentSHAs   []string   `json:"parent_shas" gorm:"type:jsonb"`     // 父提交SHA列表
-	TreeSHA      string     `json:"tree_sha" gorm:"size:40;not null"`  // 树对象SHA
-	
+	ParentSHAs []string `json:"parent_shas" gorm:"type:jsonb"`    // 父提交SHA列表
+	TreeSHA    string   `json:"tree_sha" gorm:"size:40;not null"` // 树对象SHA
+
 	// 统计信息
-	AddedLines   int32      `json:"added_lines" gorm:"default:0"`
-	DeletedLines int32      `json:"deleted_lines" gorm:"default:0"`
-	ChangedFiles int32      `json:"changed_files" gorm:"default:0"`
-	
+	AddedLines   int32 `json:"added_lines" gorm:"default:0"`
+	DeletedLines int32 `json:"deleted_lines" gorm:"default:0"`
+	ChangedFiles int32 `json:"changed_files" gorm:"default:0"`
+
 	// 时间戳
-	CommittedAt  time.Time  `json:"committed_at" gorm:"not null"`
-	CreatedAt    time.Time  `json:"created_at" gorm:"not null;default:now()"`
+	CommittedAt time.Time `json:"committed_at" gorm:"not null"`
+	CreatedAt   time.Time `json:"created_at" gorm:"not null;default:now()"`
 
 	// 关联关系
-	Repository   *Repository `json:"repository,omitempty" gorm:"foreignKey:RepositoryID"`
-	Files        []CommitFile `json:"files,omitempty" gorm:"foreignKey:CommitID"`
+	Repository *Repository  `json:"repository,omitempty" gorm:"foreignKey:RepositoryID"`
+	Files      []CommitFile `json:"files,omitempty" gorm:"foreignKey:CommitID"`
 }
 
 // CommitFile 提交文件变更模型
 type CommitFile struct {
-	ID         uuid.UUID `json:"id" gorm:"type:uuid;primary_key;default:uuid_generate_v7()"`
-	CommitID   uuid.UUID `json:"commit_id" gorm:"type:uuid;not null;index"`
-	FilePath   string    `json:"file_path" gorm:"size:1024;not null"`
-	Status     string    `json:"status" gorm:"size:20;not null"` // added, modified, deleted, renamed
-	OldPath    *string   `json:"old_path" gorm:"size:1024"`      // 重命名前的路径
-	
+	ID       uuid.UUID `json:"id" gorm:"type:uuid;primary_key;default:uuid_generate_v7()"`
+	CommitID uuid.UUID `json:"commit_id" gorm:"type:uuid;not null;index"`
+	FilePath string    `json:"file_path" gorm:"size:1024;not null"`
+	Status   string    `json:"status" gorm:"size:20;not null"` // added, modified, deleted, renamed
+	OldPath  *string   `json:"old_path" gorm:"size:1024"`      // 重命名前的路径
+
 	// 变更统计
-	AddedLines   int32   `json:"added_lines" gorm:"default:0"`
-	DeletedLines int32   `json:"deleted_lines" gorm:"default:0"`
-	
+	AddedLines   int32 `json:"added_lines" gorm:"default:0"`
+	DeletedLines int32 `json:"deleted_lines" gorm:"default:0"`
+
 	// 关联关系
-	Commit       *Commit `json:"commit,omitempty" gorm:"foreignKey:CommitID"`
+	Commit *Commit `json:"commit,omitempty" gorm:"foreignKey:CommitID"`
 }
 
 // Tag 标签模型
 type Tag struct {
-	ID           uuid.UUID  `json:"id" gorm:"type:uuid;primary_key;default:uuid_generate_v7()"`
-	RepositoryID uuid.UUID  `json:"repository_id" gorm:"type:uuid;not null;index"`
-	Name         string     `json:"name" gorm:"size:255;not null"`
-	CommitSHA    string     `json:"commit_sha" gorm:"size:40;not null"`
-	Message      *string    `json:"message" gorm:"type:text"`
-	Tagger       string     `json:"tagger" gorm:"size:255"`
-	TaggerEmail  string     `json:"tagger_email" gorm:"size:255"`
-	TaggedAt     time.Time  `json:"tagged_at" gorm:"not null"`
-	CreatedAt    time.Time  `json:"created_at" gorm:"not null;default:now()"`
+	ID           uuid.UUID `json:"id" gorm:"type:uuid;primary_key;default:uuid_generate_v7()"`
+	RepositoryID uuid.UUID `json:"repository_id" gorm:"type:uuid;not null;index"`
+	Name         string    `json:"name" gorm:"size:255;not null"`
+	CommitSHA    string    `json:"commit_sha" gorm:"size:40;not null"`
+	Message      *string   `json:"message" gorm:"type:text"`
+	Tagger       string    `json:"tagger" gorm:"size:255"`
+	TaggerEmail  string    `json:"tagger_email" gorm:"size:255"`
+	TaggedAt     time.Time `json:"tagged_at" gorm:"not null"`
+	CreatedAt    time.Time `json:"created_at" gorm:"not null;default:now()"`
 
 	// 关联关系
-	Repository   *Repository `json:"repository,omitempty" gorm:"foreignKey:RepositoryID"`
-	Commit       *Commit     `json:"commit,omitempty" gorm:"foreignKey:CommitSHA;references:SHA"`
+	Repository *Repository `json:"repository,omitempty" gorm:"foreignKey:RepositoryID"`
+	Commit     *Commit     `json:"commit,omitempty" gorm:"foreignKey:CommitSHA;references:SHA"`
 }
 
 // Webhook Git仓库Webhook模型
 type Webhook struct {
-	ID           uuid.UUID    `json:"id" gorm:"type:uuid;primary_key;default:uuid_generate_v7()"`
-	RepositoryID uuid.UUID    `json:"repository_id" gorm:"type:uuid;not null;index"`
-	URL          string       `json:"url" gorm:"size:512;not null"`
-	Secret       *string      `json:"secret" gorm:"size:255"`
-	Events       []string     `json:"events" gorm:"type:jsonb;not null"` // push, pull_request, etc.
-	IsActive     bool         `json:"is_active" gorm:"not null;default:true"`
-	CreatedAt    time.Time    `json:"created_at" gorm:"not null;default:now()"`
-	UpdatedAt    time.Time    `json:"updated_at" gorm:"not null;default:now()"`
+	ID           uuid.UUID `json:"id" gorm:"type:uuid;primary_key;default:uuid_generate_v7()"`
+	RepositoryID uuid.UUID `json:"repository_id" gorm:"type:uuid;not null;index"`
+	URL          string    `json:"url" gorm:"size:512;not null"`
+	Secret       *string   `json:"secret" gorm:"size:255"`
+	Events       []string  `json:"events" gorm:"type:jsonb;not null"` // push, pull_request, etc.
+	IsActive     bool      `json:"is_active" gorm:"not null;default:true"`
+	CreatedAt    time.Time `json:"created_at" gorm:"not null;default:now()"`
+	UpdatedAt    time.Time `json:"updated_at" gorm:"not null;default:now()"`
 
 	// 关联关系
-	Repository   *Repository  `json:"repository,omitempty" gorm:"foreignKey:RepositoryID"`
+	Repository *Repository `json:"repository,omitempty" gorm:"foreignKey:RepositoryID"`
 }
 
 // 引用的其他模型（简化版）
@@ -176,10 +176,10 @@ type CreateRepositoryRequest struct {
 
 // UpdateRepositoryRequest 更新仓库请求
 type UpdateRepositoryRequest struct {
-	Name          *string              `json:"name" validate:"omitempty,min=1,max=255"`
-	Description   *string              `json:"description" validate:"omitempty,max=2000"`
+	Name          *string               `json:"name" validate:"omitempty,min=1,max=255"`
+	Description   *string               `json:"description" validate:"omitempty,max=2000"`
 	Visibility    *RepositoryVisibility `json:"visibility" validate:"omitempty,oneof=public private internal"`
-	DefaultBranch *string              `json:"default_branch" validate:"omitempty,min=1,max=255"`
+	DefaultBranch *string               `json:"default_branch" validate:"omitempty,min=1,max=255"`
 }
 
 // CreateBranchRequest 创建分支请求
@@ -191,10 +191,10 @@ type CreateBranchRequest struct {
 
 // CreateCommitRequest 创建提交请求
 type CreateCommitRequest struct {
-	Branch    string                 `json:"branch" binding:"required"`
-	Message   string                 `json:"message" binding:"required"`
-	Author    CommitAuthor           `json:"author" binding:"required"`
-	Files     []CreateCommitFile     `json:"files" binding:"required,min=1"`
+	Branch  string             `json:"branch" binding:"required"`
+	Message string             `json:"message" binding:"required"`
+	Author  CommitAuthor       `json:"author" binding:"required"`
+	Files   []CreateCommitFile `json:"files" binding:"required,min=1"`
 }
 
 type CommitAuthor struct {
@@ -210,28 +210,28 @@ type CreateCommitFile struct {
 
 // CreateTagRequest 创建标签请求
 type CreateTagRequest struct {
-	Name      string  `json:"name" binding:"required,min=1,max=255"`
-	CommitSHA string  `json:"commit_sha" binding:"required,len=40"`
-	Message   *string `json:"message"`
+	Name      string       `json:"name" binding:"required,min=1,max=255"`
+	CommitSHA string       `json:"commit_sha" binding:"required,len=40"`
+	Message   *string      `json:"message"`
 	Tagger    CommitAuthor `json:"tagger" binding:"required"`
 }
 
 // GitDiff Git差异信息
 type GitDiff struct {
-	FromSHA      string      `json:"from_sha"`
-	ToSHA        string      `json:"to_sha"`
-	Files        []DiffFile  `json:"files"`
-	TotalAdded   int32       `json:"total_added"`
-	TotalDeleted int32       `json:"total_deleted"`
+	FromSHA      string     `json:"from_sha"`
+	ToSHA        string     `json:"to_sha"`
+	Files        []DiffFile `json:"files"`
+	TotalAdded   int32      `json:"total_added"`
+	TotalDeleted int32      `json:"total_deleted"`
 }
 
 type DiffFile struct {
-	Path         string `json:"path"`
+	Path         string  `json:"path"`
 	OldPath      *string `json:"old_path"`
-	Status       string `json:"status"`
-	AddedLines   int32  `json:"added_lines"`
-	DeletedLines int32  `json:"deleted_lines"`
-	Patch        string `json:"patch"`
+	Status       string  `json:"status"`
+	AddedLines   int32   `json:"added_lines"`
+	DeletedLines int32   `json:"deleted_lines"`
+	Patch        string  `json:"patch"`
 }
 
 // 设置表名
@@ -371,7 +371,7 @@ func (pr *PullRequest) BeforeCreate(tx *gorm.DB) error {
 		}
 		pr.ID = newID
 	}
-	
+
 	// 为PR生成自增的Number
 	if pr.Number == 0 {
 		var maxNumber int
@@ -381,7 +381,7 @@ func (pr *PullRequest) BeforeCreate(tx *gorm.DB) error {
 			Scan(&maxNumber)
 		pr.Number = maxNumber + 1
 	}
-	
+
 	return nil
 }
 
@@ -536,50 +536,50 @@ type CommitListResponse struct {
 
 // FileInfo 文件信息
 type FileInfo struct {
-	Name     string `json:"name"`
-	Path     string `json:"path"`
-	Type     string `json:"type"` // file, directory
-	Size     int64  `json:"size"`
-	Mode     string `json:"mode"`
-	SHA      string `json:"sha"`
+	Name string `json:"name"`
+	Path string `json:"path"`
+	Type string `json:"type"` // file, directory
+	Size int64  `json:"size"`
+	Mode string `json:"mode"`
+	SHA  string `json:"sha"`
 }
 
 // PullRequest 合并请求模型
 type PullRequest struct {
-	ID           uuid.UUID       `json:"id" gorm:"type:uuid;primary_key;default:uuid_generate_v7()"`
-	RepositoryID uuid.UUID       `json:"repository_id" gorm:"type:uuid;not null;index"`
-	Number       int             `json:"number" gorm:"not null;index"`
-	Title        string          `json:"title" gorm:"size:255;not null"`
-	Description  *string         `json:"description" gorm:"type:text"`
+	ID           uuid.UUID         `json:"id" gorm:"type:uuid;primary_key;default:uuid_generate_v7()"`
+	RepositoryID uuid.UUID         `json:"repository_id" gorm:"type:uuid;not null;index"`
+	Number       int               `json:"number" gorm:"not null;index"`
+	Title        string            `json:"title" gorm:"size:255;not null"`
+	Description  *string           `json:"description" gorm:"type:text"`
 	Status       PullRequestStatus `json:"status" gorm:"size:20;not null;default:'open'"`
-	
+
 	// 分支信息
-	SourceBranch string          `json:"source_branch" gorm:"size:255;not null"`
-	TargetBranch string          `json:"target_branch" gorm:"size:255;not null"`
-	
+	SourceBranch string `json:"source_branch" gorm:"size:255;not null"`
+	TargetBranch string `json:"target_branch" gorm:"size:255;not null"`
+
 	// 作者信息
-	AuthorID     uuid.UUID       `json:"author_id" gorm:"type:uuid;not null"`
-	AuthorName   string          `json:"author_name" gorm:"size:255;not null"`
-	AuthorEmail  string          `json:"author_email" gorm:"size:255;not null"`
-	
+	AuthorID    uuid.UUID `json:"author_id" gorm:"type:uuid;not null"`
+	AuthorName  string    `json:"author_name" gorm:"size:255;not null"`
+	AuthorEmail string    `json:"author_email" gorm:"size:255;not null"`
+
 	// 审查信息
-	ReviewerID   *uuid.UUID      `json:"reviewer_id" gorm:"type:uuid"`
-	ReviewStatus *ReviewStatus   `json:"review_status" gorm:"size:20"`
-	
+	ReviewerID   *uuid.UUID    `json:"reviewer_id" gorm:"type:uuid"`
+	ReviewStatus *ReviewStatus `json:"review_status" gorm:"size:20"`
+
 	// 合并信息
-	MergeCommitSHA  *string      `json:"merge_commit_sha" gorm:"size:40"`
-	MergedAt        *time.Time   `json:"merged_at"`
-	MergedBy        *uuid.UUID   `json:"merged_by" gorm:"type:uuid"`
-	
+	MergeCommitSHA *string    `json:"merge_commit_sha" gorm:"size:40"`
+	MergedAt       *time.Time `json:"merged_at"`
+	MergedBy       *uuid.UUID `json:"merged_by" gorm:"type:uuid"`
+
 	// 时间戳
-	CreatedAt    time.Time       `json:"created_at" gorm:"not null;default:now()"`
-	UpdatedAt    time.Time       `json:"updated_at" gorm:"not null;default:now()"`
-	ClosedAt     *time.Time      `json:"closed_at"`
-	
+	CreatedAt time.Time  `json:"created_at" gorm:"not null;default:now()"`
+	UpdatedAt time.Time  `json:"updated_at" gorm:"not null;default:now()"`
+	ClosedAt  *time.Time `json:"closed_at"`
+
 	// 关联关系
-	Repository   *Repository     `json:"repository,omitempty" gorm:"foreignKey:RepositoryID"`
-	Comments     []PRComment     `json:"comments,omitempty" gorm:"foreignKey:PullRequestID"`
-	Reviews      []PRReview      `json:"reviews,omitempty" gorm:"foreignKey:PullRequestID"`
+	Repository *Repository `json:"repository,omitempty" gorm:"foreignKey:RepositoryID"`
+	Comments   []PRComment `json:"comments,omitempty" gorm:"foreignKey:PullRequestID"`
+	Reviews    []PRReview  `json:"reviews,omitempty" gorm:"foreignKey:PullRequestID"`
 }
 
 // PullRequestStatus 合并请求状态枚举
@@ -604,18 +604,18 @@ const (
 
 // PRComment PR评论模型
 type PRComment struct {
-	ID            uuid.UUID  `json:"id" gorm:"type:uuid;primary_key;default:uuid_generate_v7()"`
-	PullRequestID uuid.UUID  `json:"pull_request_id" gorm:"type:uuid;not null;index"`
-	AuthorID      uuid.UUID  `json:"author_id" gorm:"type:uuid;not null"`
-	AuthorName    string     `json:"author_name" gorm:"size:255;not null"`
-	Content       string     `json:"content" gorm:"type:text;not null"`
-	LineNumber    *int       `json:"line_number"`
-	FilePath      *string    `json:"file_path" gorm:"size:1024"`
-	CreatedAt     time.Time  `json:"created_at" gorm:"not null;default:now()"`
-	UpdatedAt     time.Time  `json:"updated_at" gorm:"not null;default:now()"`
-	
+	ID            uuid.UUID `json:"id" gorm:"type:uuid;primary_key;default:uuid_generate_v7()"`
+	PullRequestID uuid.UUID `json:"pull_request_id" gorm:"type:uuid;not null;index"`
+	AuthorID      uuid.UUID `json:"author_id" gorm:"type:uuid;not null"`
+	AuthorName    string    `json:"author_name" gorm:"size:255;not null"`
+	Content       string    `json:"content" gorm:"type:text;not null"`
+	LineNumber    *int      `json:"line_number"`
+	FilePath      *string   `json:"file_path" gorm:"size:1024"`
+	CreatedAt     time.Time `json:"created_at" gorm:"not null;default:now()"`
+	UpdatedAt     time.Time `json:"updated_at" gorm:"not null;default:now()"`
+
 	// 关联关系
-	PullRequest   *PullRequest `json:"pull_request,omitempty" gorm:"foreignKey:PullRequestID"`
+	PullRequest *PullRequest `json:"pull_request,omitempty" gorm:"foreignKey:PullRequestID"`
 }
 
 // PRReview PR审查模型
@@ -627,9 +627,9 @@ type PRReview struct {
 	Status        ReviewStatus `json:"status" gorm:"size:20;not null"`
 	Comment       *string      `json:"comment" gorm:"type:text"`
 	CreatedAt     time.Time    `json:"created_at" gorm:"not null;default:now()"`
-	
+
 	// 关联关系
-	PullRequest   *PullRequest `json:"pull_request,omitempty" gorm:"foreignKey:PullRequestID"`
+	PullRequest *PullRequest `json:"pull_request,omitempty" gorm:"foreignKey:PullRequestID"`
 }
 
 // CreatePullRequestRequest 创建PR请求

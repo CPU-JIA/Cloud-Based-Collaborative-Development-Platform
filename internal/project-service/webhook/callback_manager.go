@@ -33,15 +33,15 @@ type CallbackConfig struct {
 
 // CallbackEvent 回调事件
 type CallbackEvent struct {
-	ID          string                 `json:"id"`
-	EventType   string                 `json:"event_type"`
-	Timestamp   time.Time              `json:"timestamp"`
-	ProjectID   string                 `json:"project_id"`
-	Source      string                 `json:"source"`      // 事件来源：git-gateway, project-service等
-	Action      string                 `json:"action"`      // 具体动作：created, updated, deleted等
-	Resource    map[string]interface{} `json:"resource"`    // 资源详情
-	Metadata    map[string]interface{} `json:"metadata"`    // 额外元数据
-	RetryCount  int                    `json:"retry_count"` // 重试次数
+	ID         string                 `json:"id"`
+	EventType  string                 `json:"event_type"`
+	Timestamp  time.Time              `json:"timestamp"`
+	ProjectID  string                 `json:"project_id"`
+	Source     string                 `json:"source"`      // 事件来源：git-gateway, project-service等
+	Action     string                 `json:"action"`      // 具体动作：created, updated, deleted等
+	Resource   map[string]interface{} `json:"resource"`    // 资源详情
+	Metadata   map[string]interface{} `json:"metadata"`    // 额外元数据
+	RetryCount int                    `json:"retry_count"` // 重试次数
 }
 
 // CallbackResult 回调结果
@@ -71,7 +71,7 @@ func NewCallbackManager(logger *zap.Logger) *CallbackManager {
 // SendCallback 发送回调事件
 func (cm *CallbackManager) SendCallback(ctx context.Context, config *CallbackConfig, event *CallbackEvent) (*CallbackResult, error) {
 	startTime := time.Now()
-	
+
 	// 检查事件是否匹配过滤器
 	if !cm.shouldSendEvent(config, event) {
 		cm.logger.Debug("事件不匹配过滤器，跳过回调",
@@ -236,12 +236,12 @@ func (cm *CallbackManager) shouldSendEvent(config *CallbackConfig, event *Callba
 
 	// 检查事件类型是否在过滤器中
 	eventPattern := fmt.Sprintf("%s.%s", event.EventType, event.Action)
-	
+
 	for _, mask := range config.EventMask {
 		if mask == "*" || mask == event.EventType || mask == eventPattern {
 			return true
 		}
-		
+
 		// 支持通配符匹配，例如 "repository.*"
 		if cm.matchPattern(mask, eventPattern) {
 			return true
@@ -256,13 +256,13 @@ func (cm *CallbackManager) matchPattern(pattern, text string) bool {
 	if pattern == "*" {
 		return true
 	}
-	
+
 	// 简单的前缀匹配，支持 "repository.*" 这样的模式
 	if len(pattern) > 0 && pattern[len(pattern)-1] == '*' {
 		prefix := pattern[:len(pattern)-1]
 		return len(text) >= len(prefix) && text[:len(prefix)] == prefix
 	}
-	
+
 	return pattern == text
 }
 

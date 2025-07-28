@@ -1,0 +1,371 @@
+# Default values for cloud-platform
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+global:
+  imageRegistry: ""
+  imagePullSecrets: []
+  storageClass: ""
+  environment: production
+
+# Common labels and annotations
+commonLabels: {}
+commonAnnotations: {}
+
+# IAM Service
+iam:
+  enabled: true
+  replicaCount: 2
+  image:
+    repository: cloudplatform/iam-service
+    tag: latest
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 8081
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 80
+    targetMemoryUtilizationPercentage: 80
+  env:
+    JWT_SECRET:
+      secretKeyRef:
+        name: cloud-platform-secrets
+        key: jwt-secret
+    DATABASE_URL:
+      secretKeyRef:
+        name: cloud-platform-secrets
+        key: database-url
+
+# Project Service
+project:
+  enabled: true
+  replicaCount: 2
+  image:
+    repository: cloudplatform/project-service
+    tag: latest
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 8082
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 80
+
+# File Service
+file:
+  enabled: true
+  replicaCount: 2
+  image:
+    repository: cloudplatform/file-service
+    tag: latest
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 8083
+  persistence:
+    enabled: true
+    storageClass: ""
+    accessMode: ReadWriteMany
+    size: 100Gi
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+    requests:
+      cpu: 500m
+      memory: 512Mi
+
+# Git Gateway Service
+gitGateway:
+  enabled: true
+  replicaCount: 2
+  image:
+    repository: cloudplatform/git-gateway-service
+    tag: latest
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 8084
+    sshPort: 2222
+  persistence:
+    enabled: true
+    storageClass: ""
+    accessMode: ReadWriteMany
+    size: 500Gi
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+    requests:
+      cpu: 500m
+      memory: 512Mi
+
+# CICD Service
+cicd:
+  enabled: true
+  replicaCount: 2
+  image:
+    repository: cloudplatform/cicd-service
+    tag: latest
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 8085
+  resources:
+    limits:
+      cpu: 2000m
+      memory: 2Gi
+    requests:
+      cpu: 1000m
+      memory: 1Gi
+  runner:
+    enabled: true
+    replicaCount: 5
+    image:
+      repository: cloudplatform/cicd-runner
+      tag: latest
+    resources:
+      limits:
+        cpu: 2000m
+        memory: 4Gi
+      requests:
+        cpu: 500m
+        memory: 512Mi
+
+# Notification Service
+notification:
+  enabled: true
+  replicaCount: 2
+  image:
+    repository: cloudplatform/notification-service
+    tag: latest
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 8086
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+
+# Team Service
+team:
+  enabled: true
+  replicaCount: 2
+  image:
+    repository: cloudplatform/team-service
+    tag: latest
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 8087
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+
+# Tenant Service
+tenant:
+  enabled: true
+  replicaCount: 2
+  image:
+    repository: cloudplatform/tenant-service
+    tag: latest
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 8088
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+
+# Frontend Service
+frontend:
+  enabled: true
+  replicaCount: 3
+  image:
+    repository: cloudplatform/frontend
+    tag: latest
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 80
+  resources:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+# PostgreSQL Configuration
+postgresql:
+  enabled: true
+  auth:
+    postgresPassword: postgres
+    database: cloud_platform
+  primary:
+    persistence:
+      enabled: true
+      size: 50Gi
+    resources:
+      limits:
+        cpu: 2000m
+        memory: 2Gi
+      requests:
+        cpu: 1000m
+        memory: 1Gi
+  readReplicas:
+    replicaCount: 2
+    persistence:
+      enabled: true
+      size: 50Gi
+    resources:
+      limits:
+        cpu: 1000m
+        memory: 1Gi
+      requests:
+        cpu: 500m
+        memory: 512Mi
+
+# Redis Configuration
+redis:
+  enabled: true
+  auth:
+    enabled: true
+    password: redis-password
+  master:
+    persistence:
+      enabled: true
+      size: 10Gi
+    resources:
+      limits:
+        cpu: 1000m
+        memory: 1Gi
+      requests:
+        cpu: 500m
+        memory: 512Mi
+  replica:
+    replicaCount: 2
+    persistence:
+      enabled: true
+      size: 10Gi
+    resources:
+      limits:
+        cpu: 500m
+        memory: 512Mi
+      requests:
+        cpu: 250m
+        memory: 256Mi
+
+# Ingress Configuration
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+  hosts:
+    - host: cloudplatform.com
+      paths:
+        - path: /
+          pathType: Prefix
+          service: frontend
+        - path: /api/v1/auth
+          pathType: Prefix
+          service: iam
+        - path: /api/v1/projects
+          pathType: Prefix
+          service: project
+        - path: /api/v1/files
+          pathType: Prefix
+          service: file
+        - path: /api/v1/git
+          pathType: Prefix
+          service: git-gateway
+        - path: /api/v1/cicd
+          pathType: Prefix
+          service: cicd
+        - path: /api/v1/notifications
+          pathType: Prefix
+          service: notification
+        - path: /api/v1/teams
+          pathType: Prefix
+          service: team
+        - path: /api/v1/tenants
+          pathType: Prefix
+          service: tenant
+  tls:
+    - secretName: cloudplatform-tls
+      hosts:
+        - cloudplatform.com
+
+# Service Mesh (Optional)
+serviceMesh:
+  enabled: false
+  provider: istio  # or linkerd
+
+# Monitoring
+monitoring:
+  enabled: true
+  prometheus:
+    enabled: true
+  grafana:
+    enabled: true
+    adminPassword: admin
+  serviceMonitor:
+    enabled: true
+
+# Backup
+backup:
+  enabled: true
+  schedule: "0 2 * * *"  # Daily at 2 AM
+  retention: 30  # days
+
+# Security
+security:
+  podSecurityPolicy:
+    enabled: true
+  networkPolicy:
+    enabled: true
+  rbac:
+    create: true
+
+# Node Selector
+nodeSelector: {}
+
+# Tolerations
+tolerations: []
+
+# Affinity
+affinity: {}

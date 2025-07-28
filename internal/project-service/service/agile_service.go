@@ -21,72 +21,72 @@ type AgileService interface {
 	ListSprints(ctx context.Context, projectID uuid.UUID, page, pageSize int, userID, tenantID uuid.UUID) (*SprintListResponse, error)
 	UpdateSprint(ctx context.Context, sprintID uuid.UUID, req *UpdateSprintRequest, userID, tenantID uuid.UUID) (*models.Sprint, error)
 	DeleteSprint(ctx context.Context, sprintID uuid.UUID, userID, tenantID uuid.UUID) error
-	
+
 	// Sprint状态管理
 	StartSprint(ctx context.Context, sprintID uuid.UUID, userID, tenantID uuid.UUID) error
 	CompleteSprint(ctx context.Context, sprintID uuid.UUID, userID, tenantID uuid.UUID) error
-	
+
 	// 敏捷任务管理
 	CreateTask(ctx context.Context, req *CreateTaskRequest, userID, tenantID uuid.UUID) (*models.AgileTask, error)
 	GetTask(ctx context.Context, taskID uuid.UUID, userID, tenantID uuid.UUID) (*models.AgileTask, error)
 	ListTasks(ctx context.Context, filter *TaskFilter, page, pageSize int, userID, tenantID uuid.UUID) (*TaskListResponse, error)
 	UpdateTask(ctx context.Context, taskID uuid.UUID, req *UpdateTaskRequest, userID, tenantID uuid.UUID) (*models.AgileTask, error)
 	DeleteTask(ctx context.Context, taskID uuid.UUID, userID, tenantID uuid.UUID) error
-	
+
 	// 任务状态转换
 	TransitionTask(ctx context.Context, taskID uuid.UUID, newStatus string, userID, tenantID uuid.UUID) error
-	
+
 	// 任务排序（拖拽）
 	ReorderTasks(ctx context.Context, req *ReorderTasksRequest, userID, tenantID uuid.UUID) error
 	MoveTask(ctx context.Context, req *TaskMoveRequest, userID, tenantID uuid.UUID) error
 	BatchReorderTasks(ctx context.Context, req *BatchReorderRequest, userID, tenantID uuid.UUID) error
 	RebalanceTaskRanks(ctx context.Context, projectID uuid.UUID, userID, tenantID uuid.UUID) error
 	ValidateTaskOrder(ctx context.Context, projectID uuid.UUID, userID, tenantID uuid.UUID) error
-	
+
 	// 史诗管理
 	CreateEpic(ctx context.Context, req *CreateEpicRequest, userID, tenantID uuid.UUID) (*models.Epic, error)
 	GetEpic(ctx context.Context, epicID uuid.UUID, userID, tenantID uuid.UUID) (*models.Epic, error)
 	ListEpics(ctx context.Context, projectID uuid.UUID, page, pageSize int, userID, tenantID uuid.UUID) (*EpicListResponse, error)
 	UpdateEpic(ctx context.Context, epicID uuid.UUID, req *UpdateEpicRequest, userID, tenantID uuid.UUID) (*models.Epic, error)
 	DeleteEpic(ctx context.Context, epicID uuid.UUID, userID, tenantID uuid.UUID) error
-	
+
 	// 看板管理
 	CreateBoard(ctx context.Context, req *CreateBoardRequest, userID, tenantID uuid.UUID) (*models.Board, error)
 	GetBoard(ctx context.Context, boardID uuid.UUID, userID, tenantID uuid.UUID) (*models.Board, error)
 	ListBoards(ctx context.Context, projectID uuid.UUID, page, pageSize int, userID, tenantID uuid.UUID) (*BoardListResponse, error)
 	UpdateBoard(ctx context.Context, boardID uuid.UUID, req *UpdateBoardRequest, userID, tenantID uuid.UUID) (*models.Board, error)
 	DeleteBoard(ctx context.Context, boardID uuid.UUID, userID, tenantID uuid.UUID) error
-	
+
 	// 看板列管理
 	CreateBoardColumn(ctx context.Context, req *CreateBoardColumnRequest, userID, tenantID uuid.UUID) (*models.BoardColumn, error)
 	UpdateBoardColumn(ctx context.Context, columnID uuid.UUID, req *UpdateBoardColumnRequest, userID, tenantID uuid.UUID) (*models.BoardColumn, error)
 	DeleteBoardColumn(ctx context.Context, columnID uuid.UUID, userID, tenantID uuid.UUID) error
 	ReorderBoardColumns(ctx context.Context, req *ReorderColumnsRequest, userID, tenantID uuid.UUID) error
-	
+
 	// 看板任务移动
 	BatchMoveTasks(ctx context.Context, req *BatchTaskMoveRequest, userID, tenantID uuid.UUID) error
-	
+
 	// 看板统计
 	GetBoardStatistics(ctx context.Context, boardID uuid.UUID, userID, tenantID uuid.UUID) (*BoardStatistics, error)
-	
+
 	// 工作日志管理
 	LogWork(ctx context.Context, req *LogWorkRequest, userID, tenantID uuid.UUID) (*models.WorkLog, error)
 	GetWorkLogs(ctx context.Context, taskID uuid.UUID, userID, tenantID uuid.UUID) ([]models.WorkLog, error)
 	DeleteWorkLog(ctx context.Context, workLogID uuid.UUID, userID, tenantID uuid.UUID) error
-	
+
 	// 任务评论管理
 	AddComment(ctx context.Context, req *AddCommentRequest, userID, tenantID uuid.UUID) (*models.TaskComment, error)
 	GetComments(ctx context.Context, taskID uuid.UUID, userID, tenantID uuid.UUID) ([]models.TaskComment, error)
 	UpdateComment(ctx context.Context, commentID uuid.UUID, content string, userID, tenantID uuid.UUID) (*models.TaskComment, error)
 	DeleteComment(ctx context.Context, commentID uuid.UUID, userID, tenantID uuid.UUID) error
-	
+
 	// 报表和统计
 	GetSprintBurndown(ctx context.Context, sprintID uuid.UUID, userID, tenantID uuid.UUID) (*BurndownData, error)
 	GetSprintBurndownData(ctx context.Context, sprintID uuid.UUID, userID, tenantID uuid.UUID) (*BurndownData, error)
 	GetVelocityChart(ctx context.Context, projectID uuid.UUID, userID, tenantID uuid.UUID) (*VelocityData, error)
 	GetTaskStatistics(ctx context.Context, projectID uuid.UUID, userID, tenantID uuid.UUID) (*TaskStatistics, error)
 	GetProjectStatistics(ctx context.Context, projectID uuid.UUID, userID, tenantID uuid.UUID) (*ProjectStatistics, error)
-	
+
 	// 任务操作
 	UpdateTaskStatus(ctx context.Context, taskID uuid.UUID, status string, userID, tenantID uuid.UUID) error
 	AssignTask(ctx context.Context, taskID uuid.UUID, assigneeID *uuid.UUID, userID, tenantID uuid.UUID) error
@@ -114,12 +114,12 @@ func (s *agileServiceImpl) CreateSprint(ctx context.Context, req *CreateSprintRe
 	if err := s.checkProjectAccess(ctx, req.ProjectID, userID, tenantID); err != nil {
 		return nil, err
 	}
-	
+
 	// 验证时间范围
 	if req.EndDate.Before(req.StartDate) {
 		return nil, errors.New("sprint end date must be after start date")
 	}
-	
+
 	sprint := &models.Sprint{
 		ProjectID:   req.ProjectID,
 		Name:        req.Name,
@@ -131,34 +131,34 @@ func (s *agileServiceImpl) CreateSprint(ctx context.Context, req *CreateSprintRe
 		Status:      models.SprintStatusPlanned,
 		CreatedBy:   &userID,
 	}
-	
+
 	if err := s.db.WithContext(ctx).Create(sprint).Error; err != nil {
 		s.logger.Error("创建Sprint失败", zap.Error(err))
 		return nil, fmt.Errorf("failed to create sprint: %w", err)
 	}
-	
+
 	return sprint, nil
 }
 
 func (s *agileServiceImpl) GetSprint(ctx context.Context, sprintID uuid.UUID, userID, tenantID uuid.UUID) (*models.Sprint, error) {
 	var sprint models.Sprint
-	
+
 	query := s.db.WithContext(ctx).
 		Preload("Tasks").
 		Preload("Creator")
-	
+
 	if err := query.First(&sprint, "id = ? AND deleted_at IS NULL", sprintID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("sprint not found")
 		}
 		return nil, fmt.Errorf("failed to get sprint: %w", err)
 	}
-	
+
 	// 检查项目访问权限
 	if err := s.checkProjectAccess(ctx, sprint.ProjectID, userID, tenantID); err != nil {
 		return nil, err
 	}
-	
+
 	return &sprint, nil
 }
 
@@ -167,19 +167,19 @@ func (s *agileServiceImpl) ListSprints(ctx context.Context, projectID uuid.UUID,
 	if err := s.checkProjectAccess(ctx, projectID, userID, tenantID); err != nil {
 		return nil, err
 	}
-	
+
 	var sprints []models.Sprint
 	var total int64
-	
+
 	baseQuery := s.db.WithContext(ctx).
 		Model(&models.Sprint{}).
 		Where("project_id = ? AND deleted_at IS NULL", projectID)
-	
+
 	// 获取总数
 	if err := baseQuery.Count(&total).Error; err != nil {
 		return nil, fmt.Errorf("failed to count sprints: %w", err)
 	}
-	
+
 	// 获取分页数据
 	offset := (page - 1) * pageSize
 	if err := baseQuery.
@@ -190,7 +190,7 @@ func (s *agileServiceImpl) ListSprints(ctx context.Context, projectID uuid.UUID,
 		Find(&sprints).Error; err != nil {
 		return nil, fmt.Errorf("failed to list sprints: %w", err)
 	}
-	
+
 	return &SprintListResponse{
 		Sprints:  sprints,
 		Total:    total,
@@ -201,19 +201,19 @@ func (s *agileServiceImpl) ListSprints(ctx context.Context, projectID uuid.UUID,
 
 func (s *agileServiceImpl) UpdateSprint(ctx context.Context, sprintID uuid.UUID, req *UpdateSprintRequest, userID, tenantID uuid.UUID) (*models.Sprint, error) {
 	var sprint models.Sprint
-	
+
 	if err := s.db.WithContext(ctx).First(&sprint, "id = ? AND deleted_at IS NULL", sprintID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("sprint not found")
 		}
 		return nil, fmt.Errorf("failed to get sprint: %w", err)
 	}
-	
+
 	// 检查项目访问权限
 	if err := s.checkProjectAccess(ctx, sprint.ProjectID, userID, tenantID); err != nil {
 		return nil, err
 	}
-	
+
 	// 更新字段
 	updates := make(map[string]interface{})
 	if req.Name != nil {
@@ -234,84 +234,84 @@ func (s *agileServiceImpl) UpdateSprint(ctx context.Context, sprintID uuid.UUID,
 	if req.Capacity != nil {
 		updates["capacity"] = *req.Capacity
 	}
-	
+
 	if err := s.db.WithContext(ctx).Model(&sprint).Updates(updates).Error; err != nil {
 		return nil, fmt.Errorf("failed to update sprint: %w", err)
 	}
-	
+
 	return &sprint, nil
 }
 
 func (s *agileServiceImpl) DeleteSprint(ctx context.Context, sprintID uuid.UUID, userID, tenantID uuid.UUID) error {
 	var sprint models.Sprint
-	
+
 	if err := s.db.WithContext(ctx).First(&sprint, "id = ? AND deleted_at IS NULL", sprintID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return fmt.Errorf("sprint not found")
 		}
 		return fmt.Errorf("failed to get sprint: %w", err)
 	}
-	
+
 	// 检查项目访问权限
 	if err := s.checkProjectAccess(ctx, sprint.ProjectID, userID, tenantID); err != nil {
 		return err
 	}
-	
+
 	// 软删除
 	if err := s.db.WithContext(ctx).Model(&sprint).Update("deleted_at", time.Now()).Error; err != nil {
 		return fmt.Errorf("failed to delete sprint: %w", err)
 	}
-	
+
 	return nil
 }
 
 func (s *agileServiceImpl) StartSprint(ctx context.Context, sprintID uuid.UUID, userID, tenantID uuid.UUID) error {
 	var sprint models.Sprint
-	
+
 	if err := s.db.WithContext(ctx).First(&sprint, "id = ? AND deleted_at IS NULL", sprintID).Error; err != nil {
 		return fmt.Errorf("sprint not found")
 	}
-	
+
 	// 检查项目访问权限
 	if err := s.checkProjectAccess(ctx, sprint.ProjectID, userID, tenantID); err != nil {
 		return err
 	}
-	
+
 	// 检查状态转换是否合法
 	if sprint.Status != models.SprintStatusPlanned {
 		return fmt.Errorf("can only start planned sprint")
 	}
-	
+
 	// 更新状态
 	if err := s.db.WithContext(ctx).Model(&sprint).Update("status", models.SprintStatusActive).Error; err != nil {
 		return fmt.Errorf("failed to start sprint: %w", err)
 	}
-	
+
 	return nil
 }
 
 func (s *agileServiceImpl) CompleteSprint(ctx context.Context, sprintID uuid.UUID, userID, tenantID uuid.UUID) error {
 	var sprint models.Sprint
-	
+
 	if err := s.db.WithContext(ctx).First(&sprint, "id = ? AND deleted_at IS NULL", sprintID).Error; err != nil {
 		return fmt.Errorf("sprint not found")
 	}
-	
+
 	// 检查项目访问权限
 	if err := s.checkProjectAccess(ctx, sprint.ProjectID, userID, tenantID); err != nil {
 		return err
 	}
-	
+
 	// 检查状态转换是否合法
 	if sprint.Status != models.SprintStatusActive {
 		return fmt.Errorf("can only complete active sprint")
 	}
-	
+
 	// 更新状态
 	if err := s.db.WithContext(ctx).Model(&sprint).Update("status", models.SprintStatusClosed).Error; err != nil {
 		return fmt.Errorf("failed to complete sprint: %w", err)
 	}
-	
+
 	return nil
 }
 
@@ -322,46 +322,46 @@ func (s *agileServiceImpl) CreateTask(ctx context.Context, req *CreateTaskReques
 	if err := s.checkProjectAccess(ctx, req.ProjectID, userID, tenantID); err != nil {
 		return nil, err
 	}
-	
+
 	// 生成排序权重（简化实现，实际应使用Lexorank算法）
 	rank := s.generateRank(ctx, req.ProjectID)
-	
+
 	task := &models.AgileTask{
-		ProjectID:           req.ProjectID,
-		SprintID:            req.SprintID,
-		EpicID:              req.EpicID,
-		ParentID:            req.ParentID,
-		Title:               req.Title,
-		Description:         req.Description,
-		Type:                req.Type,
-		Status:              models.TaskStatusTodo,
-		Priority:            req.Priority,
-		StoryPoints:         req.StoryPoints,
-		OriginalEstimate:    req.OriginalEstimate,
-		AssigneeID:          req.AssigneeID,
-		ReporterID:          userID,
-		Labels:              req.Labels,
-		Components:          req.Components,
-		AcceptanceCriteria:  req.AcceptanceCriteria,
-		Rank:                rank,
+		ProjectID:          req.ProjectID,
+		SprintID:           req.SprintID,
+		EpicID:             req.EpicID,
+		ParentID:           req.ParentID,
+		Title:              req.Title,
+		Description:        req.Description,
+		Type:               req.Type,
+		Status:             models.TaskStatusTodo,
+		Priority:           req.Priority,
+		StoryPoints:        req.StoryPoints,
+		OriginalEstimate:   req.OriginalEstimate,
+		AssigneeID:         req.AssigneeID,
+		ReporterID:         userID,
+		Labels:             req.Labels,
+		Components:         req.Components,
+		AcceptanceCriteria: req.AcceptanceCriteria,
+		Rank:               rank,
 	}
-	
+
 	if err := s.db.WithContext(ctx).Create(task).Error; err != nil {
 		s.logger.Error("创建任务失败", zap.Error(err))
 		return nil, fmt.Errorf("failed to create task: %w", err)
 	}
-	
+
 	// 加载关联数据
 	if err := s.loadTaskAssociations(ctx, task); err != nil {
 		s.logger.Warn("加载任务关联数据失败", zap.Error(err))
 	}
-	
+
 	return task, nil
 }
 
 func (s *agileServiceImpl) GetTask(ctx context.Context, taskID uuid.UUID, userID, tenantID uuid.UUID) (*models.AgileTask, error) {
 	var task models.AgileTask
-	
+
 	query := s.db.WithContext(ctx).
 		Preload("Sprint").
 		Preload("Epic").
@@ -373,19 +373,19 @@ func (s *agileServiceImpl) GetTask(ctx context.Context, taskID uuid.UUID, userID
 		Preload("Comments.Author").
 		Preload("WorkLogs", "deleted_at IS NULL").
 		Preload("WorkLogs.User")
-	
+
 	if err := query.First(&task, "id = ? AND deleted_at IS NULL", taskID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("task not found")
 		}
 		return nil, fmt.Errorf("failed to get task: %w", err)
 	}
-	
+
 	// 检查项目访问权限
 	if err := s.checkProjectAccess(ctx, task.ProjectID, userID, tenantID); err != nil {
 		return nil, err
 	}
-	
+
 	return &task, nil
 }
 
@@ -394,22 +394,22 @@ func (s *agileServiceImpl) ListTasks(ctx context.Context, filter *TaskFilter, pa
 	if err := s.checkProjectAccess(ctx, filter.ProjectID, userID, tenantID); err != nil {
 		return nil, err
 	}
-	
+
 	var tasks []models.AgileTask
 	var total int64
-	
+
 	baseQuery := s.db.WithContext(ctx).
 		Model(&models.AgileTask{}).
 		Where("project_id = ? AND deleted_at IS NULL", filter.ProjectID)
-	
+
 	// 应用过滤条件
 	s.applyTaskFilters(baseQuery, filter)
-	
+
 	// 获取总数
 	if err := baseQuery.Count(&total).Error; err != nil {
 		return nil, fmt.Errorf("failed to count tasks: %w", err)
 	}
-	
+
 	// 获取分页数据
 	offset := (page - 1) * pageSize
 	if err := baseQuery.
@@ -423,7 +423,7 @@ func (s *agileServiceImpl) ListTasks(ctx context.Context, filter *TaskFilter, pa
 		Find(&tasks).Error; err != nil {
 		return nil, fmt.Errorf("failed to list tasks: %w", err)
 	}
-	
+
 	return &TaskListResponse{
 		Tasks:    tasks,
 		Total:    total,
@@ -434,19 +434,19 @@ func (s *agileServiceImpl) ListTasks(ctx context.Context, filter *TaskFilter, pa
 
 func (s *agileServiceImpl) UpdateTask(ctx context.Context, taskID uuid.UUID, req *UpdateTaskRequest, userID, tenantID uuid.UUID) (*models.AgileTask, error) {
 	var task models.AgileTask
-	
+
 	if err := s.db.WithContext(ctx).First(&task, "id = ? AND deleted_at IS NULL", taskID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("task not found")
 		}
 		return nil, fmt.Errorf("failed to get task: %w", err)
 	}
-	
+
 	// 检查项目访问权限
 	if err := s.checkProjectAccess(ctx, task.ProjectID, userID, tenantID); err != nil {
 		return nil, err
 	}
-	
+
 	// 准备更新数据
 	updates := make(map[string]interface{})
 	if req.Title != nil {
@@ -492,16 +492,16 @@ func (s *agileServiceImpl) UpdateTask(ctx context.Context, taskID uuid.UUID, req
 	if req.AcceptanceCriteria != nil {
 		updates["acceptance_criteria"] = req.AcceptanceCriteria
 	}
-	
+
 	if err := s.db.WithContext(ctx).Model(&task).Updates(updates).Error; err != nil {
 		return nil, fmt.Errorf("failed to update task: %w", err)
 	}
-	
+
 	// 重新加载任务数据
 	if err := s.loadTaskAssociations(ctx, &task); err != nil {
 		s.logger.Warn("加载任务关联数据失败", zap.Error(err))
 	}
-	
+
 	return &task, nil
 }
 
@@ -512,18 +512,18 @@ func (s *agileServiceImpl) checkProjectAccess(ctx context.Context, projectID, us
 	err := s.db.WithContext(ctx).
 		Table("projects p").
 		Joins("LEFT JOIN project_members pm ON p.id = pm.project_id").
-		Where("p.id = ? AND p.tenant_id = ? AND (p.manager_id = ? OR pm.user_id = ?)", 
+		Where("p.id = ? AND p.tenant_id = ? AND (p.manager_id = ? OR pm.user_id = ?)",
 			projectID, tenantID, userID, userID).
 		Count(&count).Error
-	
+
 	if err != nil {
 		return fmt.Errorf("failed to check project access: %w", err)
 	}
-	
+
 	if count == 0 {
 		return fmt.Errorf("no access to project")
 	}
-	
+
 	return nil
 }
 
@@ -536,16 +536,16 @@ func (s *agileServiceImpl) generateRank(ctx context.Context, projectID uuid.UUID
 		Order("rank DESC").
 		Limit(1).
 		Pluck("rank", &maxRank)
-	
+
 	if maxRank == "" {
 		return "1000000"
 	}
-	
+
 	// 简化实现：将现有最大rank转换为数字并加1000
 	if rank, err := strconv.Atoi(maxRank); err == nil {
 		return strconv.Itoa(rank + 1000)
 	}
-	
+
 	return "1000000"
 }
 
@@ -586,49 +586,49 @@ func (s *agileServiceImpl) applyTaskFilters(query *gorm.DB, filter *TaskFilter) 
 
 func (s *agileServiceImpl) DeleteTask(ctx context.Context, taskID uuid.UUID, userID, tenantID uuid.UUID) error {
 	var task models.AgileTask
-	
+
 	if err := s.db.WithContext(ctx).First(&task, "id = ? AND deleted_at IS NULL", taskID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return fmt.Errorf("task not found")
 		}
 		return fmt.Errorf("failed to get task: %w", err)
 	}
-	
+
 	// 检查项目访问权限
 	if err := s.checkProjectAccess(ctx, task.ProjectID, userID, tenantID); err != nil {
 		return err
 	}
-	
+
 	// 软删除
 	if err := s.db.WithContext(ctx).Model(&task).Update("deleted_at", time.Now()).Error; err != nil {
 		return fmt.Errorf("failed to delete task: %w", err)
 	}
-	
+
 	return nil
 }
 
 func (s *agileServiceImpl) TransitionTask(ctx context.Context, taskID uuid.UUID, newStatus string, userID, tenantID uuid.UUID) error {
 	var task models.AgileTask
-	
+
 	if err := s.db.WithContext(ctx).First(&task, "id = ? AND deleted_at IS NULL", taskID).Error; err != nil {
 		return fmt.Errorf("task not found")
 	}
-	
+
 	// 检查项目访问权限
 	if err := s.checkProjectAccess(ctx, task.ProjectID, userID, tenantID); err != nil {
 		return err
 	}
-	
+
 	// 验证状态转换是否合法
 	if !task.CanTransitionTo(newStatus) {
 		return fmt.Errorf("invalid status transition from %s to %s", task.Status, newStatus)
 	}
-	
+
 	// 更新状态
 	if err := s.db.WithContext(ctx).Model(&task).Update("status", newStatus).Error; err != nil {
 		return fmt.Errorf("failed to transition task: %w", err)
 	}
-	
+
 	return nil
 }
 
@@ -637,7 +637,7 @@ func (s *agileServiceImpl) ReorderTasks(ctx context.Context, req *ReorderTasksRe
 	if err := s.checkProjectAccess(ctx, req.ProjectID, userID, tenantID); err != nil {
 		return err
 	}
-	
+
 	// 批量更新任务排序
 	tx := s.db.WithContext(ctx).Begin()
 	defer func() {
@@ -645,7 +645,7 @@ func (s *agileServiceImpl) ReorderTasks(ctx context.Context, req *ReorderTasksRe
 			tx.Rollback()
 		}
 	}()
-	
+
 	for _, taskRank := range req.Tasks {
 		if err := tx.Model(&models.AgileTask{}).
 			Where("id = ? AND project_id = ? AND deleted_at IS NULL", taskRank.TaskID, req.ProjectID).
@@ -654,11 +654,11 @@ func (s *agileServiceImpl) ReorderTasks(ctx context.Context, req *ReorderTasksRe
 			return fmt.Errorf("failed to update task rank: %w", err)
 		}
 	}
-	
+
 	if err := tx.Commit().Error; err != nil {
 		return fmt.Errorf("failed to commit rank updates: %w", err)
 	}
-	
+
 	return nil
 }
 
@@ -669,7 +669,7 @@ func (s *agileServiceImpl) CreateEpic(ctx context.Context, req *CreateEpicReques
 	if err := s.checkProjectAccess(ctx, req.ProjectID, userID, tenantID); err != nil {
 		return nil, err
 	}
-	
+
 	epic := &models.Epic{
 		ProjectID:       req.ProjectID,
 		Name:            req.Name,
@@ -682,34 +682,34 @@ func (s *agileServiceImpl) CreateEpic(ctx context.Context, req *CreateEpicReques
 		Status:          models.EpicStatusOpen,
 		CreatedBy:       &userID,
 	}
-	
+
 	if err := s.db.WithContext(ctx).Create(epic).Error; err != nil {
 		s.logger.Error("创建史诗失败", zap.Error(err))
 		return nil, fmt.Errorf("failed to create epic: %w", err)
 	}
-	
+
 	return epic, nil
 }
 
 func (s *agileServiceImpl) GetEpic(ctx context.Context, epicID uuid.UUID, userID, tenantID uuid.UUID) (*models.Epic, error) {
 	var epic models.Epic
-	
+
 	query := s.db.WithContext(ctx).
 		Preload("Tasks", "deleted_at IS NULL").
 		Preload("Creator")
-	
+
 	if err := query.First(&epic, "id = ? AND deleted_at IS NULL", epicID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("epic not found")
 		}
 		return nil, fmt.Errorf("failed to get epic: %w", err)
 	}
-	
+
 	// 检查项目访问权限
 	if err := s.checkProjectAccess(ctx, epic.ProjectID, userID, tenantID); err != nil {
 		return nil, err
 	}
-	
+
 	return &epic, nil
 }
 
@@ -718,19 +718,19 @@ func (s *agileServiceImpl) ListEpics(ctx context.Context, projectID uuid.UUID, p
 	if err := s.checkProjectAccess(ctx, projectID, userID, tenantID); err != nil {
 		return nil, err
 	}
-	
+
 	var epics []models.Epic
 	var total int64
-	
+
 	baseQuery := s.db.WithContext(ctx).
 		Model(&models.Epic{}).
 		Where("project_id = ? AND deleted_at IS NULL", projectID)
-	
+
 	// 获取总数
 	if err := baseQuery.Count(&total).Error; err != nil {
 		return nil, fmt.Errorf("failed to count epics: %w", err)
 	}
-	
+
 	// 获取分页数据
 	offset := (page - 1) * pageSize
 	if err := baseQuery.
@@ -741,7 +741,7 @@ func (s *agileServiceImpl) ListEpics(ctx context.Context, projectID uuid.UUID, p
 		Find(&epics).Error; err != nil {
 		return nil, fmt.Errorf("failed to list epics: %w", err)
 	}
-	
+
 	return &EpicListResponse{
 		Epics:    epics,
 		Total:    total,
@@ -752,19 +752,19 @@ func (s *agileServiceImpl) ListEpics(ctx context.Context, projectID uuid.UUID, p
 
 func (s *agileServiceImpl) UpdateEpic(ctx context.Context, epicID uuid.UUID, req *UpdateEpicRequest, userID, tenantID uuid.UUID) (*models.Epic, error) {
 	var epic models.Epic
-	
+
 	if err := s.db.WithContext(ctx).First(&epic, "id = ? AND deleted_at IS NULL", epicID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("epic not found")
 		}
 		return nil, fmt.Errorf("failed to get epic: %w", err)
 	}
-	
+
 	// 检查项目访问权限
 	if err := s.checkProjectAccess(ctx, epic.ProjectID, userID, tenantID); err != nil {
 		return nil, err
 	}
-	
+
 	// 更新字段
 	updates := make(map[string]interface{})
 	if req.Name != nil {
@@ -791,34 +791,34 @@ func (s *agileServiceImpl) UpdateEpic(ctx context.Context, epicID uuid.UUID, req
 	if req.SuccessCriteria != nil {
 		updates["success_criteria"] = req.SuccessCriteria
 	}
-	
+
 	if err := s.db.WithContext(ctx).Model(&epic).Updates(updates).Error; err != nil {
 		return nil, fmt.Errorf("failed to update epic: %w", err)
 	}
-	
+
 	return &epic, nil
 }
 
 func (s *agileServiceImpl) DeleteEpic(ctx context.Context, epicID uuid.UUID, userID, tenantID uuid.UUID) error {
 	var epic models.Epic
-	
+
 	if err := s.db.WithContext(ctx).First(&epic, "id = ? AND deleted_at IS NULL", epicID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return fmt.Errorf("epic not found")
 		}
 		return fmt.Errorf("failed to get epic: %w", err)
 	}
-	
+
 	// 检查项目访问权限
 	if err := s.checkProjectAccess(ctx, epic.ProjectID, userID, tenantID); err != nil {
 		return err
 	}
-	
+
 	// 软删除
 	if err := s.db.WithContext(ctx).Model(&epic).Update("deleted_at", time.Now()).Error; err != nil {
 		return fmt.Errorf("failed to delete epic: %w", err)
 	}
-	
+
 	return nil
 }
 
@@ -829,7 +829,7 @@ func (s *agileServiceImpl) CreateBoard(ctx context.Context, req *CreateBoardRequ
 	if err := s.checkProjectAccess(ctx, req.ProjectID, userID, tenantID); err != nil {
 		return nil, err
 	}
-	
+
 	board := &models.Board{
 		ProjectID:   req.ProjectID,
 		Name:        req.Name,
@@ -837,36 +837,36 @@ func (s *agileServiceImpl) CreateBoard(ctx context.Context, req *CreateBoardRequ
 		Type:        req.Type,
 		CreatedBy:   &userID,
 	}
-	
+
 	if err := s.db.WithContext(ctx).Create(board).Error; err != nil {
 		s.logger.Error("创建看板失败", zap.Error(err))
 		return nil, fmt.Errorf("failed to create board: %w", err)
 	}
-	
+
 	return board, nil
 }
 
 func (s *agileServiceImpl) GetBoard(ctx context.Context, boardID uuid.UUID, userID, tenantID uuid.UUID) (*models.Board, error) {
 	var board models.Board
-	
+
 	query := s.db.WithContext(ctx).
 		Preload("Columns", func(db *gorm.DB) *gorm.DB {
 			return db.Order("position ASC")
 		}).
 		Preload("Creator")
-	
+
 	if err := query.First(&board, "id = ? AND deleted_at IS NULL", boardID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("board not found")
 		}
 		return nil, fmt.Errorf("failed to get board: %w", err)
 	}
-	
+
 	// 检查项目访问权限
 	if err := s.checkProjectAccess(ctx, board.ProjectID, userID, tenantID); err != nil {
 		return nil, err
 	}
-	
+
 	return &board, nil
 }
 
@@ -875,17 +875,17 @@ func (s *agileServiceImpl) ListBoards(ctx context.Context, projectID uuid.UUID, 
 	if err := s.checkProjectAccess(ctx, projectID, userID, tenantID); err != nil {
 		return nil, err
 	}
-	
+
 	var boards []models.Board
 	var total int64
-	
+
 	// 计算总数
 	if err := s.db.WithContext(ctx).Model(&models.Board{}).
 		Where("project_id = ? AND deleted_at IS NULL", projectID).
 		Count(&total).Error; err != nil {
 		return nil, fmt.Errorf("failed to count boards: %w", err)
 	}
-	
+
 	// 分页查询
 	offset := (page - 1) * pageSize
 	if err := s.db.WithContext(ctx).
@@ -899,7 +899,7 @@ func (s *agileServiceImpl) ListBoards(ctx context.Context, projectID uuid.UUID, 
 		Find(&boards).Error; err != nil {
 		return nil, fmt.Errorf("failed to list boards: %w", err)
 	}
-	
+
 	return &BoardListResponse{
 		Boards:   boards,
 		Total:    total,
@@ -910,19 +910,19 @@ func (s *agileServiceImpl) ListBoards(ctx context.Context, projectID uuid.UUID, 
 
 func (s *agileServiceImpl) UpdateBoard(ctx context.Context, boardID uuid.UUID, req *UpdateBoardRequest, userID, tenantID uuid.UUID) (*models.Board, error) {
 	var board models.Board
-	
+
 	if err := s.db.WithContext(ctx).First(&board, "id = ? AND deleted_at IS NULL", boardID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("board not found")
 		}
 		return nil, fmt.Errorf("failed to get board: %w", err)
 	}
-	
+
 	// 检查项目访问权限
 	if err := s.checkProjectAccess(ctx, board.ProjectID, userID, tenantID); err != nil {
 		return nil, err
 	}
-	
+
 	// 更新字段
 	updates := make(map[string]interface{})
 	if req.Name != nil {
@@ -931,34 +931,34 @@ func (s *agileServiceImpl) UpdateBoard(ctx context.Context, boardID uuid.UUID, r
 	if req.Description != nil {
 		updates["description"] = req.Description
 	}
-	
+
 	if err := s.db.WithContext(ctx).Model(&board).Updates(updates).Error; err != nil {
 		return nil, fmt.Errorf("failed to update board: %w", err)
 	}
-	
+
 	return &board, nil
 }
 
 func (s *agileServiceImpl) DeleteBoard(ctx context.Context, boardID uuid.UUID, userID, tenantID uuid.UUID) error {
 	var board models.Board
-	
+
 	if err := s.db.WithContext(ctx).First(&board, "id = ? AND deleted_at IS NULL", boardID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return fmt.Errorf("board not found")
 		}
 		return fmt.Errorf("failed to get board: %w", err)
 	}
-	
+
 	// 检查项目访问权限
 	if err := s.checkProjectAccess(ctx, board.ProjectID, userID, tenantID); err != nil {
 		return err
 	}
-	
+
 	// 软删除
 	if err := s.db.WithContext(ctx).Model(&board).Update("deleted_at", time.Now()).Error; err != nil {
 		return fmt.Errorf("failed to delete board: %w", err)
 	}
-	
+
 	return nil
 }
 
@@ -976,49 +976,49 @@ func (s *agileServiceImpl) GetProjectStatistics(ctx context.Context, projectID u
 
 	// 获取任务统计
 	var totalTasks, completedTasks, activeTasks int64
-	
+
 	// 总任务数
 	if err := s.db.WithContext(ctx).Model(&models.AgileTask{}).
 		Where("project_id = ? AND deleted_at IS NULL", projectID).
 		Count(&totalTasks).Error; err != nil {
 		return nil, fmt.Errorf("failed to count total tasks: %w", err)
 	}
-	
+
 	// 已完成任务数
 	if err := s.db.WithContext(ctx).Model(&models.AgileTask{}).
 		Where("project_id = ? AND status = 'done' AND deleted_at IS NULL", projectID).
 		Count(&completedTasks).Error; err != nil {
 		return nil, fmt.Errorf("failed to count completed tasks: %w", err)
 	}
-	
+
 	// 进行中任务数
 	if err := s.db.WithContext(ctx).Model(&models.AgileTask{}).
 		Where("project_id = ? AND status IN ('in_progress', 'in_review') AND deleted_at IS NULL", projectID).
 		Count(&activeTasks).Error; err != nil {
 		return nil, fmt.Errorf("failed to count active tasks: %w", err)
 	}
-	
+
 	// 获取Sprint统计
 	var totalSprints, activeSprints int64
-	
+
 	if err := s.db.WithContext(ctx).Model(&models.Sprint{}).
 		Where("project_id = ? AND deleted_at IS NULL", projectID).
 		Count(&totalSprints).Error; err != nil {
 		return nil, fmt.Errorf("failed to count total sprints: %w", err)
 	}
-	
+
 	if err := s.db.WithContext(ctx).Model(&models.Sprint{}).
 		Where("project_id = ? AND status = 'active' AND deleted_at IS NULL", projectID).
 		Count(&activeSprints).Error; err != nil {
 		return nil, fmt.Errorf("failed to count active sprints: %w", err)
 	}
-	
+
 	// 计算完成率
 	var completionRate float64
 	if totalTasks > 0 {
 		completionRate = float64(completedTasks) / float64(totalTasks) * 100
 	}
-	
+
 	statistics := &ProjectStatistics{
 		TotalTasks:     totalTasks,
 		CompletedTasks: completedTasks,
@@ -1029,55 +1029,55 @@ func (s *agileServiceImpl) GetProjectStatistics(ctx context.Context, projectID u
 		ProjectID:      projectID,
 		UpdatedAt:      time.Now(),
 	}
-	
+
 	return statistics, nil
 }
 
 // UpdateTaskStatus 更新任务状态
 func (s *agileServiceImpl) UpdateTaskStatus(ctx context.Context, taskID uuid.UUID, status string, userID, tenantID uuid.UUID) error {
 	var task models.AgileTask
-	
+
 	if err := s.db.WithContext(ctx).First(&task, "id = ? AND deleted_at IS NULL", taskID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return fmt.Errorf("task not found")
 		}
 		return fmt.Errorf("failed to get task: %w", err)
 	}
-	
+
 	// 检查项目访问权限
 	if err := s.checkProjectAccess(ctx, task.ProjectID, userID, tenantID); err != nil {
 		return err
 	}
-	
+
 	// 更新状态
 	if err := s.db.WithContext(ctx).Model(&task).Update("status", status).Error; err != nil {
 		return fmt.Errorf("failed to update task status: %w", err)
 	}
-	
+
 	return nil
 }
 
 // AssignTask 分配任务
 func (s *agileServiceImpl) AssignTask(ctx context.Context, taskID uuid.UUID, assigneeID *uuid.UUID, userID, tenantID uuid.UUID) error {
 	var task models.AgileTask
-	
+
 	if err := s.db.WithContext(ctx).First(&task, "id = ? AND deleted_at IS NULL", taskID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return fmt.Errorf("task not found")
 		}
 		return fmt.Errorf("failed to get task: %w", err)
 	}
-	
+
 	// 检查项目访问权限
 	if err := s.checkProjectAccess(ctx, task.ProjectID, userID, tenantID); err != nil {
 		return err
 	}
-	
+
 	// 分配任务
 	if err := s.db.WithContext(ctx).Model(&task).Update("assignee_id", assigneeID).Error; err != nil {
 		return fmt.Errorf("failed to assign task: %w", err)
 	}
-	
+
 	return nil
 }
 
@@ -1085,24 +1085,24 @@ func (s *agileServiceImpl) AssignTask(ctx context.Context, taskID uuid.UUID, ass
 func (s *agileServiceImpl) GetUserWorkload(ctx context.Context, targetUserID uuid.UUID, userID, tenantID uuid.UUID) (*UserWorkload, error) {
 	// 获取用户的活跃任务
 	var tasks []models.AgileTask
-	
+
 	if err := s.db.WithContext(ctx).
 		Where("assignee_id = ? AND status NOT IN ('done', 'cancelled') AND deleted_at IS NULL", targetUserID).
 		Find(&tasks).Error; err != nil {
 		return nil, fmt.Errorf("failed to get user tasks: %w", err)
 	}
-	
+
 	// 统计不同状态的任务数量
 	statusCounts := make(map[string]int)
 	totalEstimatedHours := 0
-	
+
 	for _, task := range tasks {
 		statusCounts[task.Status]++
 		if task.OriginalEstimate != nil {
 			totalEstimatedHours += int(*task.OriginalEstimate)
 		}
 	}
-	
+
 	workload := &UserWorkload{
 		UserID:              targetUserID,
 		TotalTasks:          len(tasks),
@@ -1110,7 +1110,7 @@ func (s *agileServiceImpl) GetUserWorkload(ctx context.Context, targetUserID uui
 		TotalEstimatedHours: totalEstimatedHours,
 		UpdatedAt:           time.Now(),
 	}
-	
+
 	return workload, nil
 }
 
@@ -1120,7 +1120,7 @@ func (s *agileServiceImpl) BatchReorderTasks(ctx context.Context, req *BatchReor
 	if err := s.checkProjectAccess(ctx, req.ProjectID, userID, tenantID); err != nil {
 		return err
 	}
-	
+
 	// 批量更新任务排序
 	tx := s.db.WithContext(ctx).Begin()
 	defer func() {
@@ -1128,11 +1128,11 @@ func (s *agileServiceImpl) BatchReorderTasks(ctx context.Context, req *BatchReor
 			tx.Rollback()
 		}
 	}()
-	
+
 	// 构建基础查询
 	baseQuery := tx.Model(&models.AgileTask{}).
 		Where("project_id = ? AND deleted_at IS NULL", req.ProjectID)
-	
+
 	// 添加过滤条件
 	if req.SprintID != nil {
 		baseQuery = baseQuery.Where("sprint_id = ?", *req.SprintID)
@@ -1140,7 +1140,7 @@ func (s *agileServiceImpl) BatchReorderTasks(ctx context.Context, req *BatchReor
 	if req.Status != nil {
 		baseQuery = baseQuery.Where("status = ?", *req.Status)
 	}
-	
+
 	// 批量重新设置排序权重
 	for i, taskID := range req.TaskIDs {
 		newRank := fmt.Sprintf("batch_rank_%d_%d", time.Now().Unix(), i)
@@ -1151,11 +1151,11 @@ func (s *agileServiceImpl) BatchReorderTasks(ctx context.Context, req *BatchReor
 			return fmt.Errorf("failed to update task rank: %w", err)
 		}
 	}
-	
+
 	if err := tx.Commit().Error; err != nil {
 		return fmt.Errorf("failed to commit batch reorder: %w", err)
 	}
-	
+
 	return nil
 }
 
@@ -1165,7 +1165,7 @@ func (s *agileServiceImpl) RebalanceTaskRanks(ctx context.Context, projectID uui
 	if err := s.checkProjectAccess(ctx, projectID, userID, tenantID); err != nil {
 		return err
 	}
-	
+
 	// 获取所有任务，按当前rank排序
 	var tasks []models.AgileTask
 	if err := s.db.WithContext(ctx).
@@ -1174,7 +1174,7 @@ func (s *agileServiceImpl) RebalanceTaskRanks(ctx context.Context, projectID uui
 		Find(&tasks).Error; err != nil {
 		return fmt.Errorf("failed to get tasks for rebalancing: %w", err)
 	}
-	
+
 	// 重新分配均匀的rank值
 	tx := s.db.WithContext(ctx).Begin()
 	defer func() {
@@ -1182,7 +1182,7 @@ func (s *agileServiceImpl) RebalanceTaskRanks(ctx context.Context, projectID uui
 			tx.Rollback()
 		}
 	}()
-	
+
 	for i, task := range tasks {
 		newRank := fmt.Sprintf("rebalanced_%06d", i*1000)
 		if err := tx.Model(&task).Update("rank", newRank).Error; err != nil {
@@ -1190,11 +1190,11 @@ func (s *agileServiceImpl) RebalanceTaskRanks(ctx context.Context, projectID uui
 			return fmt.Errorf("failed to rebalance task rank: %w", err)
 		}
 	}
-	
+
 	if err := tx.Commit().Error; err != nil {
 		return fmt.Errorf("failed to commit rank rebalance: %w", err)
 	}
-	
+
 	s.logger.Info("任务rank重新平衡完成", zap.String("project_id", projectID.String()), zap.Int("task_count", len(tasks)))
 	return nil
 }
@@ -1205,7 +1205,7 @@ func (s *agileServiceImpl) ValidateTaskOrder(ctx context.Context, projectID uuid
 	if err := s.checkProjectAccess(ctx, projectID, userID, tenantID); err != nil {
 		return err
 	}
-	
+
 	// 获取所有任务的rank值
 	var ranks []string
 	if err := s.db.WithContext(ctx).
@@ -1214,31 +1214,31 @@ func (s *agileServiceImpl) ValidateTaskOrder(ctx context.Context, projectID uuid
 		Pluck("rank", &ranks).Error; err != nil {
 		return fmt.Errorf("failed to get task ranks: %w", err)
 	}
-	
+
 	// 检查是否有重复的rank
 	rankSet := make(map[string]bool)
 	duplicates := []string{}
-	
+
 	for _, rank := range ranks {
 		if rankSet[rank] {
 			duplicates = append(duplicates, rank)
 		}
 		rankSet[rank] = true
 	}
-	
+
 	if len(duplicates) > 0 {
-		s.logger.Warn("发现重复的task rank值", 
+		s.logger.Warn("发现重复的task rank值",
 			zap.String("project_id", projectID.String()),
 			zap.Strings("duplicates", duplicates))
-		
+
 		// 自动修复重复的rank值
 		return s.RebalanceTaskRanks(ctx, projectID, userID, tenantID)
 	}
-	
-	s.logger.Info("任务排序验证通过", 
-		zap.String("project_id", projectID.String()), 
+
+	s.logger.Info("任务排序验证通过",
+		zap.String("project_id", projectID.String()),
 		zap.Int("task_count", len(ranks)))
-	
+
 	return nil
 }
 
@@ -1250,11 +1250,11 @@ func (s *agileServiceImpl) CreateBoardColumn(ctx context.Context, req *CreateBoa
 	if err := s.db.WithContext(ctx).First(&board, "id = ? AND deleted_at IS NULL", req.BoardID).Error; err != nil {
 		return nil, fmt.Errorf("board not found")
 	}
-	
+
 	if err := s.checkProjectAccess(ctx, board.ProjectID, userID, tenantID); err != nil {
 		return nil, err
 	}
-	
+
 	column := &models.BoardColumn{
 		BoardID:  req.BoardID,
 		Name:     req.Name,
@@ -1263,30 +1263,30 @@ func (s *agileServiceImpl) CreateBoardColumn(ctx context.Context, req *CreateBoa
 		Status:   req.Status,
 		Color:    req.Color,
 	}
-	
+
 	if err := s.db.WithContext(ctx).Create(column).Error; err != nil {
 		s.logger.Error("创建看板列失败", zap.Error(err))
 		return nil, fmt.Errorf("failed to create board column: %w", err)
 	}
-	
+
 	return column, nil
 }
 
 func (s *agileServiceImpl) UpdateBoardColumn(ctx context.Context, columnID uuid.UUID, req *UpdateBoardColumnRequest, userID, tenantID uuid.UUID) (*models.BoardColumn, error) {
 	var column models.BoardColumn
-	
+
 	if err := s.db.WithContext(ctx).Preload("Board").First(&column, "id = ? AND deleted_at IS NULL", columnID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("board column not found")
 		}
 		return nil, fmt.Errorf("failed to get board column: %w", err)
 	}
-	
+
 	// 检查项目访问权限
 	if err := s.checkProjectAccess(ctx, column.Board.ProjectID, userID, tenantID); err != nil {
 		return nil, err
 	}
-	
+
 	// 更新字段
 	updates := make(map[string]interface{})
 	if req.Name != nil {
@@ -1301,34 +1301,34 @@ func (s *agileServiceImpl) UpdateBoardColumn(ctx context.Context, columnID uuid.
 	if req.Color != nil {
 		updates["color"] = req.Color
 	}
-	
+
 	if err := s.db.WithContext(ctx).Model(&column).Updates(updates).Error; err != nil {
 		return nil, fmt.Errorf("failed to update board column: %w", err)
 	}
-	
+
 	return &column, nil
 }
 
 func (s *agileServiceImpl) DeleteBoardColumn(ctx context.Context, columnID uuid.UUID, userID, tenantID uuid.UUID) error {
 	var column models.BoardColumn
-	
+
 	if err := s.db.WithContext(ctx).Preload("Board").First(&column, "id = ? AND deleted_at IS NULL", columnID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return fmt.Errorf("board column not found")
 		}
 		return fmt.Errorf("failed to get board column: %w", err)
 	}
-	
+
 	// 检查项目访问权限
 	if err := s.checkProjectAccess(ctx, column.Board.ProjectID, userID, tenantID); err != nil {
 		return err
 	}
-	
+
 	// 软删除
 	if err := s.db.WithContext(ctx).Model(&column).Update("deleted_at", time.Now()).Error; err != nil {
 		return fmt.Errorf("failed to delete board column: %w", err)
 	}
-	
+
 	return nil
 }
 
@@ -1338,11 +1338,11 @@ func (s *agileServiceImpl) ReorderBoardColumns(ctx context.Context, req *Reorder
 	if err := s.db.WithContext(ctx).First(&board, "id = ? AND deleted_at IS NULL", req.BoardID).Error; err != nil {
 		return fmt.Errorf("board not found")
 	}
-	
+
 	if err := s.checkProjectAccess(ctx, board.ProjectID, userID, tenantID); err != nil {
 		return err
 	}
-	
+
 	// 批量更新列的位置
 	tx := s.db.WithContext(ctx).Begin()
 	defer func() {
@@ -1350,7 +1350,7 @@ func (s *agileServiceImpl) ReorderBoardColumns(ctx context.Context, req *Reorder
 			tx.Rollback()
 		}
 	}()
-	
+
 	for i, columnID := range req.ColumnIDs {
 		if err := tx.Model(&models.BoardColumn{}).
 			Where("id = ? AND board_id = ? AND deleted_at IS NULL", columnID, req.BoardID).
@@ -1359,11 +1359,11 @@ func (s *agileServiceImpl) ReorderBoardColumns(ctx context.Context, req *Reorder
 			return fmt.Errorf("failed to update column position: %w", err)
 		}
 	}
-	
+
 	if err := tx.Commit().Error; err != nil {
 		return fmt.Errorf("failed to commit column reorder: %w", err)
 	}
-	
+
 	return nil
 }
 
@@ -1371,22 +1371,22 @@ func (s *agileServiceImpl) ReorderBoardColumns(ctx context.Context, req *Reorder
 
 func (s *agileServiceImpl) MoveTask(ctx context.Context, req *TaskMoveRequest, userID, tenantID uuid.UUID) error {
 	var task models.AgileTask
-	
+
 	if err := s.db.WithContext(ctx).First(&task, "id = ? AND deleted_at IS NULL", req.TaskID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return fmt.Errorf("task not found")
 		}
 		return fmt.Errorf("failed to get task: %w", err)
 	}
-	
+
 	// 检查项目访问权限
 	if err := s.checkProjectAccess(ctx, task.ProjectID, userID, tenantID); err != nil {
 		return err
 	}
-	
+
 	// 准备更新数据
 	updates := make(map[string]interface{})
-	
+
 	// 如果移动到不同状态
 	if req.TargetStatus != nil && task.Status != *req.TargetStatus {
 		// 验证状态转换是否合法
@@ -1395,44 +1395,44 @@ func (s *agileServiceImpl) MoveTask(ctx context.Context, req *TaskMoveRequest, u
 		}
 		updates["status"] = *req.TargetStatus
 	}
-	
+
 	// 如果移动到不同Sprint
 	if req.TargetSprintID != nil {
 		updates["sprint_id"] = req.TargetSprintID
 	}
-	
+
 	// 计算新的rank (简化实现)
 	lexorankManager := NewLexorankManager()
-	
+
 	var prevRank, nextRank *string
-	
+
 	if req.PrevTaskID != nil {
 		var prevTask models.AgileTask
 		if err := s.db.WithContext(ctx).First(&prevTask, "id = ?", *req.PrevTaskID).Error; err == nil {
 			prevRank = &prevTask.Rank
 		}
 	}
-	
+
 	if req.NextTaskID != nil {
 		var nextTask models.AgileTask
 		if err := s.db.WithContext(ctx).First(&nextTask, "id = ?", *req.NextTaskID).Error; err == nil {
 			nextRank = &nextTask.Rank
 		}
 	}
-	
+
 	newRank, err := lexorankManager.CalculateRankForPosition(prevRank, nextRank)
 	if err != nil {
 		s.logger.Warn("计算新rank失败，使用默认方案", zap.Error(err))
 		newRank = fmt.Sprintf("move_%d", time.Now().Unix())
 	}
-	
+
 	updates["rank"] = newRank
-	
+
 	// 执行更新
 	if err := s.db.WithContext(ctx).Model(&task).Updates(updates).Error; err != nil {
 		return fmt.Errorf("failed to move task: %w", err)
 	}
-	
+
 	return nil
 }
 
@@ -1444,24 +1444,24 @@ func (s *agileServiceImpl) BatchMoveTasks(ctx context.Context, req *BatchTaskMov
 		Find(&tasks).Error; err != nil {
 		return fmt.Errorf("failed to get tasks: %w", err)
 	}
-	
+
 	if len(tasks) != len(req.TaskIDs) {
 		return fmt.Errorf("some tasks not found")
 	}
-	
+
 	// 检查所有任务的项目访问权限
 	for _, task := range tasks {
 		if err := s.checkProjectAccess(ctx, task.ProjectID, userID, tenantID); err != nil {
 			return fmt.Errorf("no access to task %s: %w", task.ID, err)
 		}
 	}
-	
+
 	// 获取目标列信息以确定新状态
 	var targetColumn models.BoardColumn
 	if err := s.db.WithContext(ctx).First(&targetColumn, "id = ? AND deleted_at IS NULL", req.TargetColumnID).Error; err != nil {
 		return fmt.Errorf("target column not found")
 	}
-	
+
 	// 批量移动任务
 	tx := s.db.WithContext(ctx).Begin()
 	defer func() {
@@ -1469,18 +1469,18 @@ func (s *agileServiceImpl) BatchMoveTasks(ctx context.Context, req *BatchTaskMov
 			tx.Rollback()
 		}
 	}()
-	
+
 	basePosition := 0
 	if req.NewPosition != nil {
 		basePosition = *req.NewPosition
 	}
-	
+
 	for i, taskID := range req.TaskIDs {
 		updates := map[string]interface{}{
 			"status": targetColumn.Status,
 			"rank":   fmt.Sprintf("batch_move_%d_%d", time.Now().Unix(), basePosition+i),
 		}
-		
+
 		if err := tx.Model(&models.AgileTask{}).
 			Where("id = ?", taskID).
 			Updates(updates).Error; err != nil {
@@ -1488,11 +1488,11 @@ func (s *agileServiceImpl) BatchMoveTasks(ctx context.Context, req *BatchTaskMov
 			return fmt.Errorf("failed to batch move task: %w", err)
 		}
 	}
-	
+
 	if err := tx.Commit().Error; err != nil {
 		return fmt.Errorf("failed to commit batch move: %w", err)
 	}
-	
+
 	return nil
 }
 
@@ -1504,11 +1504,11 @@ func (s *agileServiceImpl) GetBoardStatistics(ctx context.Context, boardID uuid.
 	if err := s.db.WithContext(ctx).First(&board, "id = ? AND deleted_at IS NULL", boardID).Error; err != nil {
 		return nil, fmt.Errorf("board not found")
 	}
-	
+
 	if err := s.checkProjectAccess(ctx, board.ProjectID, userID, tenantID); err != nil {
 		return nil, err
 	}
-	
+
 	// 获取看板的所有列
 	var columns []models.BoardColumn
 	if err := s.db.WithContext(ctx).
@@ -1517,12 +1517,12 @@ func (s *agileServiceImpl) GetBoardStatistics(ctx context.Context, boardID uuid.
 		Find(&columns).Error; err != nil {
 		return nil, fmt.Errorf("failed to get board columns: %w", err)
 	}
-	
+
 	stats := &BoardStatistics{
 		BoardID:     boardID,
 		ColumnStats: make([]ColumnStatistics, 0, len(columns)),
 	}
-	
+
 	// 统计每个列的任务数量
 	for _, column := range columns {
 		var taskCount int64
@@ -1533,12 +1533,12 @@ func (s *agileServiceImpl) GetBoardStatistics(ctx context.Context, boardID uuid.
 			s.logger.Warn("统计列任务数量失败", zap.Error(err))
 			continue
 		}
-		
+
 		isOverLimit := false
 		if column.WIPLimit != nil && taskCount > int64(*column.WIPLimit) {
 			isOverLimit = true
 		}
-		
+
 		columnStat := ColumnStatistics{
 			ColumnID:    column.ID,
 			ColumnName:  column.Name,
@@ -1546,10 +1546,10 @@ func (s *agileServiceImpl) GetBoardStatistics(ctx context.Context, boardID uuid.
 			WIPLimit:    column.WIPLimit,
 			IsOverLimit: isOverLimit,
 		}
-		
+
 		stats.ColumnStats = append(stats.ColumnStats, columnStat)
 		stats.TotalTasks += taskCount
-		
+
 		// 根据状态分类任务
 		switch column.Status {
 		case "done", "completed":
@@ -1560,7 +1560,7 @@ func (s *agileServiceImpl) GetBoardStatistics(ctx context.Context, boardID uuid.
 			stats.PendingTasks += taskCount
 		}
 	}
-	
+
 	return stats, nil
 }
 
@@ -1572,11 +1572,11 @@ func (s *agileServiceImpl) LogWork(ctx context.Context, req *LogWorkRequest, use
 	if err := s.db.WithContext(ctx).First(&task, "id = ? AND deleted_at IS NULL", req.TaskID).Error; err != nil {
 		return nil, fmt.Errorf("task not found")
 	}
-	
+
 	if err := s.checkProjectAccess(ctx, task.ProjectID, userID, tenantID); err != nil {
 		return nil, err
 	}
-	
+
 	workLog := &models.WorkLog{
 		TaskID:      req.TaskID,
 		UserID:      userID,
@@ -1584,17 +1584,17 @@ func (s *agileServiceImpl) LogWork(ctx context.Context, req *LogWorkRequest, use
 		Description: req.Description,
 		WorkDate:    req.WorkDate,
 	}
-	
+
 	if err := s.db.WithContext(ctx).Create(workLog).Error; err != nil {
 		s.logger.Error("记录工作日志失败", zap.Error(err))
 		return nil, fmt.Errorf("failed to log work: %w", err)
 	}
-	
+
 	// 加载关联数据
 	if err := s.db.WithContext(ctx).Preload("User").First(workLog, workLog.ID).Error; err != nil {
 		s.logger.Warn("加载工作日志关联数据失败", zap.Error(err))
 	}
-	
+
 	return workLog, nil
 }
 
@@ -1604,11 +1604,11 @@ func (s *agileServiceImpl) GetWorkLogs(ctx context.Context, taskID uuid.UUID, us
 	if err := s.db.WithContext(ctx).First(&task, "id = ? AND deleted_at IS NULL", taskID).Error; err != nil {
 		return nil, fmt.Errorf("task not found")
 	}
-	
+
 	if err := s.checkProjectAccess(ctx, task.ProjectID, userID, tenantID); err != nil {
 		return nil, err
 	}
-	
+
 	var workLogs []models.WorkLog
 	if err := s.db.WithContext(ctx).
 		Preload("User").
@@ -1617,36 +1617,36 @@ func (s *agileServiceImpl) GetWorkLogs(ctx context.Context, taskID uuid.UUID, us
 		Find(&workLogs).Error; err != nil {
 		return nil, fmt.Errorf("failed to get work logs: %w", err)
 	}
-	
+
 	return workLogs, nil
 }
 
 func (s *agileServiceImpl) DeleteWorkLog(ctx context.Context, workLogID uuid.UUID, userID, tenantID uuid.UUID) error {
 	var workLog models.WorkLog
-	
+
 	if err := s.db.WithContext(ctx).Preload("Task").First(&workLog, "id = ? AND deleted_at IS NULL", workLogID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return fmt.Errorf("work log not found")
 		}
 		return fmt.Errorf("failed to get work log: %w", err)
 	}
-	
+
 	// 检查项目访问权限
 	if err := s.checkProjectAccess(ctx, workLog.Task.ProjectID, userID, tenantID); err != nil {
 		return err
 	}
-	
+
 	// 只有创建者或项目管理员能删除工作日志
 	if workLog.UserID != userID {
 		// TODO: 检查是否为项目管理员
 		return fmt.Errorf("permission denied")
 	}
-	
+
 	// 软删除
 	if err := s.db.WithContext(ctx).Model(&workLog).Update("deleted_at", time.Now()).Error; err != nil {
 		return fmt.Errorf("failed to delete work log: %w", err)
 	}
-	
+
 	return nil
 }
 
@@ -1658,28 +1658,28 @@ func (s *agileServiceImpl) AddComment(ctx context.Context, req *AddCommentReques
 	if err := s.db.WithContext(ctx).First(&task, "id = ? AND deleted_at IS NULL", req.TaskID).Error; err != nil {
 		return nil, fmt.Errorf("task not found")
 	}
-	
+
 	if err := s.checkProjectAccess(ctx, task.ProjectID, userID, tenantID); err != nil {
 		return nil, err
 	}
-	
+
 	comment := &models.TaskComment{
 		TaskID:     req.TaskID,
 		AuthorID:   userID,
 		Content:    req.Content,
 		IsInternal: req.IsInternal,
 	}
-	
+
 	if err := s.db.WithContext(ctx).Create(comment).Error; err != nil {
 		s.logger.Error("添加任务评论失败", zap.Error(err))
 		return nil, fmt.Errorf("failed to add comment: %w", err)
 	}
-	
+
 	// 加载关联数据
 	if err := s.db.WithContext(ctx).Preload("Author").First(comment, comment.ID).Error; err != nil {
 		s.logger.Warn("加载评论关联数据失败", zap.Error(err))
 	}
-	
+
 	return comment, nil
 }
 
@@ -1689,11 +1689,11 @@ func (s *agileServiceImpl) GetComments(ctx context.Context, taskID uuid.UUID, us
 	if err := s.db.WithContext(ctx).First(&task, "id = ? AND deleted_at IS NULL", taskID).Error; err != nil {
 		return nil, fmt.Errorf("task not found")
 	}
-	
+
 	if err := s.checkProjectAccess(ctx, task.ProjectID, userID, tenantID); err != nil {
 		return nil, err
 	}
-	
+
 	var comments []models.TaskComment
 	if err := s.db.WithContext(ctx).
 		Preload("Author").
@@ -1702,69 +1702,69 @@ func (s *agileServiceImpl) GetComments(ctx context.Context, taskID uuid.UUID, us
 		Find(&comments).Error; err != nil {
 		return nil, fmt.Errorf("failed to get comments: %w", err)
 	}
-	
+
 	return comments, nil
 }
 
 func (s *agileServiceImpl) UpdateComment(ctx context.Context, commentID uuid.UUID, content string, userID, tenantID uuid.UUID) (*models.TaskComment, error) {
 	var comment models.TaskComment
-	
+
 	if err := s.db.WithContext(ctx).Preload("Task").First(&comment, "id = ? AND deleted_at IS NULL", commentID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("comment not found")
 		}
 		return nil, fmt.Errorf("failed to get comment: %w", err)
 	}
-	
+
 	// 检查项目访问权限
 	if err := s.checkProjectAccess(ctx, comment.Task.ProjectID, userID, tenantID); err != nil {
 		return nil, err
 	}
-	
+
 	// 只有作者能编辑评论
 	if comment.AuthorID != userID {
 		return nil, fmt.Errorf("permission denied")
 	}
-	
+
 	// 更新评论内容
 	if err := s.db.WithContext(ctx).Model(&comment).Update("content", content).Error; err != nil {
 		return nil, fmt.Errorf("failed to update comment: %w", err)
 	}
-	
+
 	// 重新加载关联数据
 	if err := s.db.WithContext(ctx).Preload("Author").First(&comment, comment.ID).Error; err != nil {
 		s.logger.Warn("加载评论关联数据失败", zap.Error(err))
 	}
-	
+
 	return &comment, nil
 }
 
 func (s *agileServiceImpl) DeleteComment(ctx context.Context, commentID uuid.UUID, userID, tenantID uuid.UUID) error {
 	var comment models.TaskComment
-	
+
 	if err := s.db.WithContext(ctx).Preload("Task").First(&comment, "id = ? AND deleted_at IS NULL", commentID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return fmt.Errorf("comment not found")
 		}
 		return fmt.Errorf("failed to get comment: %w", err)
 	}
-	
+
 	// 检查项目访问权限
 	if err := s.checkProjectAccess(ctx, comment.Task.ProjectID, userID, tenantID); err != nil {
 		return err
 	}
-	
+
 	// 只有作者或项目管理员能删除评论
 	if comment.AuthorID != userID {
 		// TODO: 检查是否为项目管理员
 		return fmt.Errorf("permission denied")
 	}
-	
+
 	// 软删除
 	if err := s.db.WithContext(ctx).Model(&comment).Update("deleted_at", time.Now()).Error; err != nil {
 		return fmt.Errorf("failed to delete comment: %w", err)
 	}
-	
+
 	return nil
 }
 
@@ -1776,11 +1776,11 @@ func (s *agileServiceImpl) GetSprintBurndown(ctx context.Context, sprintID uuid.
 	if err := s.db.WithContext(ctx).First(&sprint, "id = ? AND deleted_at IS NULL", sprintID).Error; err != nil {
 		return nil, fmt.Errorf("sprint not found")
 	}
-	
+
 	if err := s.checkProjectAccess(ctx, sprint.ProjectID, userID, tenantID); err != nil {
 		return nil, err
 	}
-	
+
 	// 获取Sprint中的所有任务
 	var tasks []models.AgileTask
 	if err := s.db.WithContext(ctx).
@@ -1788,7 +1788,7 @@ func (s *agileServiceImpl) GetSprintBurndown(ctx context.Context, sprintID uuid.
 		Find(&tasks).Error; err != nil {
 		return nil, fmt.Errorf("failed to get sprint tasks: %w", err)
 	}
-	
+
 	// 计算总故事点数
 	totalStoryPoints := 0
 	for _, task := range tasks {
@@ -1796,35 +1796,35 @@ func (s *agileServiceImpl) GetSprintBurndown(ctx context.Context, sprintID uuid.
 			totalStoryPoints += *task.StoryPoints
 		}
 	}
-	
+
 	// 生成燃尽图数据点（简化实现，实际应该基于历史数据）
 	dataPoints := make([]BurndownDataPoint, 0)
-	
+
 	// 计算Sprint的工作日数
 	workDays := calculateWorkDays(sprint.StartDate, sprint.EndDate)
-	
+
 	// 生成理想燃尽线
 	for i := 0; i <= workDays; i++ {
 		currentDate := sprint.StartDate.AddDate(0, 0, i)
 		if currentDate.After(sprint.EndDate) {
 			break
 		}
-		
+
 		// 理想剩余点数（线性递减）
 		idealRemaining := totalStoryPoints - (totalStoryPoints*i)/workDays
-		
+
 		// 实际剩余点数（简化实现，应该基于历史完成数据）
 		actualRemaining := totalStoryPoints // 这里应该查询历史数据
-		
+
 		dataPoint := BurndownDataPoint{
 			Date:                 currentDate,
 			RemainingStoryPoints: actualRemaining,
 			IdealRemainingPoints: idealRemaining,
 		}
-		
+
 		dataPoints = append(dataPoints, dataPoint)
 	}
-	
+
 	burndownData := &BurndownData{
 		SprintID:   sprintID,
 		SprintName: sprint.Name,
@@ -1832,7 +1832,7 @@ func (s *agileServiceImpl) GetSprintBurndown(ctx context.Context, sprintID uuid.
 		EndDate:    sprint.EndDate,
 		DataPoints: dataPoints,
 	}
-	
+
 	return burndownData, nil
 }
 
@@ -1840,7 +1840,7 @@ func (s *agileServiceImpl) GetVelocityChart(ctx context.Context, projectID uuid.
 	if err := s.checkProjectAccess(ctx, projectID, userID, tenantID); err != nil {
 		return nil, err
 	}
-	
+
 	// 获取项目的已完成Sprint
 	var sprints []models.Sprint
 	if err := s.db.WithContext(ctx).
@@ -1850,19 +1850,19 @@ func (s *agileServiceImpl) GetVelocityChart(ctx context.Context, projectID uuid.
 		Find(&sprints).Error; err != nil {
 		return nil, fmt.Errorf("failed to get completed sprints: %w", err)
 	}
-	
+
 	velocityData := &VelocityData{
 		ProjectID: projectID,
 		Sprints:   make([]VelocityDataPoint, 0),
 	}
-	
+
 	totalVelocity := 0.0
-	
+
 	for _, sprint := range sprints {
 		// 统计Sprint中的任务
 		var completedPoints, committedPoints int
 		var completedTasks, totalTasks int64
-		
+
 		// 已完成的故事点数
 		if err := s.db.WithContext(ctx).
 			Model(&models.AgileTask{}).
@@ -1871,7 +1871,7 @@ func (s *agileServiceImpl) GetVelocityChart(ctx context.Context, projectID uuid.
 			Scan(&completedPoints).Error; err != nil {
 			s.logger.Warn("统计已完成故事点失败", zap.Error(err))
 		}
-		
+
 		// 承诺的故事点数（所有任务）
 		if err := s.db.WithContext(ctx).
 			Model(&models.AgileTask{}).
@@ -1880,7 +1880,7 @@ func (s *agileServiceImpl) GetVelocityChart(ctx context.Context, projectID uuid.
 			Scan(&committedPoints).Error; err != nil {
 			s.logger.Warn("统计承诺故事点失败", zap.Error(err))
 		}
-		
+
 		// 已完成任务数
 		if err := s.db.WithContext(ctx).
 			Model(&models.AgileTask{}).
@@ -1888,7 +1888,7 @@ func (s *agileServiceImpl) GetVelocityChart(ctx context.Context, projectID uuid.
 			Count(&completedTasks).Error; err != nil {
 			s.logger.Warn("统计已完成任务数失败", zap.Error(err))
 		}
-		
+
 		// 总任务数
 		if err := s.db.WithContext(ctx).
 			Model(&models.AgileTask{}).
@@ -1896,7 +1896,7 @@ func (s *agileServiceImpl) GetVelocityChart(ctx context.Context, projectID uuid.
 			Count(&totalTasks).Error; err != nil {
 			s.logger.Warn("统计总任务数失败", zap.Error(err))
 		}
-		
+
 		velocityPoint := VelocityDataPoint{
 			SprintID:        sprint.ID,
 			SprintName:      sprint.Name,
@@ -1905,16 +1905,16 @@ func (s *agileServiceImpl) GetVelocityChart(ctx context.Context, projectID uuid.
 			CompletedTasks:  int(completedTasks),
 			TotalTasks:      int(totalTasks),
 		}
-		
+
 		velocityData.Sprints = append(velocityData.Sprints, velocityPoint)
 		totalVelocity += float64(completedPoints)
 	}
-	
+
 	// 计算平均速度
 	if len(sprints) > 0 {
 		velocityData.Average = totalVelocity / float64(len(sprints))
 	}
-	
+
 	return velocityData, nil
 }
 
@@ -1922,35 +1922,35 @@ func (s *agileServiceImpl) GetTaskStatistics(ctx context.Context, projectID uuid
 	if err := s.checkProjectAccess(ctx, projectID, userID, tenantID); err != nil {
 		return nil, err
 	}
-	
+
 	statistics := &TaskStatistics{
-		ProjectID:        projectID,
-		TasksByStatus:    make(map[string]int64),
-		TasksByType:      make(map[string]int64),
-		TasksByPriority:  make(map[string]int64),
-		TasksByAssignee:  make([]UserTaskStatistics, 0),
-		RecentActivity:   make([]TaskActivity, 0),
+		ProjectID:       projectID,
+		TasksByStatus:   make(map[string]int64),
+		TasksByType:     make(map[string]int64),
+		TasksByPriority: make(map[string]int64),
+		TasksByAssignee: make([]UserTaskStatistics, 0),
+		RecentActivity:  make([]TaskActivity, 0),
 	}
-	
+
 	// 获取基本统计
 	baseQuery := s.db.WithContext(ctx).Model(&models.AgileTask{}).
 		Where("project_id = ? AND deleted_at IS NULL", projectID)
-	
+
 	// 总任务数
 	if err := baseQuery.Count(&statistics.TotalTasks).Error; err != nil {
 		return nil, fmt.Errorf("failed to count total tasks: %w", err)
 	}
-	
+
 	// 已完成任务数
 	if err := baseQuery.Where("status = 'done'").Count(&statistics.CompletedTasks).Error; err != nil {
 		return nil, fmt.Errorf("failed to count completed tasks: %w", err)
 	}
-	
+
 	// 进行中任务数
 	if err := baseQuery.Where("status IN ('in_progress', 'in_review')").Count(&statistics.InProgressTasks).Error; err != nil {
 		return nil, fmt.Errorf("failed to count in-progress tasks: %w", err)
 	}
-	
+
 	// 总故事点数
 	var totalStoryPoints, completedStoryPoints int64
 	if err := s.db.WithContext(ctx).
@@ -1961,7 +1961,7 @@ func (s *agileServiceImpl) GetTaskStatistics(ctx context.Context, projectID uuid
 		s.logger.Warn("统计总故事点失败", zap.Error(err))
 	}
 	statistics.TotalStoryPoints = totalStoryPoints
-	
+
 	if err := s.db.WithContext(ctx).
 		Model(&models.AgileTask{}).
 		Where("project_id = ? AND status = 'done' AND deleted_at IS NULL", projectID).
@@ -1970,7 +1970,7 @@ func (s *agileServiceImpl) GetTaskStatistics(ctx context.Context, projectID uuid
 		s.logger.Warn("统计已完成故事点失败", zap.Error(err))
 	}
 	statistics.CompletedStoryPoints = completedStoryPoints
-	
+
 	// 按状态统计
 	var statusStats []struct {
 		Status string
@@ -1988,7 +1988,7 @@ func (s *agileServiceImpl) GetTaskStatistics(ctx context.Context, projectID uuid
 			statistics.TasksByStatus[stat.Status] = stat.Count
 		}
 	}
-	
+
 	// 按类型统计
 	var typeStats []struct {
 		Type  string
@@ -2006,7 +2006,7 @@ func (s *agileServiceImpl) GetTaskStatistics(ctx context.Context, projectID uuid
 			statistics.TasksByType[stat.Type] = stat.Count
 		}
 	}
-	
+
 	// 按优先级统计
 	var priorityStats []struct {
 		Priority string
@@ -2024,7 +2024,7 @@ func (s *agileServiceImpl) GetTaskStatistics(ctx context.Context, projectID uuid
 			statistics.TasksByPriority[stat.Priority] = stat.Count
 		}
 	}
-	
+
 	return statistics, nil
 }
 

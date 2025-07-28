@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -24,7 +25,7 @@ type User struct {
 type RegisterRequest struct {
 	Email       string `json:"email"`
 	Password    string `json:"password"`
-	DisplayName string `json:"display_name"` 
+	DisplayName string `json:"display_name"`
 	Username    string `json:"username"`
 }
 
@@ -54,17 +55,17 @@ type UpdateProjectRequest struct {
 }
 
 type Task struct {
-	ID           int    `json:"id"`
-	ProjectID    int    `json:"project_id"`
-	Title        string `json:"title"`
-	Description  string `json:"description"`
-	TaskNumber   string `json:"task_number"`
-	StatusID     string `json:"status_id"`
-	Priority     string `json:"priority"`
-	AssigneeID   string `json:"assignee_id"`
-	DueDate      string `json:"due_date"`
-	CreatedAt    string `json:"created_at"`
-	UpdatedAt    string `json:"updated_at"`
+	ID          int    `json:"id"`
+	ProjectID   int    `json:"project_id"`
+	Title       string `json:"title"`
+	Description string `json:"description"`
+	TaskNumber  string `json:"task_number"`
+	StatusID    string `json:"status_id"`
+	Priority    string `json:"priority"`
+	AssigneeID  string `json:"assignee_id"`
+	DueDate     string `json:"due_date"`
+	CreatedAt   string `json:"created_at"`
+	UpdatedAt   string `json:"updated_at"`
 }
 
 type CreateTaskRequest struct {
@@ -164,69 +165,69 @@ var mockProjects = []Project{
 
 var mockTasks = []Task{
 	{
-		ID:           1,
-		ProjectID:    1,
-		Title:        "用户界面设计",
-		Description:  "设计现代化的用户界面，提升用户体验",
-		TaskNumber:   "CLOUD-DEV-1",
-		StatusID:     "2",
-		Priority:     "high",
-		AssigneeID:   "1",
-		DueDate:      "2024-08-15T23:59:59Z",
-		CreatedAt:    "2024-07-24T08:00:00Z",
-		UpdatedAt:    "2024-07-24T19:00:00Z",
+		ID:          1,
+		ProjectID:   1,
+		Title:       "用户界面设计",
+		Description: "设计现代化的用户界面，提升用户体验",
+		TaskNumber:  "CLOUD-DEV-1",
+		StatusID:    "2",
+		Priority:    "high",
+		AssigneeID:  "1",
+		DueDate:     "2024-08-15T23:59:59Z",
+		CreatedAt:   "2024-07-24T08:00:00Z",
+		UpdatedAt:   "2024-07-24T19:00:00Z",
 	},
 	{
-		ID:           2,
-		ProjectID:    1,
-		Title:        "JWT认证系统",
-		Description:  "实现安全的用户认证和权限管理",
-		TaskNumber:   "CLOUD-DEV-2",
-		StatusID:     "3",
-		Priority:     "high",
-		AssigneeID:   "1",
-		DueDate:      "2024-07-30T23:59:59Z",
-		CreatedAt:    "2024-07-24T08:30:00Z",
-		UpdatedAt:    "2024-07-24T18:30:00Z",
+		ID:          2,
+		ProjectID:   1,
+		Title:       "JWT认证系统",
+		Description: "实现安全的用户认证和权限管理",
+		TaskNumber:  "CLOUD-DEV-2",
+		StatusID:    "3",
+		Priority:    "high",
+		AssigneeID:  "1",
+		DueDate:     "2024-07-30T23:59:59Z",
+		CreatedAt:   "2024-07-24T08:30:00Z",
+		UpdatedAt:   "2024-07-24T18:30:00Z",
 	},
 	{
-		ID:           3,
-		ProjectID:    1,
-		Title:        "项目看板优化",
-		Description:  "增强看板功能和用户交互体验",
-		TaskNumber:   "CLOUD-DEV-3",
-		StatusID:     "2",
-		Priority:     "medium",
-		AssigneeID:   "1",
-		DueDate:      "2024-08-10T23:59:59Z",
-		CreatedAt:    "2024-07-24T09:00:00Z",
-		UpdatedAt:    "2024-07-24T19:00:00Z",
+		ID:          3,
+		ProjectID:   1,
+		Title:       "项目看板优化",
+		Description: "增强看板功能和用户交互体验",
+		TaskNumber:  "CLOUD-DEV-3",
+		StatusID:    "2",
+		Priority:    "medium",
+		AssigneeID:  "1",
+		DueDate:     "2024-08-10T23:59:59Z",
+		CreatedAt:   "2024-07-24T09:00:00Z",
+		UpdatedAt:   "2024-07-24T19:00:00Z",
 	},
 	{
-		ID:           4,
-		ProjectID:    1,
-		Title:        "性能监控集成",
-		Description:  "集成应用性能监控和错误追踪",
-		TaskNumber:   "CLOUD-DEV-4",
-		StatusID:     "1",
-		Priority:     "medium",
-		AssigneeID:   "",
-		DueDate:      "2024-09-01T23:59:59Z",
-		CreatedAt:    "2024-07-24T09:30:00Z",
-		UpdatedAt:    "2024-07-24T09:30:00Z",
+		ID:          4,
+		ProjectID:   1,
+		Title:       "性能监控集成",
+		Description: "集成应用性能监控和错误追踪",
+		TaskNumber:  "CLOUD-DEV-4",
+		StatusID:    "1",
+		Priority:    "medium",
+		AssigneeID:  "",
+		DueDate:     "2024-09-01T23:59:59Z",
+		CreatedAt:   "2024-07-24T09:30:00Z",
+		UpdatedAt:   "2024-07-24T09:30:00Z",
 	},
 	{
-		ID:           5,
-		ProjectID:    1,
-		Title:        "移动端适配",
-		Description:  "优化移动设备上的用户体验",
-		TaskNumber:   "CLOUD-DEV-5",
-		StatusID:     "1",
-		Priority:     "low",
-		AssigneeID:   "",
-		DueDate:      "2024-09-15T23:59:59Z",
-		CreatedAt:    "2024-07-24T10:00:00Z",
-		UpdatedAt:    "2024-07-24T10:00:00Z",
+		ID:          5,
+		ProjectID:   1,
+		Title:       "移动端适配",
+		Description: "优化移动设备上的用户体验",
+		TaskNumber:  "CLOUD-DEV-5",
+		StatusID:    "1",
+		Priority:    "low",
+		AssigneeID:  "",
+		DueDate:     "2024-09-15T23:59:59Z",
+		CreatedAt:   "2024-07-24T10:00:00Z",
+		UpdatedAt:   "2024-07-24T10:00:00Z",
 	},
 }
 
@@ -320,7 +321,19 @@ func handleLogin(c *gin.Context) {
 
 	fmt.Printf("🔐 登录请求: %s\n", req.Email)
 
-	if req.Email == "demo@clouddev.com" && req.Password == "demo123" {
+	// 从环境变量获取演示账号凭据
+	demoEmail := os.Getenv("DEMO_EMAIL")
+	demoPassword := os.Getenv("DEMO_PASSWORD")
+	
+	// 如果环境变量未设置，使用默认值（仅用于开发环境）
+	if demoEmail == "" {
+		demoEmail = "demo@clouddev.com"
+	}
+	if demoPassword == "" {
+		demoPassword = "demo-dev-only-" + time.Now().Format("20060102")
+	}
+
+	if req.Email == demoEmail && req.Password == demoPassword {
 		c.JSON(200, LoginResponse{
 			Success:     true,
 			AccessToken: "mock-jwt-token-" + fmt.Sprintf("%d", time.Now().Unix()),
@@ -444,7 +457,7 @@ func handleCreateProject(c *gin.Context) {
 func handleGetProject(c *gin.Context) {
 	id := c.Param("id")
 	fmt.Printf("📄 获取项目详情请求: %s\n", id)
-	
+
 	projectID, err := strconv.Atoi(id)
 	if err != nil {
 		c.JSON(400, ApiResponse{
@@ -563,7 +576,7 @@ func handleDeleteProject(c *gin.Context) {
 func handleGetProjectTasks(c *gin.Context) {
 	id := c.Param("id")
 	fmt.Printf("📋 获取项目任务请求: %s\n", id)
-	
+
 	projectID, err := strconv.Atoi(id)
 	if err != nil {
 		c.JSON(400, ApiResponse{
@@ -628,17 +641,17 @@ func handleCreateTask(c *gin.Context) {
 	}
 
 	newTask := Task{
-		ID:           nextTaskID,
-		ProjectID:    projectID,
-		Title:        req.Title,
-		Description:  req.Description,
-		TaskNumber:   fmt.Sprintf("%s-%d", projectKey, nextTaskID),
-		StatusID:     req.StatusID,
-		Priority:     req.Priority,
-		AssigneeID:   req.AssigneeID,
-		DueDate:      req.DueDate,
-		CreatedAt:    time.Now().Format(time.RFC3339),
-		UpdatedAt:    time.Now().Format(time.RFC3339),
+		ID:          nextTaskID,
+		ProjectID:   projectID,
+		Title:       req.Title,
+		Description: req.Description,
+		TaskNumber:  fmt.Sprintf("%s-%d", projectKey, nextTaskID),
+		StatusID:    req.StatusID,
+		Priority:    req.Priority,
+		AssigneeID:  req.AssigneeID,
+		DueDate:     req.DueDate,
+		CreatedAt:   time.Now().Format(time.RFC3339),
+		UpdatedAt:   time.Now().Format(time.RFC3339),
 	}
 
 	mockTasks = append(mockTasks, newTask)

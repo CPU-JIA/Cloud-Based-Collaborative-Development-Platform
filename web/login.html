@@ -540,13 +540,16 @@
         
         // 填充演示凭据
         function fillDemoCredentials() {
-            document.getElementById('email').value = 'jia@example.com';
-            document.getElementById('password').value = 'admin123';
-            document.getElementById('rememberMe').checked = true;
+            // 使用提示而不是硬编码密码
+            document.getElementById('email').value = 'demo@example.com';
+            document.getElementById('password').placeholder = '请输入演示密码';
+            document.getElementById('password').focus();
+            
+            // 显示提示信息
+            showMessage('请联系管理员获取演示账号密码', 'info');
             
             // 触发输入验证
             document.getElementById('email').dispatchEvent(new Event('blur'));
-            document.getElementById('password').dispatchEvent(new Event('blur'));
         }
         
         // 显示注册表单（占位符功能）

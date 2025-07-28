@@ -19,39 +19,39 @@ import (
 type ExecutionService interface {
 	// 启动服务
 	Start(ctx context.Context) error
-	
+
 	// 停止服务
 	Stop() error
-	
+
 	// 提交作业执行
 	SubmitJobExecution(ctx context.Context, job *models.Job) error
-	
+
 	// 获取执行状态
 	GetExecutionStatus(jobID uuid.UUID) (*JobExecutionStatus, error)
-	
+
 	// 取消作业执行
 	CancelJobExecution(ctx context.Context, jobID uuid.UUID) error
-	
+
 	// 获取执行统计
 	GetExecutionStats() (*ExecutionStats, error)
-	
+
 	// 健康检查
 	HealthCheck(ctx context.Context) error
 }
 
 // ExecutionStats 执行统计
 type ExecutionStats struct {
-	TotalJobs         int                      `json:"total_jobs"`
-	RunningJobs       int                      `json:"running_jobs"`
-	PendingJobs       int                      `json:"pending_jobs"`
-	CompletedJobs     int                      `json:"completed_jobs"`
-	FailedJobs        int                      `json:"failed_jobs"`
-	CancelledJobs     int                      `json:"cancelled_jobs"`
-	AverageExecTime   time.Duration            `json:"average_exec_time"`
-	ResourceUsage     *AggregateResourceUsage  `json:"resource_usage"`
-	ExecutorHealth    bool                     `json:"executor_health"`
-	DockerHealth      bool                     `json:"docker_health"`
-	LastUpdated       time.Time                `json:"last_updated"`
+	TotalJobs       int                     `json:"total_jobs"`
+	RunningJobs     int                     `json:"running_jobs"`
+	PendingJobs     int                     `json:"pending_jobs"`
+	CompletedJobs   int                     `json:"completed_jobs"`
+	FailedJobs      int                     `json:"failed_jobs"`
+	CancelledJobs   int                     `json:"cancelled_jobs"`
+	AverageExecTime time.Duration           `json:"average_exec_time"`
+	ResourceUsage   *AggregateResourceUsage `json:"resource_usage"`
+	ExecutorHealth  bool                    `json:"executor_health"`
+	DockerHealth    bool                    `json:"docker_health"`
+	LastUpdated     time.Time               `json:"last_updated"`
 }
 
 // AggregateResourceUsage 聚合资源使用情况
@@ -69,38 +69,38 @@ type AggregateResourceUsage struct {
 type ExecutionServiceConfig struct {
 	// 执行器配置
 	ExecutorConfig *ExecutorConfig `json:"executor_config"`
-	
+
 	// 调度器集成配置
-	JobPollingInterval  time.Duration `json:"job_polling_interval"`
+	JobPollingInterval   time.Duration `json:"job_polling_interval"`
 	StatusUpdateInterval time.Duration `json:"status_update_interval"`
-	
+
 	// 重试配置
 	MaxRetryAttempts int           `json:"max_retry_attempts"`
 	RetryDelay       time.Duration `json:"retry_delay"`
-	
+
 	// 监控配置
-	EnableMetrics        bool          `json:"enable_metrics"`
+	EnableMetrics         bool          `json:"enable_metrics"`
 	MetricsUpdateInterval time.Duration `json:"metrics_update_interval"`
 }
 
 // executionService 执行服务实现
 type executionService struct {
-	config           *ExecutionServiceConfig
-	executor         JobExecutor
-	dockerManager    docker.DockerManager
-	storageManager   storage.StorageManager
-	pipelineRepo     repository.PipelineRepository
-	scheduler        scheduler.JobScheduler
-	logger           *zap.Logger
-	
+	config         *ExecutionServiceConfig
+	executor       JobExecutor
+	dockerManager  docker.DockerManager
+	storageManager storage.StorageManager
+	pipelineRepo   repository.PipelineRepository
+	scheduler      scheduler.JobScheduler
+	logger         *zap.Logger
+
 	// 状态管理
-	running          bool
-	stopCh           chan struct{}
-	wg               sync.WaitGroup
-	
+	running bool
+	stopCh  chan struct{}
+	wg      sync.WaitGroup
+
 	// 统计信息
-	stats            *ExecutionStats
-	statsMu          sync.RWMutex
+	stats   *ExecutionStats
+	statsMu sync.RWMutex
 }
 
 // NewExecutionService 创建执行服务
@@ -115,7 +115,7 @@ func NewExecutionService(
 	if config == nil {
 		config = DefaultExecutionServiceConfig()
 	}
-	
+
 	// 创建作业执行器
 	executor := NewJobExecutor(
 		config.ExecutorConfig,
@@ -123,7 +123,7 @@ func NewExecutionService(
 		storageManager,
 		logger,
 	)
-	
+
 	service := &executionService{
 		config:         config,
 		executor:       executor,
@@ -137,7 +137,7 @@ func NewExecutionService(
 			LastUpdated: time.Now(),
 		},
 	}
-	
+
 	return service, nil
 }
 
@@ -146,30 +146,30 @@ func (es *executionService) Start(ctx context.Context) error {
 	if es.running {
 		return fmt.Errorf("执行服务已经在运行")
 	}
-	
+
 	es.logger.Info("启动执行服务")
-	
+
 	// 启动作业处理循环
 	es.wg.Add(1)
 	go es.jobProcessingLoop()
-	
+
 	// 启动状态更新循环
 	es.wg.Add(1)
 	go es.statusUpdateLoop()
-	
+
 	// 启动指标收集循环
 	if es.config.EnableMetrics {
 		es.wg.Add(1)
 		go es.metricsCollectionLoop()
 	}
-	
+
 	// 启动健康检查循环
 	es.wg.Add(1)
 	go es.healthCheckLoop()
-	
+
 	es.running = true
 	es.logger.Info("执行服务启动成功")
-	
+
 	return nil
 }
 
@@ -178,16 +178,16 @@ func (es *executionService) Stop() error {
 	if !es.running {
 		return nil
 	}
-	
+
 	es.logger.Info("停止执行服务")
-	
+
 	// 发送停止信号
 	close(es.stopCh)
 	es.running = false
-	
+
 	// 等待所有goroutine结束
 	es.wg.Wait()
-	
+
 	es.logger.Info("执行服务已停止")
 	return nil
 }
@@ -195,16 +195,16 @@ func (es *executionService) Stop() error {
 // jobProcessingLoop 作业处理循环
 func (es *executionService) jobProcessingLoop() {
 	defer es.wg.Done()
-	
+
 	ticker := time.NewTicker(es.config.JobPollingInterval)
 	defer ticker.Stop()
-	
+
 	for {
 		select {
 		case <-es.stopCh:
 			es.logger.Info("作业处理循环退出")
 			return
-			
+
 		case <-ticker.C:
 			es.processScheduledJobs()
 		}
@@ -215,14 +215,14 @@ func (es *executionService) jobProcessingLoop() {
 func (es *executionService) processScheduledJobs() {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	
+
 	// 从调度器获取待执行的作业
 	jobs, err := es.getScheduledJobs(ctx)
 	if err != nil {
 		es.logger.Error("获取调度作业失败", zap.Error(err))
 		return
 	}
-	
+
 	for _, job := range jobs {
 		// 异步执行作业
 		go es.executeJobAsync(job)
@@ -236,14 +236,14 @@ func (es *executionService) getScheduledJobs(ctx context.Context) ([]*models.Job
 	if err != nil {
 		return nil, fmt.Errorf("获取待处理作业失败: %v", err)
 	}
-	
+
 	// 转换为指针数组
 	jobPtrs := make([]*models.Job, len(jobs))
 	for i, job := range jobs {
 		jobCopy := job // 避免循环变量引用问题
 		jobPtrs[i] = &jobCopy
 	}
-	
+
 	return jobPtrs, nil
 }
 
@@ -252,30 +252,30 @@ func (es *executionService) executeJobAsync(job *models.Job) {
 	es.logger.Info("开始异步执行作业",
 		zap.String("job_id", job.ID.String()),
 		zap.String("job_name", job.Name))
-	
+
 	ctx, cancel := context.WithTimeout(context.Background(), es.config.ExecutorConfig.DefaultTimeout)
 	defer cancel()
-	
+
 	// 更新作业状态为运行中
 	if err := es.updateJobStatus(ctx, job.ID, models.JobStatusRunning, "", nil); err != nil {
 		es.logger.Error("更新作业状态失败", zap.Error(err))
 		return
 	}
-	
+
 	// 执行作业
 	err := es.executor.ExecuteJob(ctx, job)
-	
+
 	// 获取执行状态
 	status, statusErr := es.executor.GetJobStatus(job.ID)
 	if statusErr != nil {
 		es.logger.Error("获取作业执行状态失败", zap.Error(statusErr))
 	}
-	
+
 	// 更新数据库中的作业状态
 	var finalStatus models.JobStatus
 	var errorMessage string
 	var exitCode *int
-	
+
 	if err != nil {
 		finalStatus = models.JobStatusFailed
 		errorMessage = err.Error()
@@ -290,12 +290,12 @@ func (es *executionService) executeJobAsync(job *models.Job) {
 		finalStatus = models.JobStatusFailed
 		errorMessage = "无法获取执行状态"
 	}
-	
+
 	// 更新作业最终状态
 	if err := es.updateJobStatus(ctx, job.ID, finalStatus, errorMessage, exitCode); err != nil {
 		es.logger.Error("更新作业最终状态失败", zap.Error(err))
 	}
-	
+
 	// 更新统计信息
 	es.updateStatsAfterJobCompletion(finalStatus)
 }
@@ -306,48 +306,48 @@ func (es *executionService) updateJobStatus(ctx context.Context, jobID uuid.UUID
 		"status":     status,
 		"updated_at": time.Now(),
 	}
-	
+
 	if status == models.JobStatusRunning {
 		updates["started_at"] = time.Now()
 	}
-	
+
 	if status == models.JobStatusSuccess || status == models.JobStatusFailed || status == models.JobStatusCancelled {
 		updates["finished_at"] = time.Now()
 	}
-	
+
 	if errorMessage != "" {
 		updates["error_message"] = errorMessage
 	}
-	
+
 	if exitCode != nil {
 		updates["exit_code"] = *exitCode
 	}
-	
+
 	err := es.pipelineRepo.UpdateJob(ctx, jobID, updates)
 	if err != nil {
 		return fmt.Errorf("更新作业状态失败: %v", err)
 	}
-	
+
 	es.logger.Info("作业状态已更新",
 		zap.String("job_id", jobID.String()),
 		zap.String("status", string(status)))
-	
+
 	return nil
 }
 
 // statusUpdateLoop 状态更新循环
 func (es *executionService) statusUpdateLoop() {
 	defer es.wg.Done()
-	
+
 	ticker := time.NewTicker(es.config.StatusUpdateInterval)
 	defer ticker.Stop()
-	
+
 	for {
 		select {
 		case <-es.stopCh:
 			es.logger.Info("状态更新循环退出")
 			return
-			
+
 		case <-ticker.C:
 			es.updateRunningJobsStatus()
 		}
@@ -364,16 +364,16 @@ func (es *executionService) updateRunningJobsStatus() {
 // metricsCollectionLoop 指标收集循环
 func (es *executionService) metricsCollectionLoop() {
 	defer es.wg.Done()
-	
+
 	ticker := time.NewTicker(es.config.MetricsUpdateInterval)
 	defer ticker.Stop()
-	
+
 	for {
 		select {
 		case <-es.stopCh:
 			es.logger.Info("指标收集循环退出")
 			return
-			
+
 		case <-ticker.C:
 			es.collectMetrics()
 		}
@@ -384,25 +384,25 @@ func (es *executionService) metricsCollectionLoop() {
 func (es *executionService) collectMetrics() {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	
+
 	es.statsMu.Lock()
 	defer es.statsMu.Unlock()
-	
+
 	// 收集作业统计
 	if err := es.collectJobStats(ctx); err != nil {
 		es.logger.Error("收集作业统计失败", zap.Error(err))
 	}
-	
+
 	// 收集资源使用统计
 	if err := es.collectResourceStats(); err != nil {
 		es.logger.Error("收集资源统计失败", zap.Error(err))
 	}
-	
+
 	// 更新健康状态
 	es.stats.ExecutorHealth = es.checkExecutorHealth()
 	es.stats.DockerHealth = es.checkDockerHealth(ctx)
 	es.stats.LastUpdated = time.Now()
-	
+
 	es.logger.Debug("指标收集完成",
 		zap.Int("running_jobs", es.stats.RunningJobs),
 		zap.Int("pending_jobs", es.stats.PendingJobs),
@@ -421,7 +421,7 @@ func (es *executionService) collectJobStats(ctx context.Context) error {
 	es.stats.FailedJobs = 0
 	es.stats.CancelledJobs = 0
 	es.stats.AverageExecTime = 0
-	
+
 	es.logger.Debug("使用模拟统计数据 - 等待repository接口完善")
 	return nil
 }
@@ -432,25 +432,25 @@ func (es *executionService) collectResourceStats() error {
 	if es.stats.ResourceUsage == nil {
 		es.stats.ResourceUsage = &AggregateResourceUsage{}
 	}
-	
+
 	es.stats.ResourceUsage.ActiveContainers = es.stats.RunningJobs
-	
+
 	return nil
 }
 
 // healthCheckLoop 健康检查循环
 func (es *executionService) healthCheckLoop() {
 	defer es.wg.Done()
-	
+
 	ticker := time.NewTicker(1 * time.Minute)
 	defer ticker.Stop()
-	
+
 	for {
 		select {
 		case <-es.stopCh:
 			es.logger.Info("健康检查循环退出")
 			return
-			
+
 		case <-ticker.C:
 			es.performHealthCheck()
 		}
@@ -461,22 +461,22 @@ func (es *executionService) healthCheckLoop() {
 func (es *executionService) performHealthCheck() {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	
+
 	// 检查执行器健康状态
 	executorHealth := es.executor.HealthCheck(ctx) == nil
-	
+
 	// 检查Docker健康状态
 	dockerHealth := es.dockerManager.HealthCheck(ctx) == nil
-	
+
 	es.statsMu.Lock()
 	es.stats.ExecutorHealth = executorHealth
 	es.stats.DockerHealth = dockerHealth
 	es.statsMu.Unlock()
-	
+
 	if !executorHealth {
 		es.logger.Warn("执行器健康检查失败")
 	}
-	
+
 	if !dockerHealth {
 		es.logger.Warn("Docker健康检查失败")
 	}
@@ -487,14 +487,14 @@ func (es *executionService) SubmitJobExecution(ctx context.Context, job *models.
 	if !es.running {
 		return fmt.Errorf("执行服务未运行")
 	}
-	
+
 	es.logger.Info("提交作业执行",
 		zap.String("job_id", job.ID.String()),
 		zap.String("job_name", job.Name))
-	
+
 	// 异步执行作业
 	go es.executeJobAsync(job)
-	
+
 	return nil
 }
 
@@ -506,12 +506,12 @@ func (es *executionService) GetExecutionStatus(jobID uuid.UUID) (*JobExecutionSt
 // CancelJobExecution 取消作业执行
 func (es *executionService) CancelJobExecution(ctx context.Context, jobID uuid.UUID) error {
 	es.logger.Info("取消作业执行", zap.String("job_id", jobID.String()))
-	
+
 	// 停止执行器中的作业
 	if err := es.executor.StopJob(ctx, jobID); err != nil {
 		es.logger.Error("停止作业失败", zap.Error(err))
 	}
-	
+
 	// 更新数据库状态
 	return es.updateJobStatus(ctx, jobID, models.JobStatusCancelled, "作业被取消", nil)
 }
@@ -520,14 +520,14 @@ func (es *executionService) CancelJobExecution(ctx context.Context, jobID uuid.U
 func (es *executionService) GetExecutionStats() (*ExecutionStats, error) {
 	es.statsMu.RLock()
 	defer es.statsMu.RUnlock()
-	
+
 	// 返回统计信息副本
 	statsCopy := *es.stats
 	if es.stats.ResourceUsage != nil {
 		resourceCopy := *es.stats.ResourceUsage
 		statsCopy.ResourceUsage = &resourceCopy
 	}
-	
+
 	return &statsCopy, nil
 }
 
@@ -536,17 +536,17 @@ func (es *executionService) HealthCheck(ctx context.Context) error {
 	if !es.running {
 		return fmt.Errorf("执行服务未运行")
 	}
-	
+
 	// 检查执行器
 	if err := es.executor.HealthCheck(ctx); err != nil {
 		return fmt.Errorf("执行器健康检查失败: %v", err)
 	}
-	
+
 	// 检查Docker管理器
 	if err := es.dockerManager.HealthCheck(ctx); err != nil {
 		return fmt.Errorf("Docker管理器健康检查失败: %v", err)
 	}
-	
+
 	return nil
 }
 
@@ -556,7 +556,7 @@ func (es *executionService) HealthCheck(ctx context.Context) error {
 func (es *executionService) checkExecutorHealth() bool {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	
+
 	return es.executor.HealthCheck(ctx) == nil
 }
 
@@ -569,7 +569,7 @@ func (es *executionService) checkDockerHealth(ctx context.Context) bool {
 func (es *executionService) updateStatsAfterJobCompletion(status models.JobStatus) {
 	es.statsMu.Lock()
 	defer es.statsMu.Unlock()
-	
+
 	switch status {
 	case models.JobStatusSuccess:
 		if es.stats.CompletedJobs > 0 {
@@ -584,7 +584,7 @@ func (es *executionService) updateStatsAfterJobCompletion(status models.JobStatu
 			es.stats.CancelledJobs++
 		}
 	}
-	
+
 	if es.stats.RunningJobs > 0 {
 		es.stats.RunningJobs--
 	}
@@ -597,8 +597,8 @@ func DefaultExecutionServiceConfig() *ExecutionServiceConfig {
 		JobPollingInterval:    5 * time.Second,
 		StatusUpdateInterval:  10 * time.Second,
 		MaxRetryAttempts:      3,
-		RetryDelay:           30 * time.Second,
-		EnableMetrics:        true,
+		RetryDelay:            30 * time.Second,
+		EnableMetrics:         true,
 		MetricsUpdateInterval: 30 * time.Second,
 	}
 }

@@ -41,8 +41,13 @@ func APIAuthMiddleware(tokenService *services.APITokenService) gin.HandlerFunc {
 		// Handle different token types
 		switch strings.ToLower(scheme) {
 		case "bearer":
-			// This is likely a JWT token, skip API token validation
-			c.Next()
+			// Bearer tokens should be handled by JWTAuth middleware
+			// This middleware is only for API tokens, so we should not allow Bearer here
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"error":   "Unauthorized", 
+				"message": "This endpoint requires API token authentication. Use 'Token <your-api-token>' format",
+			})
+			c.Abort()
 			return
 		case "token":
 			// This is an API token

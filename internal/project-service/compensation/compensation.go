@@ -22,16 +22,16 @@ const (
 
 // CompensationEntry 补偿记录
 type CompensationEntry struct {
-	ID          uuid.UUID          `json:"id"`
-	Action      CompensationAction `json:"action"`
-	ResourceID  uuid.UUID          `json:"resource_id"`
-	Payload     map[string]interface{} `json:"payload"`
-	CreatedAt   time.Time          `json:"created_at"`
-	ExecutedAt  *time.Time         `json:"executed_at,omitempty"`
-	Status      string             `json:"status"` // pending, executed, failed
-	RetryCount  int                `json:"retry_count"`
-	MaxRetries  int                `json:"max_retries"`
-	LastError   string             `json:"last_error,omitempty"`
+	ID         uuid.UUID              `json:"id"`
+	Action     CompensationAction     `json:"action"`
+	ResourceID uuid.UUID              `json:"resource_id"`
+	Payload    map[string]interface{} `json:"payload"`
+	CreatedAt  time.Time              `json:"created_at"`
+	ExecutedAt *time.Time             `json:"executed_at,omitempty"`
+	Status     string                 `json:"status"` // pending, executed, failed
+	RetryCount int                    `json:"retry_count"`
+	MaxRetries int                    `json:"max_retries"`
+	LastError  string                 `json:"last_error,omitempty"`
 }
 
 // CompensationManager 补偿管理器
@@ -64,7 +64,7 @@ func (cm *CompensationManager) AddCompensation(action CompensationAction, resour
 	}
 
 	cm.entries = append(cm.entries, entry)
-	
+
 	cm.logger.Info("添加补偿动作",
 		zap.String("compensation_id", entry.ID.String()),
 		zap.String("action", string(action)),
@@ -107,7 +107,7 @@ func (cm *CompensationManager) ExecuteCompensation(ctx context.Context, compensa
 
 	// 执行补偿动作
 	entry.RetryCount++
-	
+
 	cm.logger.Info("执行补偿动作",
 		zap.String("compensation_id", compensationID.String()),
 		zap.String("action", string(entry.Action)),
@@ -148,7 +148,7 @@ func (cm *CompensationManager) ExecuteCompensation(ctx context.Context, compensa
 // ExecuteAllPendingCompensations 执行所有待处理的补偿动作
 func (cm *CompensationManager) ExecuteAllPendingCompensations(ctx context.Context) error {
 	pendingEntries := make([]uuid.UUID, 0)
-	
+
 	for _, entry := range cm.entries {
 		if entry.Status == "pending" {
 			pendingEntries = append(pendingEntries, entry.ID)
@@ -163,7 +163,7 @@ func (cm *CompensationManager) ExecuteAllPendingCompensations(ctx context.Contex
 	for _, compensationID := range pendingEntries {
 		if err := cm.ExecuteCompensation(ctx, compensationID); err != nil {
 			lastError = err
-			cm.logger.Error("补偿动作执行失败", 
+			cm.logger.Error("补偿动作执行失败",
 				zap.String("compensation_id", compensationID.String()),
 				zap.Error(err))
 		} else {
@@ -261,8 +261,8 @@ func (cm *CompensationManager) ClearExecutedCompensations() int {
 	}
 
 	cm.entries = newEntries
-	
+
 	cm.logger.Info("清理已执行的补偿记录", zap.Int("removed_count", removedCount))
-	
+
 	return removedCount
 }

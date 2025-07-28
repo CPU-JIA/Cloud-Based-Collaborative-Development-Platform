@@ -74,25 +74,78 @@ build-local: deps ## 构建本地版本
 	done
 
 # =============================================================================
-# 测试
+# 测试与质量保证 - 企业级增强
 # =============================================================================
 
 test: ## 运行所有测试
-	@echo "运行单元测试..."
-	$(GO) test -v -race -coverprofile=coverage.out ./...
-	$(GO) tool cover -html=coverage.out -o coverage.html
+	@echo "🚀 运行完整测试套件..."
+	@mkdir -p coverage reports
+	$(GO) test -v -race -timeout=300s -coverprofile=coverage/coverage.out -covermode=atomic ./...
+	$(GO) tool cover -func=coverage/coverage.out | tail -1 | tee coverage/coverage-summary.txt
+	$(GO) tool cover -html=coverage/coverage.out -o coverage/coverage.html
+	@echo "✅ 测试完成，覆盖率报告: coverage/coverage.html"
 
 test-unit: ## 运行单元测试
-	$(GO) test -v -short ./...
+	@echo "🧪 运行单元测试..."
+	@mkdir -p coverage
+	$(GO) test -v -short -race -timeout=60s -coverprofile=coverage/unit-coverage.out ./cmd/... ./internal/... ./shared/...
+	$(GO) tool cover -func=coverage/unit-coverage.out | tail -1
+	@echo "✅ 单元测试完成"
 
 test-integration: ## 运行集成测试
-	$(GO) test -v -tags=integration ./tests/integration/...
+	@echo "🔗 运行集成测试..."
+	@mkdir -p coverage
+	$(GO) test -v -race -timeout=300s -coverprofile=coverage/integration-coverage.out ./test/integration/...
+	@echo "✅ 集成测试完成"
 
 test-e2e: ## 运行端到端测试
-	$(GO) test -v -tags=e2e ./tests/e2e/...
+	@echo "🎯 运行E2E测试..."
+	@echo "启动测试环境..."
+	@docker-compose -f docker-compose.test.yml up -d --build
+	@sleep 15
+	@echo "运行E2E测试..."
+	@$(GO) test -v -timeout=600s -tags=e2e ./test/e2e/... || (docker-compose -f docker-compose.test.yml down && exit 1)
+	@docker-compose -f docker-compose.test.yml down
+	@echo "✅ E2E测试完成"
 
-benchmark: ## 运行性能测试
-	$(GO) test -v -bench=. -benchmem ./tests/performance/...
+test-performance: ## 运行性能测试
+	@echo "⚡ 运行性能测试..."
+	@mkdir -p reports
+	$(GO) test -v -bench=. -benchmem -benchtime=5s ./tests/performance/... | tee reports/benchmark.txt
+	@echo "✅ 性能测试完成，报告: reports/benchmark.txt"
+
+# 测试覆盖率相关
+coverage: test ## 生成详细覆盖率报告
+	@echo "📊 生成详细覆盖率报告..."
+	@mkdir -p coverage
+	@echo "=== 整体覆盖率 ===" > coverage/coverage-report.txt
+	$(GO) tool cover -func=coverage/coverage.out >> coverage/coverage-report.txt
+	@echo "" >> coverage/coverage-report.txt
+	@echo "=== 按包统计 ===" >> coverage/coverage-report.txt
+	@$(GO) tool cover -func=coverage/coverage.out | grep -E "^total:" >> coverage/coverage-report.txt
+	@cat coverage/coverage-report.txt
+
+coverage-ci: ## CI环境覆盖率检查
+	@echo "🔄 CI覆盖率检查..."
+	@mkdir -p coverage
+	$(GO) test -v -race -coverprofile=coverage/coverage.out -covermode=atomic ./...
+	@COVERAGE=$$($(GO) tool cover -func=coverage/coverage.out | tail -1 | awk '{print $$3}' | tr -d '%'); \
+	echo "当前覆盖率: $$COVERAGE%"; \
+	if [ $$(echo "$$COVERAGE < 60" | bc -l) -eq 1 ]; then \
+		echo "❌ 覆盖率低于60%，需要增加测试"; exit 1; \
+	elif [ $$(echo "$$COVERAGE < 80" | bc -l) -eq 1 ]; then \
+		echo "⚠️  覆盖率 $$COVERAGE% 需要改进"; \
+	else \
+		echo "✅ 覆盖率达标: $$COVERAGE%"; \
+	fi
+
+test-watch: ## 监控模式运行测试
+	@echo "👀 监控模式运行测试..."
+	@while true; do \
+		$(GO) test -v -short ./...; \
+		echo "等待文件变更..."; \
+		sleep 2; \
+	done
 
 # =============================================================================
 # 代码质量
@@ -270,3 +323,31 @@ version: ## 显示版本信息
 	@echo "版本: $(VERSION)"
 	@echo "构建时间: $(BUILD_TIME)"
 	@echo "提交哈希: $(COMMIT_HASH)"
+
+# =============================================================================
+# 密钥管理
+# =============================================================================
+
+secrets-init: ## 初始化密钥管理系统
+	@echo "🔐 初始化密钥管理..."
+	@bash scripts/setup-secrets.sh
+
+secrets-check: ## 检查硬编码密钥
+	@echo "🔍 检查硬编码密钥..."
+	@bash scripts/check-secrets.sh
+
+secrets-cli: ## 构建密钥管理CLI工具
+	@echo "🔨 构建 secrets-cli..."
+	@mkdir -p bin
+	@$(GO) build -o bin/secrets-cli cmd/secrets-cli/main.go
+
+secrets-rotate: secrets-cli ## 轮换所有密钥
+	@echo "🔄 轮换密钥..."
+	@./bin/secrets-cli rotate database_password --force
+	@./bin/secrets-cli rotate jwt_secret --force
+	@echo "✅ 密钥轮换完成"
+
+secrets-export: secrets-cli ## 导出密钥配置
+	@echo "📤 导出密钥配置..."
+	@./bin/secrets-cli export --format=env > .env.generated
+	@echo "✅ 密钥已导出到 .env.generated"

@@ -62,14 +62,14 @@ func main() {
 			status = "✅"
 			successCount++
 		}
-		fmt.Printf("%d. %s %s - %s (%v)\n", 
+		fmt.Printf("%d. %s %s - %s (%v)\n",
 			i+1, status, result.TestName, result.Description, result.Duration)
 		if result.Error != "" {
 			fmt.Printf("   错误: %s\n", result.Error)
 		}
 	}
 
-	fmt.Printf("\n📊 总计: %d/%d 测试通过 (%.1f%%)\n", 
+	fmt.Printf("\n📊 总计: %d/%d 测试通过 (%.1f%%)\n",
 		successCount, len(results), float64(successCount)/float64(len(results))*100)
 
 	if successCount == len(results) {
@@ -82,7 +82,7 @@ func main() {
 
 func testDockerManagerInit(logger *zap.Logger) DockerTestResult {
 	start := time.Now()
-	
+
 	// 测试Docker管理器配置结构
 	config := docker.DefaultManagerConfig()
 	if config == nil {
@@ -96,8 +96,8 @@ func testDockerManagerInit(logger *zap.Logger) DockerTestResult {
 	}
 
 	// 验证配置字段
-	success := config.MaxContainers > 0 && 
-		config.DefaultTimeout > 0 && 
+	success := config.MaxContainers > 0 &&
+		config.DefaultTimeout > 0 &&
 		config.CleanupInterval > 0
 
 	return DockerTestResult{
@@ -111,12 +111,12 @@ func testDockerManagerInit(logger *zap.Logger) DockerTestResult {
 
 func testDockerConfig() DockerTestResult {
 	start := time.Now()
-	
+
 	// 测试配置结构
 	config := &docker.ManagerConfig{
-		MaxContainers:   10,
-		DefaultTimeout:  30 * time.Second,
-		CleanupInterval: 5 * time.Minute,
+		MaxContainers:     10,
+		DefaultTimeout:    30 * time.Second,
+		CleanupInterval:   5 * time.Minute,
 		EnableAutoCleanup: true,
 	}
 
@@ -136,19 +136,19 @@ func testDockerConfig() DockerTestResult {
 
 func testDockerAPICompatibility(logger *zap.Logger) DockerTestResult {
 	start := time.Now()
-	
+
 	// 测试Docker管理器创建（不连接实际Docker）
 	config := docker.DefaultManagerConfig()
-	
+
 	// 这里只测试结构，不实际连接Docker守护进程
 	// 因为测试环境可能没有Docker
 	_, err := docker.NewDockerManager(config, logger)
-	
+
 	// 即使连接失败，只要结构正确就算成功
-	success := err == nil || (err != nil && 
+	success := err == nil || (err != nil &&
 		(containsString(err.Error(), "connect") ||
-		 containsString(err.Error(), "daemon") ||
-		 containsString(err.Error(), "socket")))
+			containsString(err.Error(), "daemon") ||
+			containsString(err.Error(), "socket")))
 
 	return DockerTestResult{
 		TestName:    "Docker API兼容性",
@@ -161,7 +161,7 @@ func testDockerAPICompatibility(logger *zap.Logger) DockerTestResult {
 
 func testContainerStatsStructure() DockerTestResult {
 	start := time.Now()
-	
+
 	// 测试ContainerStats结构
 	stats := &docker.ContainerStats{
 		ContainerID: "test-container",
@@ -192,12 +192,12 @@ func testContainerStatsStructure() DockerTestResult {
 }
 
 func containsString(s, substr string) bool {
-	return len(s) >= len(substr) && 
-		(s == substr || 
-		 (len(s) > len(substr) && 
-		  (s[:len(substr)] == substr || 
-		   s[len(s)-len(substr):] == substr ||
-		   findSubstring(s, substr))))
+	return len(s) >= len(substr) &&
+		(s == substr ||
+			(len(s) > len(substr) &&
+				(s[:len(substr)] == substr ||
+					s[len(s)-len(substr):] == substr ||
+					findSubstring(s, substr))))
 }
 
 func findSubstring(s, substr string) bool {

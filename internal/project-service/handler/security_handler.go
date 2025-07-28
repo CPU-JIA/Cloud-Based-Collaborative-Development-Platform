@@ -34,10 +34,10 @@ func NewSecurityHandler(
 func (h *SecurityHandler) GetSecurityStatus(c *gin.Context) {
 	// 获取黑名单统计
 	blacklistEntries := h.rateLimitMiddleware.GetBlacklist().GetBlacklistEntries()
-	
+
 	// 获取白名单统计
 	whitelistEntries := h.ipFilterMiddleware.GetWhitelist().GetWhitelistEntries()
-	
+
 	// 获取违规统计
 	violationStats := h.rateLimitMiddleware.GetViolationStats()
 
@@ -206,12 +206,12 @@ func (h *SecurityHandler) GetViolationStats(c *gin.Context) {
 	// 转换为数组并限制数量
 	result := make([]gin.H, 0, limit)
 	count := 0
-	
+
 	for ip, violation := range stats {
 		if count >= limit {
 			break
 		}
-		
+
 		result = append(result, gin.H{
 			"ip":         ip,
 			"count":      violation.Count,
@@ -259,7 +259,7 @@ func (h *SecurityHandler) BanIP(c *gin.Context) {
 	}
 
 	// 立即封禁
-	h.rateLimitMiddleware.GetBlacklist().AddToBlacklist(req.IP, 
+	h.rateLimitMiddleware.GetBlacklist().AddToBlacklist(req.IP,
 		"管理员手动封禁: "+req.Reason, duration)
 
 	h.logger.Warn("管理员手动封禁IP",

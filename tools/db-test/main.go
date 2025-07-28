@@ -52,7 +52,7 @@ func main() {
 
 	// 测试GORM连接
 	fmt.Println("\n2. 测试GORM数据库连接...")
-	dbConfig := cfg.Database.ToDBConfig().(database.Config)
+	dbConfig := cfg.Database.ToDBConfig()
 	gormDB, err := database.NewPostgresDB(dbConfig)
 	if err != nil {
 		log.Fatalf("❌ GORM连接失败: %v", err)
@@ -96,7 +96,7 @@ func main() {
 	fmt.Println("\n5. 检查核心数据表...")
 	coreTables := []string{
 		"subscription_plans",
-		"tenants", 
+		"tenants",
 		"users",
 		"projects",
 		"repositories",
@@ -137,7 +137,7 @@ func main() {
 
 	fmt.Println("\n=== 数据库连接测试完成 ===")
 	fmt.Println()
-	
+
 	if extExists && funcExists {
 		fmt.Println("🎉 数据库已就绪，可以启动服务")
 	} else {

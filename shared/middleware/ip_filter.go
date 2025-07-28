@@ -20,11 +20,11 @@ type IPWhitelist struct {
 
 // WhitelistEntry 白名单条目
 type WhitelistEntry struct {
-	IP          string    `json:"ip"`
-	Description string    `json:"description"`
-	AddedAt     time.Time `json:"added_at"`
-	AddedBy     string    `json:"added_by"`
-	IsNetwork   bool      `json:"is_network"`  // 是否为网络段
+	IP          string     `json:"ip"`
+	Description string     `json:"description"`
+	AddedAt     time.Time  `json:"added_at"`
+	AddedBy     string     `json:"added_by"`
+	IsNetwork   bool       `json:"is_network"` // 是否为网络段
 	Network     *net.IPNet `json:"-"`          // 网络段解析结果
 }
 
@@ -80,8 +80,8 @@ func (wl *IPWhitelist) AddToWhitelist(ip, description, addedBy string) error {
 	if strings.Contains(ip, "/") {
 		_, network, err := net.ParseCIDR(ip)
 		if err != nil {
-			wl.logger.Error("解析网络段失败", 
-				zap.String("ip", ip), 
+			wl.logger.Error("解析网络段失败",
+				zap.String("ip", ip),
 				zap.Error(err))
 			return err
 		}
@@ -331,7 +331,7 @@ func NewGeoIPFilter(allowedCountries, blockedCountries []string, logger *zap.Log
 func (gf *GeoIPFilter) IsAllowed(ip string) bool {
 	// 这里需要集成GeoIP数据库（如MaxMind GeoIP2）
 	// 简化实现，实际项目中需要使用真实的GeoIP库
-	
+
 	country := gf.getCountryByIP(ip)
 	if country == "" {
 		return true // 无法确定地理位置时允许访问

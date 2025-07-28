@@ -16,10 +16,10 @@ import (
 
 // simpleProjectService 使用简化事务处理的项目服务
 type simpleProjectService struct {
-	repo                repository.ProjectRepository
-	gitClient           client.GitGatewayClient
-	transactionService  *transaction.SimpleTransactionService
-	logger              *zap.Logger
+	repo               repository.ProjectRepository
+	gitClient          client.GitGatewayClient
+	transactionService *transaction.SimpleTransactionService
+	logger             *zap.Logger
 }
 
 // NewProjectServiceWithSimpleTransaction 创建使用简化事务处理的项目服务
@@ -87,12 +87,12 @@ func (s *simpleProjectService) CreateProject(
 	if req.Description != nil {
 		description = *req.Description
 	}
-	
+
 	txReq := &transaction.CreateProjectRequest{
-		TenantID:       tenantID,
-		UserID:         userID,
-		Name:           req.Name,
-		Description:    description,
+		TenantID:    tenantID,
+		UserID:      userID,
+		Name:        req.Name,
+		Description: description,
 		// TODO: InitRepository和RepositoryName字段在CreateProjectRequest中不存在
 		// InitRepository: req.InitRepository,
 		// RepositoryName: req.RepositoryName,
@@ -473,7 +473,7 @@ func (s *simpleProjectService) UpdateRepository(
 		v := client.RepositoryVisibility(*req.Visibility)
 		visibility = &v
 	}
-	
+
 	gitReq := &client.UpdateRepositoryRequest{
 		Name:        req.Name,
 		Description: req.Description,
@@ -614,10 +614,10 @@ func (s *simpleProjectService) ListBranches(
 	}
 
 	return &BranchListResponse{
-		Branches:   branches,
-		Total:      int64(len(branches)),
-		Page:       page,
-		PageSize:   pageSize,
+		Branches: branches,
+		Total:    int64(len(branches)),
+		Page:     page,
+		PageSize: pageSize,
 	}, nil
 }
 

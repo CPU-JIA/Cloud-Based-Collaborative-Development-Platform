@@ -20,22 +20,22 @@ import (
 type RunnerCommunicationManager interface {
 	// 启动通信管理器
 	Start(ctx context.Context) error
-	
+
 	// 停止通信管理器
 	Stop() error
-	
+
 	// 处理Runner连接
 	HandleRunnerConnection(w http.ResponseWriter, r *http.Request)
-	
+
 	// 向Runner发送作业
 	SendJobToRunner(runnerID uuid.UUID, job *JobMessage) error
-	
+
 	// 取消Runner作业
 	CancelRunnerJob(runnerID uuid.UUID, jobID uuid.UUID) error
-	
+
 	// 获取在线Runner列表
 	GetOnlineRunners() []uuid.UUID
-	
+
 	// 获取Runner状态
 	GetRunnerStatus(runnerID uuid.UUID) (*RunnerConnectionStatus, error)
 }
@@ -74,12 +74,12 @@ type RunnerMessage struct {
 
 // RunnerConnectionStatus Runner连接状态
 type RunnerConnectionStatus struct {
-	RunnerID      uuid.UUID `json:"runner_id"`
-	IsConnected   bool      `json:"is_connected"`
-	ConnectedAt   time.Time `json:"connected_at"`
-	LastPingAt    time.Time `json:"last_ping_at"`
+	RunnerID      uuid.UUID  `json:"runner_id"`
+	IsConnected   bool       `json:"is_connected"`
+	ConnectedAt   time.Time  `json:"connected_at"`
+	LastPingAt    time.Time  `json:"last_ping_at"`
 	CurrentJobID  *uuid.UUID `json:"current_job_id"`
-	WorkerVersion string    `json:"worker_version"`
+	WorkerVersion string     `json:"worker_version"`
 }
 
 // runnerConnection Runner连接
@@ -97,22 +97,22 @@ type runnerConnection struct {
 
 // runnerCommunicationManager Runner通信管理器实现
 type runnerCommunicationManager struct {
-	repo       repository.PipelineRepository
-	engine     engine.PipelineEngine
-	logger     *zap.Logger
-	
+	repo   repository.PipelineRepository
+	engine engine.PipelineEngine
+	logger *zap.Logger
+
 	// WebSocket升级器
 	upgrader websocket.Upgrader
-	
+
 	// 连接管理
 	connections map[uuid.UUID]*runnerConnection
 	connMu      sync.RWMutex
-	
+
 	// 消息队列
-	broadcast   chan []byte
-	register    chan *runnerConnection
-	unregister  chan *runnerConnection
-	
+	broadcast  chan []byte
+	register   chan *runnerConnection
+	unregister chan *runnerConnection
+
 	// 状态管理
 	isRunning bool
 	stopCh    chan struct{}
@@ -147,16 +147,16 @@ func (m *runnerCommunicationManager) Start(ctx context.Context) error {
 	if m.isRunning {
 		return fmt.Errorf("通信管理器已在运行")
 	}
-	
+
 	m.logger.Info("启动Runner通信管理器")
 	m.isRunning = true
-	
+
 	// 启动主消息处理循环
 	go m.messageLoop()
-	
+
 	// 启动心跳检查循环
 	go m.heartbeatLoop()
-	
+
 	m.logger.Info("Runner通信管理器启动成功")
 	return nil
 }
@@ -166,9 +166,9 @@ func (m *runnerCommunicationManager) Stop() error {
 	if !m.isRunning {
 		return fmt.Errorf("通信管理器未运行")
 	}
-	
+
 	m.logger.Info("停止Runner通信管理器")
-	
+
 	// 关闭所有连接
 	m.connMu.Lock()
 	for _, conn := range m.connections {
@@ -176,13 +176,13 @@ func (m *runnerCommunicationManager) Stop() error {
 		conn.conn.Close()
 	}
 	m.connMu.Unlock()
-	
+
 	// 发送停止信号
 	close(m.stopCh)
-	
+
 	// 等待完全停止
 	<-m.doneCh
-	
+
 	m.isRunning = false
 	m.logger.Info("Runner通信管理器已停止")
 	return nil
@@ -196,27 +196,27 @@ func (m *runnerCommunicationManager) HandleRunnerConnection(w http.ResponseWrite
 		http.Error(w, "Missing runner_id parameter", http.StatusBadRequest)
 		return
 	}
-	
+
 	runnerID, err := uuid.Parse(runnerIDStr)
 	if err != nil {
 		http.Error(w, "Invalid runner_id format", http.StatusBadRequest)
 		return
 	}
-	
+
 	// 验证Runner是否存在
 	runner, err := m.repo.GetRunnerByID(r.Context(), runnerID)
 	if err != nil {
 		http.Error(w, "Runner not found", http.StatusNotFound)
 		return
 	}
-	
+
 	// 升级WebSocket连接
 	conn, err := m.upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		m.logger.Error("WebSocket升级失败", zap.Error(err))
 		return
 	}
-	
+
 	// 创建Runner连接
 	runnerConn := &runnerConnection{
 		runnerID:    runnerID,
@@ -227,15 +227,15 @@ func (m *runnerCommunicationManager) HandleRunnerConnection(w http.ResponseWrite
 		connectedAt: time.Now(),
 		lastPingAt:  time.Now(),
 	}
-	
+
 	// 注册连接
 	m.register <- runnerConn
-	
+
 	// 更新Runner状态为在线
 	m.repo.UpdateRunnerStatus(r.Context(), runnerID, models.RunnerStatusOnline)
-	
+
 	runnerConn.logger.Info("Runner连接已建立", zap.String("runner_name", runner.Name))
-	
+
 	// 启动读写协程
 	go runnerConn.writePump()
 	go runnerConn.readPump()
@@ -246,23 +246,23 @@ func (m *runnerCommunicationManager) SendJobToRunner(runnerID uuid.UUID, job *Jo
 	m.connMu.RLock()
 	conn, exists := m.connections[runnerID]
 	m.connMu.RUnlock()
-	
+
 	if !exists {
 		return fmt.Errorf("Runner %s 未连接", runnerID)
 	}
-	
+
 	message := RunnerMessage{
 		Type:      "job_start",
 		Data:      job,
 		Timestamp: time.Now(),
 		MessageID: uuid.New().String(),
 	}
-	
+
 	data, err := json.Marshal(message)
 	if err != nil {
 		return fmt.Errorf("序列化作业消息失败: %w", err)
 	}
-	
+
 	select {
 	case conn.send <- data:
 		conn.mu.Lock()
@@ -279,11 +279,11 @@ func (m *runnerCommunicationManager) CancelRunnerJob(runnerID uuid.UUID, jobID u
 	m.connMu.RLock()
 	conn, exists := m.connections[runnerID]
 	m.connMu.RUnlock()
-	
+
 	if !exists {
 		return fmt.Errorf("Runner %s 未连接", runnerID)
 	}
-	
+
 	message := RunnerMessage{
 		Type: "job_cancel",
 		Data: map[string]interface{}{
@@ -292,12 +292,12 @@ func (m *runnerCommunicationManager) CancelRunnerJob(runnerID uuid.UUID, jobID u
 		Timestamp: time.Now(),
 		MessageID: uuid.New().String(),
 	}
-	
+
 	data, err := json.Marshal(message)
 	if err != nil {
 		return fmt.Errorf("序列化取消消息失败: %w", err)
 	}
-	
+
 	select {
 	case conn.send <- data:
 		return nil
@@ -310,12 +310,12 @@ func (m *runnerCommunicationManager) CancelRunnerJob(runnerID uuid.UUID, jobID u
 func (m *runnerCommunicationManager) GetOnlineRunners() []uuid.UUID {
 	m.connMu.RLock()
 	defer m.connMu.RUnlock()
-	
+
 	runners := make([]uuid.UUID, 0, len(m.connections))
 	for runnerID := range m.connections {
 		runners = append(runners, runnerID)
 	}
-	
+
 	return runners
 }
 
@@ -324,14 +324,14 @@ func (m *runnerCommunicationManager) GetRunnerStatus(runnerID uuid.UUID) (*Runne
 	m.connMu.RLock()
 	conn, exists := m.connections[runnerID]
 	m.connMu.RUnlock()
-	
+
 	if !exists {
 		return &RunnerConnectionStatus{
 			RunnerID:    runnerID,
 			IsConnected: false,
 		}, nil
 	}
-	
+
 	conn.mu.RLock()
 	status := &RunnerConnectionStatus{
 		RunnerID:     runnerID,
@@ -341,7 +341,7 @@ func (m *runnerCommunicationManager) GetRunnerStatus(runnerID uuid.UUID) (*Runne
 		CurrentJobID: conn.currentJob,
 	}
 	conn.mu.RUnlock()
-	
+
 	return status, nil
 }
 
@@ -350,18 +350,18 @@ func (m *runnerCommunicationManager) GetRunnerStatus(runnerID uuid.UUID) (*Runne
 // messageLoop 主消息处理循环
 func (m *runnerCommunicationManager) messageLoop() {
 	defer close(m.doneCh)
-	
+
 	for {
 		select {
 		case <-m.stopCh:
 			return
-			
+
 		case conn := <-m.register:
 			m.connMu.Lock()
 			m.connections[conn.runnerID] = conn
 			m.connMu.Unlock()
 			conn.logger.Info("Runner连接已注册")
-			
+
 		case conn := <-m.unregister:
 			m.connMu.Lock()
 			if _, exists := m.connections[conn.runnerID]; exists {
@@ -369,14 +369,14 @@ func (m *runnerCommunicationManager) messageLoop() {
 				close(conn.send)
 			}
 			m.connMu.Unlock()
-			
+
 			// 更新Runner状态为离线
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			m.repo.UpdateRunnerStatus(ctx, conn.runnerID, models.RunnerStatusOffline)
 			cancel()
-			
+
 			conn.logger.Info("Runner连接已注销")
-			
+
 		case message := <-m.broadcast:
 			// 广播消息到所有连接的Runner
 			m.connMu.RLock()
@@ -398,7 +398,7 @@ func (m *runnerCommunicationManager) messageLoop() {
 func (m *runnerCommunicationManager) heartbeatLoop() {
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
-	
+
 	for {
 		select {
 		case <-m.stopCh:
@@ -413,15 +413,15 @@ func (m *runnerCommunicationManager) heartbeatLoop() {
 func (m *runnerCommunicationManager) checkHeartbeats() {
 	now := time.Now()
 	timeout := 2 * time.Minute
-	
+
 	m.connMu.Lock()
 	defer m.connMu.Unlock()
-	
+
 	for runnerID, conn := range m.connections {
 		conn.mu.RLock()
 		lastPing := conn.lastPingAt
 		conn.mu.RUnlock()
-		
+
 		if now.Sub(lastPing) > timeout {
 			conn.logger.Warn("Runner心跳超时，断开连接")
 			conn.conn.Close()
@@ -439,7 +439,7 @@ func (c *runnerConnection) readPump() {
 		c.manager.unregister <- c
 		c.conn.Close()
 	}()
-	
+
 	// 设置读取超时
 	c.conn.SetReadDeadline(time.Now().Add(60 * time.Second))
 	c.conn.SetPongHandler(func(string) error {
@@ -449,7 +449,7 @@ func (c *runnerConnection) readPump() {
 		c.conn.SetReadDeadline(time.Now().Add(60 * time.Second))
 		return nil
 	})
-	
+
 	for {
 		_, messageData, err := c.conn.ReadMessage()
 		if err != nil {
@@ -458,7 +458,7 @@ func (c *runnerConnection) readPump() {
 			}
 			break
 		}
-		
+
 		// 处理接收到的消息
 		c.handleMessage(messageData)
 	}
@@ -471,7 +471,7 @@ func (c *runnerConnection) writePump() {
 		ticker.Stop()
 		c.conn.Close()
 	}()
-	
+
 	for {
 		select {
 		case message, ok := <-c.send:
@@ -480,12 +480,12 @@ func (c *runnerConnection) writePump() {
 				c.conn.WriteMessage(websocket.CloseMessage, []byte{})
 				return
 			}
-			
+
 			if err := c.conn.WriteMessage(websocket.TextMessage, message); err != nil {
 				c.logger.Error("发送消息失败", zap.Error(err))
 				return
 			}
-			
+
 		case <-ticker.C:
 			c.conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
 			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
@@ -502,9 +502,9 @@ func (c *runnerConnection) handleMessage(data []byte) {
 		c.logger.Error("解析消息失败", zap.Error(err))
 		return
 	}
-	
+
 	c.logger.Debug("收到Runner消息", zap.String("type", message.Type))
-	
+
 	switch message.Type {
 	case "job_result":
 		c.handleJobResult(message.Data)
@@ -526,17 +526,17 @@ func (c *runnerConnection) handleJobResult(data interface{}) {
 		c.logger.Error("序列化作业结果失败", zap.Error(err))
 		return
 	}
-	
+
 	var result JobResult
 	if err := json.Unmarshal(dataBytes, &result); err != nil {
 		c.logger.Error("解析作业结果失败", zap.Error(err))
 		return
 	}
-	
-	c.logger.Info("收到作业结果", 
+
+	c.logger.Info("收到作业结果",
 		zap.String("job_id", result.JobID.String()),
 		zap.String("status", result.Status))
-	
+
 	// 转换为引擎的JobResult格式
 	engineResult := &engine.JobResult{
 		JobID:      result.JobID,
@@ -548,12 +548,12 @@ func (c *runnerConnection) handleJobResult(data interface{}) {
 		FinishedAt: result.FinishedAt,
 		Artifacts:  result.Artifacts,
 	}
-	
+
 	// 通知执行引擎
 	if err := c.manager.engine.HandleJobResult(context.Background(), result.JobID, engineResult); err != nil {
 		c.logger.Error("处理作业结果失败", zap.Error(err))
 	}
-	
+
 	// 清除当前作业
 	c.mu.Lock()
 	c.currentJob = nil
@@ -571,17 +571,17 @@ func (c *runnerConnection) handleHeartbeat() {
 	c.mu.Lock()
 	c.lastPingAt = time.Now()
 	c.mu.Unlock()
-	
+
 	// 更新数据库中的最后联系时间
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	
+
 	now := time.Now()
 	updates := map[string]interface{}{
 		"last_contact_at": now,
 		"status":          models.RunnerStatusOnline,
 	}
-	
+
 	if err := c.manager.repo.UpdateRunner(ctx, c.runnerID, updates); err != nil {
 		c.logger.Error("更新Runner心跳失败", zap.Error(err))
 	}

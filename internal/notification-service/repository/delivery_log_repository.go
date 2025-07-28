@@ -67,10 +67,10 @@ func (dlr *DeliveryLogRepository) GetFailedLogs(ctx context.Context, limit int) 
 // GetDeliveryStats 获取发送统计信息
 func (dlr *DeliveryLogRepository) GetDeliveryStats(ctx context.Context, startDate, endDate time.Time) (*DeliveryStats, error) {
 	var stats DeliveryStats
-	
+
 	// 按渠道统计
 	channelStats := make(map[string]*ChannelStats)
-	
+
 	// 查询统计数据
 	rows, err := dlr.db.WithContext(ctx).
 		Model(&models.DeliveryLog{}).
@@ -81,22 +81,22 @@ func (dlr *DeliveryLogRepository) GetDeliveryStats(ctx context.Context, startDat
 		return nil, err
 	}
 	defer rows.Close()
-	
+
 	for rows.Next() {
 		var channel, status string
 		var count int64
 		var avgDuration float64
-		
+
 		if err := rows.Scan(&channel, &status, &count, &avgDuration); err != nil {
 			return nil, err
 		}
-		
+
 		if _, exists := channelStats[channel]; !exists {
 			channelStats[channel] = &ChannelStats{
 				Channel: channel,
 			}
 		}
-		
+
 		switch status {
 		case models.DeliveryStatusSent:
 			channelStats[channel].Sent = count
@@ -105,11 +105,11 @@ func (dlr *DeliveryLogRepository) GetDeliveryStats(ctx context.Context, startDat
 		case models.DeliveryStatusSending:
 			channelStats[channel].Pending = count
 		}
-		
+
 		channelStats[channel].AvgDuration = avgDuration
 		channelStats[channel].Total = channelStats[channel].Sent + channelStats[channel].Failed + channelStats[channel].Pending
 	}
-	
+
 	// 转换为切片
 	for _, channelStat := range channelStats {
 		stats.ChannelStats = append(stats.ChannelStats, *channelStat)
@@ -117,13 +117,13 @@ func (dlr *DeliveryLogRepository) GetDeliveryStats(ctx context.Context, startDat
 		stats.TotalFailed += channelStat.Failed
 		stats.TotalPending += channelStat.Pending
 	}
-	
+
 	stats.Total = stats.TotalSent + stats.TotalFailed + stats.TotalPending
-	
+
 	if stats.Total > 0 {
 		stats.SuccessRate = float64(stats.TotalSent) / float64(stats.Total) * 100
 	}
-	
+
 	return &stats, nil
 }
 
@@ -148,12 +148,12 @@ func (dlr *DeliveryLogRepository) DeleteOldLogs(ctx context.Context, before time
 
 // DeliveryStats 发送统计信息
 type DeliveryStats struct {
-	Total         int64          `json:"total"`
-	TotalSent     int64          `json:"total_sent"`
-	TotalFailed   int64          `json:"total_failed"`
-	TotalPending  int64          `json:"total_pending"`
-	SuccessRate   float64        `json:"success_rate"`
-	ChannelStats  []ChannelStats `json:"channel_stats"`
+	Total        int64          `json:"total"`
+	TotalSent    int64          `json:"total_sent"`
+	TotalFailed  int64          `json:"total_failed"`
+	TotalPending int64          `json:"total_pending"`
+	SuccessRate  float64        `json:"success_rate"`
+	ChannelStats []ChannelStats `json:"channel_stats"`
 }
 
 // ChannelStats 渠道统计信息

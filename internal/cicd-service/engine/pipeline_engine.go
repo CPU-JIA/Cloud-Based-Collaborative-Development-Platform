@@ -17,67 +17,67 @@ import (
 type PipelineEngine interface {
 	// 执行流水线
 	ExecutePipeline(ctx context.Context, run *models.PipelineRun) error
-	
+
 	// 取消流水线执行
 	CancelPipeline(ctx context.Context, runID uuid.UUID) error
-	
+
 	// 获取执行状态
 	GetExecutionStatus(ctx context.Context, runID uuid.UUID) (*ExecutionStatus, error)
-	
+
 	// 处理作业结果
 	HandleJobResult(ctx context.Context, jobID uuid.UUID, result *JobResult) error
 }
 
 // ExecutionStatus 执行状态
 type ExecutionStatus struct {
-	RunID       uuid.UUID                `json:"run_id"`
-	Status      models.PipelineStatus    `json:"status"`
-	StartedAt   *time.Time               `json:"started_at"`
-	FinishedAt  *time.Time               `json:"finished_at"`
-	Duration    *int64                   `json:"duration"`
-	Jobs        []JobExecutionStatus     `json:"jobs"`
-	Logs        []string                 `json:"logs"`
+	RunID      uuid.UUID             `json:"run_id"`
+	Status     models.PipelineStatus `json:"status"`
+	StartedAt  *time.Time            `json:"started_at"`
+	FinishedAt *time.Time            `json:"finished_at"`
+	Duration   *int64                `json:"duration"`
+	Jobs       []JobExecutionStatus  `json:"jobs"`
+	Logs       []string              `json:"logs"`
 }
 
 // JobExecutionStatus 作业执行状态
 type JobExecutionStatus struct {
-	JobID      uuid.UUID         `json:"job_id"`
-	Name       string            `json:"name"`
-	Status     models.JobStatus  `json:"status"`
-	RunnerID   *uuid.UUID        `json:"runner_id"`
-	StartedAt  *time.Time        `json:"started_at"`
-	FinishedAt *time.Time        `json:"finished_at"`
-	Duration   *int64            `json:"duration"`
-	ExitCode   *int              `json:"exit_code"`
-	Output     string            `json:"output"`
+	JobID      uuid.UUID        `json:"job_id"`
+	Name       string           `json:"name"`
+	Status     models.JobStatus `json:"status"`
+	RunnerID   *uuid.UUID       `json:"runner_id"`
+	StartedAt  *time.Time       `json:"started_at"`
+	FinishedAt *time.Time       `json:"finished_at"`
+	Duration   *int64           `json:"duration"`
+	ExitCode   *int             `json:"exit_code"`
+	Output     string           `json:"output"`
 }
 
 // JobResult 作业执行结果
 type JobResult struct {
-	JobID      uuid.UUID `json:"job_id"`
-	RunnerID   uuid.UUID `json:"runner_id"`
+	JobID      uuid.UUID        `json:"job_id"`
+	RunnerID   uuid.UUID        `json:"runner_id"`
 	Status     models.JobStatus `json:"status"`
-	ExitCode   *int      `json:"exit_code"`
-	Output     string    `json:"output"`
-	StartedAt  time.Time `json:"started_at"`
-	FinishedAt time.Time `json:"finished_at"`
-	Artifacts  []string  `json:"artifacts"`
+	ExitCode   *int             `json:"exit_code"`
+	Output     string           `json:"output"`
+	StartedAt  time.Time        `json:"started_at"`
+	FinishedAt time.Time        `json:"finished_at"`
+	Artifacts  []string         `json:"artifacts"`
 }
 
 // PipelineDefinition 流水线定义
 type PipelineDefinition struct {
-	Name        string                 `yaml:"name"`
-	Description string                 `yaml:"description"`
-	Trigger     TriggerConfig          `yaml:"trigger"`
-	Variables   map[string]string      `yaml:"variables"`
-	Jobs        map[string]JobConfig   `yaml:"jobs"`
+	Name        string               `yaml:"name"`
+	Description string               `yaml:"description"`
+	Trigger     TriggerConfig        `yaml:"trigger"`
+	Variables   map[string]string    `yaml:"variables"`
+	Jobs        map[string]JobConfig `yaml:"jobs"`
 }
 
 // TriggerConfig 触发器配置
 type TriggerConfig struct {
-	Push     *PushTrigger     `yaml:"push"`
-	PullRequest *PRTrigger    `yaml:"pull_request"`
-	Schedule *ScheduleTrigger `yaml:"schedule"`
+	Push        *PushTrigger     `yaml:"push"`
+	PullRequest *PRTrigger       `yaml:"pull_request"`
+	Schedule    *ScheduleTrigger `yaml:"schedule"`
 }
 
 // PushTrigger Push触发器
@@ -100,46 +100,46 @@ type ScheduleTrigger struct {
 
 // JobConfig 作业配置
 type JobConfig struct {
-	Name        string            `yaml:"name"`
-	RunsOn      string            `yaml:"runs-on"`
-	DependsOn   []string          `yaml:"depends-on"`
-	If          string            `yaml:"if"`
-	TimeoutMin  int               `yaml:"timeout-minutes"`
-	Variables   map[string]string `yaml:"variables"`
-	Steps       []StepConfig      `yaml:"steps"`
+	Name       string            `yaml:"name"`
+	RunsOn     string            `yaml:"runs-on"`
+	DependsOn  []string          `yaml:"depends-on"`
+	If         string            `yaml:"if"`
+	TimeoutMin int               `yaml:"timeout-minutes"`
+	Variables  map[string]string `yaml:"variables"`
+	Steps      []StepConfig      `yaml:"steps"`
 }
 
 // StepConfig 步骤配置
 type StepConfig struct {
-	Name        string            `yaml:"name"`
-	Uses        string            `yaml:"uses"`
-	Run         string            `yaml:"run"`
-	With        map[string]string `yaml:"with"`
-	Env         map[string]string `yaml:"env"`
-	If          string            `yaml:"if"`
-	ContinueOnError bool          `yaml:"continue-on-error"`
+	Name            string            `yaml:"name"`
+	Uses            string            `yaml:"uses"`
+	Run             string            `yaml:"run"`
+	With            map[string]string `yaml:"with"`
+	Env             map[string]string `yaml:"env"`
+	If              string            `yaml:"if"`
+	ContinueOnError bool              `yaml:"continue-on-error"`
 }
 
 // pipelineEngine 流水线执行引擎实现
 type pipelineEngine struct {
-	repo     repository.PipelineRepository
-	storage  storage.StorageManager
-	logger   *zap.Logger
-	
+	repo    repository.PipelineRepository
+	storage storage.StorageManager
+	logger  *zap.Logger
+
 	// 执行中的流水线
 	runningPipelines map[uuid.UUID]*pipelineExecution
 }
 
 // pipelineExecution 流水线执行状态
 type pipelineExecution struct {
-	RunID       uuid.UUID
-	Definition  *PipelineDefinition
-	Context     context.Context
-	Cancel      context.CancelFunc
-	Status      models.PipelineStatus
-	StartedAt   time.Time
-	Jobs        map[string]*jobExecution
-	Logger      *zap.Logger
+	RunID      uuid.UUID
+	Definition *PipelineDefinition
+	Context    context.Context
+	Cancel     context.CancelFunc
+	Status     models.PipelineStatus
+	StartedAt  time.Time
+	Jobs       map[string]*jobExecution
+	Logger     *zap.Logger
 }
 
 // jobExecution 作业执行状态
@@ -243,13 +243,13 @@ func (e *pipelineEngine) CancelPipeline(ctx context.Context, runID uuid.UUID) er
 	}
 
 	execution.Logger.Info("取消流水线执行")
-	
+
 	// 取消执行上下文
 	execution.Cancel()
-	
+
 	// 更新状态
 	execution.Status = models.PipelineStatusCancelled
-	
+
 	// 取消所有正在运行的作业
 	for _, job := range execution.Jobs {
 		if job.Status == models.JobStatusRunning || job.Status == models.JobStatusPending {
@@ -294,20 +294,20 @@ func (e *pipelineEngine) GetExecutionStatus(ctx context.Context, runID uuid.UUID
 			ExitCode:   job.ExitCode,
 			Output:     job.Output.String(),
 		}
-		
+
 		if job.StartedAt != nil && job.FinishedAt != nil {
 			duration := job.FinishedAt.Sub(*job.StartedAt)
 			durationSeconds := int64(duration.Seconds())
 			jobStatus.Duration = &durationSeconds
 		}
-		
+
 		status.Jobs = append(status.Jobs, jobStatus)
 	}
 
 	// 计算总持续时间
-	if execution.Status == models.PipelineStatusSuccess || 
-	   execution.Status == models.PipelineStatusFailed || 
-	   execution.Status == models.PipelineStatusCancelled {
+	if execution.Status == models.PipelineStatusSuccess ||
+		execution.Status == models.PipelineStatusFailed ||
+		execution.Status == models.PipelineStatusCancelled {
 		now := time.Now().UTC()
 		duration := now.Sub(execution.StartedAt)
 		durationSeconds := int64(duration.Seconds())
@@ -321,7 +321,7 @@ func (e *pipelineEngine) GetExecutionStatus(ctx context.Context, runID uuid.UUID
 // HandleJobResult 处理作业结果
 func (e *pipelineEngine) HandleJobResult(ctx context.Context, jobID uuid.UUID, result *JobResult) error {
 	logger := e.logger.With(zap.String("job_id", jobID.String()))
-	
+
 	// 更新数据库中的作业状态
 	updates := map[string]interface{}{
 		"status":      result.Status,
@@ -330,7 +330,7 @@ func (e *pipelineEngine) HandleJobResult(ctx context.Context, jobID uuid.UUID, r
 		"started_at":  result.StartedAt,
 		"finished_at": result.FinishedAt,
 	}
-	
+
 	duration := result.FinishedAt.Sub(result.StartedAt)
 	durationSeconds := int64(duration.Seconds())
 	updates["duration"] = durationSeconds
@@ -356,7 +356,7 @@ func (e *pipelineEngine) HandleJobResult(ctx context.Context, jobID uuid.UUID, r
 	// 更新内存中的执行状态
 	e.updateJobExecutionStatus(jobID, result)
 
-	logger.Info("作业结果处理完成", 
+	logger.Info("作业结果处理完成",
 		zap.String("status", string(result.Status)),
 		zap.Int64("duration_seconds", durationSeconds))
 
@@ -425,16 +425,16 @@ func (e *pipelineEngine) executePipelineJobs(execution *pipelineExecution, run *
 // buildJobDependencyGraph 构建作业依赖图
 func (e *pipelineEngine) buildJobDependencyGraph(jobs map[string]JobConfig) (map[string][]string, error) {
 	graph := make(map[string][]string)
-	
+
 	for jobName, job := range jobs {
 		graph[jobName] = job.DependsOn
 	}
-	
+
 	// 检测循环依赖
 	if e.hasCyclicDependency(graph) {
 		return nil, fmt.Errorf("检测到循环依赖")
 	}
-	
+
 	return graph, nil
 }
 
@@ -442,7 +442,7 @@ func (e *pipelineEngine) buildJobDependencyGraph(jobs map[string]JobConfig) (map
 func (e *pipelineEngine) hasCyclicDependency(graph map[string][]string) bool {
 	visited := make(map[string]bool)
 	recStack := make(map[string]bool)
-	
+
 	for node := range graph {
 		if !visited[node] {
 			if e.hasCyclicDependencyUtil(node, graph, visited, recStack) {
@@ -450,7 +450,7 @@ func (e *pipelineEngine) hasCyclicDependency(graph map[string][]string) bool {
 			}
 		}
 	}
-	
+
 	return false
 }
 
@@ -458,7 +458,7 @@ func (e *pipelineEngine) hasCyclicDependency(graph map[string][]string) bool {
 func (e *pipelineEngine) hasCyclicDependencyUtil(node string, graph map[string][]string, visited, recStack map[string]bool) bool {
 	visited[node] = true
 	recStack[node] = true
-	
+
 	for _, neighbor := range graph[node] {
 		if !visited[neighbor] {
 			if e.hasCyclicDependencyUtil(neighbor, graph, visited, recStack) {
@@ -468,7 +468,7 @@ func (e *pipelineEngine) hasCyclicDependencyUtil(node string, graph map[string][
 			return true
 		}
 	}
-	
+
 	recStack[node] = false
 	return false
 }
@@ -477,7 +477,7 @@ func (e *pipelineEngine) hasCyclicDependencyUtil(node string, graph map[string][
 func (e *pipelineEngine) executeJobsByDependency(execution *pipelineExecution, run *models.PipelineRun, jobGraph map[string][]string) error {
 	completed := make(map[string]bool)
 	failed := make(map[string]bool)
-	
+
 	for len(completed)+len(failed) < len(jobGraph) {
 		// 检查是否被取消
 		select {
@@ -485,17 +485,17 @@ func (e *pipelineEngine) executeJobsByDependency(execution *pipelineExecution, r
 			return execution.Context.Err()
 		default:
 		}
-		
+
 		// 找到可以执行的作业（依赖已完成且未执行）
 		readyJobs := e.findReadyJobs(jobGraph, completed, failed)
 		if len(readyJobs) == 0 {
 			// 没有可执行的作业，可能是因为某些作业失败导致依赖无法满足
 			break
 		}
-		
+
 		// 并行执行就绪的作业
 		jobResults := make(chan jobExecutionResult, len(readyJobs))
-		
+
 		for _, jobName := range readyJobs {
 			go func(name string) {
 				err := e.executeJob(execution, run, name)
@@ -505,13 +505,13 @@ func (e *pipelineEngine) executeJobsByDependency(execution *pipelineExecution, r
 				}
 			}(jobName)
 		}
-		
+
 		// 等待作业完成
 		for i := 0; i < len(readyJobs); i++ {
 			result := <-jobResults
 			if result.Error != nil {
-				execution.Logger.Error("作业执行失败", 
-					zap.String("job", result.JobName), 
+				execution.Logger.Error("作业执行失败",
+					zap.String("job", result.JobName),
 					zap.Error(result.Error))
 				failed[result.JobName] = true
 			} else {
@@ -519,13 +519,13 @@ func (e *pipelineEngine) executeJobsByDependency(execution *pipelineExecution, r
 			}
 		}
 	}
-	
+
 	// 检查是否所有作业都成功完成
 	if len(completed) != len(jobGraph) {
-		return fmt.Errorf("流水线执行失败，成功: %d, 失败: %d, 总数: %d", 
+		return fmt.Errorf("流水线执行失败，成功: %d, 失败: %d, 总数: %d",
 			len(completed), len(failed), len(jobGraph))
 	}
-	
+
 	return nil
 }
 
@@ -538,13 +538,13 @@ type jobExecutionResult struct {
 // findReadyJobs 找到准备就绪的作业
 func (e *pipelineEngine) findReadyJobs(jobGraph map[string][]string, completed, failed map[string]bool) []string {
 	var readyJobs []string
-	
+
 	for jobName, dependencies := range jobGraph {
 		// 跳过已完成或失败的作业
 		if completed[jobName] || failed[jobName] {
 			continue
 		}
-		
+
 		// 检查依赖是否都已完成
 		canExecute := true
 		for _, dep := range dependencies {
@@ -553,12 +553,12 @@ func (e *pipelineEngine) findReadyJobs(jobGraph map[string][]string, completed, 
 				break
 			}
 		}
-		
+
 		if canExecute {
 			readyJobs = append(readyJobs, jobName)
 		}
 	}
-	
+
 	return readyJobs
 }
 
@@ -568,7 +568,7 @@ func (e *pipelineEngine) executeJob(execution *pipelineExecution, run *models.Pi
 	logger.Info("开始执行作业")
 
 	jobConfig := execution.Definition.Jobs[jobName]
-	
+
 	// 创建作业记录
 	job := &models.Job{
 		PipelineRunID: run.ID,
@@ -601,7 +601,7 @@ func (e *pipelineEngine) executeJob(execution *pipelineExecution, run *models.Pi
 
 	// 分配给第一个可用的执行器
 	runner := runners[0]
-	
+
 	// 更新作业状态为运行中
 	now := time.Now().UTC()
 	jobExec.Status = models.JobStatusRunning
@@ -665,9 +665,9 @@ func (e *pipelineEngine) updateRunStatus(ctx context.Context, runID uuid.UUID, s
 		"status": status,
 	}
 
-	if status == models.PipelineStatusSuccess || 
-	   status == models.PipelineStatusFailed || 
-	   status == models.PipelineStatusCancelled {
+	if status == models.PipelineStatusSuccess ||
+		status == models.PipelineStatusFailed ||
+		status == models.PipelineStatusCancelled {
 		updates["finished_at"] = time.Now().UTC()
 	}
 
@@ -724,7 +724,7 @@ func (e *pipelineEngine) getHistoricalStatus(ctx context.Context, runID uuid.UUI
 		if job.ErrorMessage != "" {
 			output = job.ErrorMessage
 		}
-		
+
 		status.Jobs[i] = JobExecutionStatus{
 			JobID:      job.ID,
 			Name:       job.Name,
@@ -740,6 +740,7 @@ func (e *pipelineEngine) getHistoricalStatus(ctx context.Context, runID uuid.UUI
 
 	return status, nil
 }
+
 // convertDurationToInt64 将time.Duration转换为int64秒数
 func convertDurationToInt64(d *time.Duration) *int64 {
 	if d == nil {

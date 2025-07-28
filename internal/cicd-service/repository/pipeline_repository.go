@@ -329,9 +329,9 @@ func (r *pipelineRepository) GetAvailableRunners(ctx context.Context, tags []str
 // UpdateRunnerStatus 更新执行器状态
 func (r *pipelineRepository) UpdateRunnerStatus(ctx context.Context, id uuid.UUID, status models.RunnerStatus) error {
 	updates := map[string]interface{}{
-		"status":           status,
-		"last_contact_at":  time.Now().UTC(),
-		"updated_at":       time.Now().UTC(),
+		"status":          status,
+		"last_contact_at": time.Now().UTC(),
+		"updated_at":      time.Now().UTC(),
 	}
 	return r.UpdateRunner(ctx, id, updates)
 }
@@ -364,10 +364,10 @@ func (r *pipelineRepository) ListRunners(ctx context.Context, tenantID uuid.UUID
 // GetPipelineStats 获取流水线统计信息
 func (r *pipelineRepository) GetPipelineStats(ctx context.Context, pipelineID uuid.UUID, days int) (*models.PipelineStats, error) {
 	var stats models.PipelineStats
-	
+
 	// 统计最近N天的数据
 	startDate := time.Now().UTC().AddDate(0, 0, -days)
-	
+
 	// 总运行次数
 	err := r.db.WithContext(ctx).
 		Model(&models.PipelineRun{}).
@@ -417,7 +417,7 @@ func (r *pipelineRepository) GetPipelineStats(ctx context.Context, pipelineID uu
 // GetRunnerStats 获取执行器统计信息
 func (r *pipelineRepository) GetRunnerStats(ctx context.Context, runnerID uuid.UUID) (*models.RunnerStats, error) {
 	var stats models.RunnerStats
-	
+
 	// 执行的作业总数
 	err := r.db.WithContext(ctx).
 		Model(&models.Job{}).

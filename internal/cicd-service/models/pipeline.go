@@ -18,16 +18,15 @@ const (
 	PipelineStatusCancelled PipelineStatus = "cancelled"
 )
 
-
 // TriggerType 触发类型枚举
 type TriggerType string
 
 const (
-	TriggerTypeManual     TriggerType = "manual"
-	TriggerTypePush       TriggerType = "push"
-	TriggerTypePR         TriggerType = "pull_request"
-	TriggerTypeScheduled  TriggerType = "scheduled"
-	TriggerTypeWebhook    TriggerType = "webhook"
+	TriggerTypeManual    TriggerType = "manual"
+	TriggerTypePush      TriggerType = "push"
+	TriggerTypePR        TriggerType = "pull_request"
+	TriggerTypeScheduled TriggerType = "scheduled"
+	TriggerTypeWebhook   TriggerType = "webhook"
 )
 
 // Pipeline 流水线模型
@@ -43,24 +42,24 @@ type Pipeline struct {
 	DeletedAt          *time.Time `json:"deleted_at" gorm:"index"`
 
 	// 关联关系
-	Repository    *Repository    `json:"repository,omitempty" gorm:"foreignKey:RepositoryID"`
-	PipelineRuns  []PipelineRun  `json:"pipeline_runs,omitempty" gorm:"foreignKey:PipelineID"`
+	Repository   *Repository   `json:"repository,omitempty" gorm:"foreignKey:RepositoryID"`
+	PipelineRuns []PipelineRun `json:"pipeline_runs,omitempty" gorm:"foreignKey:PipelineID"`
 }
 
 // PipelineRun 流水线执行记录模型
 type PipelineRun struct {
-	ID          uuid.UUID       `json:"id" gorm:"type:uuid;primary_key;default:uuid_generate_v7()"`
-	PipelineID  uuid.UUID       `json:"pipeline_id" gorm:"type:uuid;not null;index"`
-	TriggerType TriggerType     `json:"trigger_type" gorm:"size:50;not null"`
-	TriggerBy   *uuid.UUID      `json:"trigger_by" gorm:"type:uuid"`
-	CommitSHA   string          `json:"commit_sha" gorm:"size:40;not null"`
-	Branch      *string         `json:"branch" gorm:"size:255"`
-	Status      PipelineStatus  `json:"status" gorm:"size:20;not null;default:'pending'"`
-	StartedAt   *time.Time      `json:"started_at"`
-	FinishedAt  *time.Time      `json:"finished_at"`
-	Duration    *int64          `json:"duration"` // 持续时间（秒）
+	ID          uuid.UUID         `json:"id" gorm:"type:uuid;primary_key;default:uuid_generate_v7()"`
+	PipelineID  uuid.UUID         `json:"pipeline_id" gorm:"type:uuid;not null;index"`
+	TriggerType TriggerType       `json:"trigger_type" gorm:"size:50;not null"`
+	TriggerBy   *uuid.UUID        `json:"trigger_by" gorm:"type:uuid"`
+	CommitSHA   string            `json:"commit_sha" gorm:"size:40;not null"`
+	Branch      *string           `json:"branch" gorm:"size:255"`
+	Status      PipelineStatus    `json:"status" gorm:"size:20;not null;default:'pending'"`
+	StartedAt   *time.Time        `json:"started_at"`
+	FinishedAt  *time.Time        `json:"finished_at"`
+	Duration    *int64            `json:"duration"` // 持续时间（秒）
 	Variables   map[string]string `json:"variables" gorm:"type:jsonb"`
-	CreatedAt   time.Time       `json:"created_at" gorm:"not null;default:now()"`
+	CreatedAt   time.Time         `json:"created_at" gorm:"not null;default:now()"`
 
 	// 关联关系
 	Pipeline    *Pipeline `json:"pipeline,omitempty" gorm:"foreignKey:PipelineID"`
@@ -68,21 +67,20 @@ type PipelineRun struct {
 	Jobs        []Job     `json:"jobs,omitempty" gorm:"foreignKey:PipelineRunID"`
 }
 
-
 // Runner 执行器模型
 type Runner struct {
-	ID             uuid.UUID     `json:"id" gorm:"type:uuid;primary_key;default:uuid_generate_v7()"`
-	TenantID       uuid.UUID     `json:"tenant_id" gorm:"type:uuid;not null;index"`
-	Name           string        `json:"name" gorm:"size:255;not null"`
-	Description    *string       `json:"description" gorm:"type:text"`
-	Tags           []string      `json:"tags" gorm:"type:jsonb"`
-	Status         RunnerStatus  `json:"status" gorm:"size:20;not null;default:'offline'"`
-	Version        string        `json:"version" gorm:"size:50"`
-	OS             string        `json:"os" gorm:"size:50"`
-	Architecture   string        `json:"architecture" gorm:"size:50"`
-	LastContactAt  *time.Time    `json:"last_contact_at"`
-	CreatedAt      time.Time     `json:"created_at" gorm:"not null;default:now()"`
-	UpdatedAt      time.Time     `json:"updated_at" gorm:"not null;default:now()"`
+	ID            uuid.UUID    `json:"id" gorm:"type:uuid;primary_key;default:uuid_generate_v7()"`
+	TenantID      uuid.UUID    `json:"tenant_id" gorm:"type:uuid;not null;index"`
+	Name          string       `json:"name" gorm:"size:255;not null"`
+	Description   *string      `json:"description" gorm:"type:text"`
+	Tags          []string     `json:"tags" gorm:"type:jsonb"`
+	Status        RunnerStatus `json:"status" gorm:"size:20;not null;default:'offline'"`
+	Version       string       `json:"version" gorm:"size:50"`
+	OS            string       `json:"os" gorm:"size:50"`
+	Architecture  string       `json:"architecture" gorm:"size:50"`
+	LastContactAt *time.Time   `json:"last_contact_at"`
+	CreatedAt     time.Time    `json:"created_at" gorm:"not null;default:now()"`
+	UpdatedAt     time.Time    `json:"updated_at" gorm:"not null;default:now()"`
 
 	// 关联关系
 	Jobs []Job `json:"jobs,omitempty" gorm:"foreignKey:RunnerID"`
@@ -187,7 +185,6 @@ func (PipelineRun) TableName() string {
 	return "pipeline_runs"
 }
 
-
 func (Runner) TableName() string {
 	return "runners"
 }
@@ -218,7 +215,6 @@ func (pr *PipelineRun) BeforeCreate(tx *gorm.DB) error {
 	}
 	return nil
 }
-
 
 func (r *Runner) BeforeCreate(tx *gorm.DB) error {
 	if r.ID == uuid.Nil {
@@ -252,9 +248,9 @@ func (pr *PipelineRun) IsRunning() bool {
 
 // IsFinished 检查流水线是否已完成
 func (pr *PipelineRun) IsFinished() bool {
-	return pr.Status == PipelineStatusSuccess || 
-		   pr.Status == PipelineStatusFailed || 
-		   pr.Status == PipelineStatusCancelled
+	return pr.Status == PipelineStatusSuccess ||
+		pr.Status == PipelineStatusFailed ||
+		pr.Status == PipelineStatusCancelled
 }
 
 // CanCancel 检查流水线是否可以取消
@@ -267,12 +263,12 @@ func (pr *PipelineRun) GetDuration() time.Duration {
 	if pr.StartedAt == nil {
 		return 0
 	}
-	
+
 	endTime := time.Now()
 	if pr.FinishedAt != nil {
 		endTime = *pr.FinishedAt
 	}
-	
+
 	return endTime.Sub(*pr.StartedAt)
 }
 
@@ -298,18 +294,18 @@ func (r *Runner) MatchesTags(requiredTags []string) bool {
 	if len(requiredTags) == 0 {
 		return true
 	}
-	
+
 	runnerTagSet := make(map[string]bool)
 	for _, tag := range r.Tags {
 		runnerTagSet[tag] = true
 	}
-	
+
 	for _, requiredTag := range requiredTags {
 		if !runnerTagSet[requiredTag] {
 			return false
 		}
 	}
-	
+
 	return true
 }
 

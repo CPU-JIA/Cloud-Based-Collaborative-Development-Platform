@@ -136,7 +136,7 @@ func TestConfig_ValidationLogic(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := tt.config.Validate()
-			
+
 			if tt.expectError {
 				if err == nil {
 					t.Errorf("期望验证失败，但通过了验证")

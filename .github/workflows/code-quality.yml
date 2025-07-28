@@ -1,0 +1,100 @@
+name: Code Quality
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  sonarcloud:
+    name: SonarCloud Analysis
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
+        
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.23'
+        
+    - name: Install dependencies
+      run: go mod download
+      
+    - name: Run tests with coverage
+      run: |
+        go test -coverprofile=coverage.out -json ./... > test-report.json
+        
+    - name: SonarCloud Scan
+      uses: SonarSource/sonarcloud-github-action@master
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      with:
+        args: >
+          -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }}
+          -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }}
+          -Dsonar.sources=.
+          -Dsonar.exclusions=**/*_test.go,**/vendor/**,**/testdata/**,**/*.pb.go
+          -Dsonar.tests=.
+          -Dsonar.test.inclusions=**/*_test.go
+          -Dsonar.go.coverage.reportPaths=coverage.out
+
+  code-review:
+    name: AI Code Review
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+    - uses: actions/checkout@v4
+      
+    - name: AI Code Review
+      uses: freeedcom/ai-codereviewer@v2.7.0
+      with:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        OPENAI_API_MODEL: "gpt-4"
+        exclude: "**/*.json, **/*.md, **/*.yaml, **/*.yml"
+        
+  dependency-check:
+    name: Dependency Security Check
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Run Nancy (Go vulnerability scanner)
+      run: |
+        go list -json -deps ./... | docker run --rm -i sonatypecorp/nancy:latest sleuth
+        
+    - name: Run Snyk for Go
+      uses: snyk/actions/golang@master
+      env:
+        SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+      with:
+        args: --severity-threshold=high
+        
+    - name: Run Snyk for Node
+      uses: snyk/actions/node@master
+      env:
+        SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+      with:
+        args: --severity-threshold=high
+        command: test
+        working-directory: ./frontend
+
+  license-check:
+    name: License Compliance
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Check Go licenses
+      run: |
+        go install github.com/google/go-licenses@latest
+        go-licenses check ./... --disallowed_types=forbidden,restricted
+        
+    - name: Check Node licenses
+      run: |
+        cd frontend
+        npx license-checker --production --summary --excludePrivatePackages --onlyAllow 'MIT;Apache-2.0;BSD-3-Clause;BSD-2-Clause;ISC;CC0-1.0'

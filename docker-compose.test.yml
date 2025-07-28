@@ -1,0 +1,182 @@
+version: '3.8'
+
+# 测试环境配置 - 轻量级快速启动
+services:
+  # 测试数据库
+  postgres-test:
+    image: postgres:15-alpine
+    container_name: devcollab-postgres-test
+    environment:
+      POSTGRES_DB: devcollab_test
+      POSTGRES_USER: devcollab_test
+      POSTGRES_PASSWORD: test_password_123
+      POSTGRES_INITDB_ARGS: "--auth-host=md5"
+    ports:
+      - "15433:5432"  # 避免与开发环境冲突
+    volumes:
+      - ./database/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U devcollab_test -d devcollab_test"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - test-network
+    tmpfs:
+      - /var/lib/postgresql/data  # 使用内存存储提高测试速度
+
+  # 测试Redis
+  redis-test:
+    image: redis:7-alpine
+    container_name: devcollab-redis-test
+    ports:
+      - "16380:6379"  # 避免与开发环境冲突
+    command: redis-server --maxmemory 128mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+    networks:
+      - test-network
+    tmpfs:
+      - /data  # 使用内存存储
+
+  # 测试Kafka (轻量级配置)
+  kafka-test:
+    image: confluentinc/cp-kafka:latest
+    container_name: devcollab-kafka-test
+    ports:
+      - "9093:9093"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper-test:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: true
+      # 测试环境优化配置
+      KAFKA_LOG_RETENTION_HOURS: 1
+      KAFKA_LOG_RETENTION_BYTES: 104857600  # 100MB
+      KAFKA_LOG_SEGMENT_BYTES: 10485760     # 10MB
+    depends_on:
+      - zookeeper-test
+    networks:
+      - test-network
+    healthcheck:
+      test: ["CMD", "kafka-topics", "--bootstrap-server", "localhost:9093", "--list"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # 测试Zookeeper
+  zookeeper-test:
+    image: confluentinc/cp-zookeeper:latest
+    container_name: devcollab-zookeeper-test
+    ports:
+      - "2182:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+      # 测试环境优化
+      ZOOKEEPER_INIT_LIMIT: 5
+      ZOOKEEPER_SYNC_LIMIT: 2
+    networks:
+      - test-network
+    tmpfs:
+      - /var/lib/zookeeper
+
+  # IAM服务测试实例
+  iam-service-test:
+    build:
+      context: .
+      dockerfile: cmd/iam-service/Dockerfile
+    container_name: devcollab-iam-test
+    ports:
+      - "8081:8081"
+    environment:
+      # 服务配置
+      - SERVER_PORT=8081
+      - GIN_MODE=test
+      # 数据库配置
+      - DATABASE_HOST=postgres-test
+      - DATABASE_PORT=5432
+      - DATABASE_NAME=devcollab_test
+      - DATABASE_USER=devcollab_test
+      - DATABASE_PASSWORD=test_password_123
+      - DATABASE_SSL_MODE=disable
+      # Redis配置
+      - REDIS_HOST=redis-test
+      - REDIS_PORT=6379
+      # 测试配置
+      - JWT_SECRET=test_jwt_secret_key_32_chars_minimum_here_test
+      - LOG_LEVEL=debug
+    depends_on:
+      postgres-test:
+        condition: service_healthy
+      redis-test:
+        condition: service_healthy
+    networks:
+      - test-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/api/v1/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # 项目服务测试实例
+  project-service-test:
+    build:
+      context: .
+      dockerfile: cmd/project-service/Dockerfile
+    container_name: devcollab-project-test
+    ports:
+      - "8082:8082"
+    environment:
+      # 服务配置
+      - SERVER_PORT=8082
+      - GIN_MODE=test
+      # 数据库配置
+      - DATABASE_HOST=postgres-test
+      - DATABASE_PORT=5432
+      - DATABASE_NAME=devcollab_test
+      - DATABASE_USER=devcollab_test
+      - DATABASE_PASSWORD=test_password_123
+      - DATABASE_SSL_MODE=disable
+      # Redis配置
+      - REDIS_HOST=redis-test
+      - REDIS_PORT=6379
+      # Kafka配置
+      - KAFKA_BROKERS=kafka-test:9093
+      # 测试配置
+      - JWT_SECRET=test_jwt_secret_key_32_chars_minimum_here_test
+      - LOG_LEVEL=debug
+    depends_on:
+      postgres-test:
+        condition: service_healthy
+      redis-test:
+        condition: service_healthy
+      kafka-test:
+        condition: service_healthy
+    networks:
+      - test-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8082/api/v1/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+networks:
+  test-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+# 测试环境说明:
+# 1. 使用内存存储(tmpfs)提高测试速度
+# 2. 端口避免与开发环境冲突
+# 3. 轻量级配置减少资源消耗
+# 4. 健康检查确保服务就绪
+# 5. 独立网络避免干扰

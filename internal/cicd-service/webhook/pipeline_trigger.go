@@ -40,7 +40,7 @@ func NewPipelineTrigger(repo repository.PipelineRepository, scheduler scheduler.
 
 // TriggerPipelineFromWebhook 从Webhook事件触发流水线
 func (pt *PipelineTrigger) TriggerPipelineFromWebhook(ctx context.Context, repositoryID, pipelineID uuid.UUID, variables map[string]interface{}) error {
-	pt.logger.Info("从Webhook触发流水线", 
+	pt.logger.Info("从Webhook触发流水线",
 		zap.String("repository_id", repositoryID.String()),
 		zap.String("pipeline_id", pipelineID.String()))
 
@@ -74,7 +74,7 @@ func (pt *PipelineTrigger) TriggerPipelineFromWebhook(ctx context.Context, repos
 		return fmt.Errorf("提交作业到调度器失败: %w", err)
 	}
 
-	pt.logger.Info("流水线触发成功", 
+	pt.logger.Info("流水线触发成功",
 		zap.String("pipeline_run_id", run.ID.String()),
 		zap.Int("job_count", len(jobs)))
 
@@ -85,7 +85,7 @@ func (pt *PipelineTrigger) TriggerPipelineFromWebhook(ctx context.Context, repos
 func (pt *PipelineTrigger) createPipelineRun(ctx context.Context, pipeline *models.Pipeline, repositoryID uuid.UUID, variables map[string]interface{}) (*models.PipelineRun, error) {
 	// 构建运行变量
 	runVariables := make(map[string]interface{})
-	
+
 	// 添加系统变量
 	runVariables["PIPELINE_ID"] = pipeline.ID.String()
 	runVariables["PIPELINE_NAME"] = pipeline.Name
@@ -116,11 +116,11 @@ func (pt *PipelineTrigger) createPipelineRun(ctx context.Context, pipeline *mode
 
 	// 创建运行记录
 	run := &models.PipelineRun{
-		PipelineID:   pipeline.ID,
-		Status:       models.PipelineStatusPending,
-		Variables:    stringVariables,
-		TriggerType:  models.TriggerTypeWebhook,
-		CreatedAt:    time.Now().UTC(),
+		PipelineID:  pipeline.ID,
+		Status:      models.PipelineStatusPending,
+		Variables:   stringVariables,
+		TriggerType: models.TriggerTypeWebhook,
+		CreatedAt:   time.Now().UTC(),
 	}
 
 	// 保存到数据库
@@ -137,21 +137,21 @@ func (pt *PipelineTrigger) createJobsFromPipeline(pipeline *models.Pipeline, run
 
 	// 创建默认的构建作业
 	buildJob := &scheduler.ScheduleJob{
-		JobID:         uuid.New(),
-		PipelineRunID: run.ID,
-		Name:          fmt.Sprintf("%s-build", pipeline.Name),
-		Stage:         "build",
-		Priority:      5, // 普通优先级
-		RequiredTags:  []string{},
-		CreatedAt:     time.Now(),
-		Config:        make(map[string]interface{}),
-		Dependencies:  []uuid.UUID{},
-		MaxRetries:    3,
-		RetryCount:    0,
+		JobID:             uuid.New(),
+		PipelineRunID:     run.ID,
+		Name:              fmt.Sprintf("%s-build", pipeline.Name),
+		Stage:             "build",
+		Priority:          5, // 普通优先级
+		RequiredTags:      []string{},
+		CreatedAt:         time.Now(),
+		Config:            make(map[string]interface{}),
+		Dependencies:      []uuid.UUID{},
+		MaxRetries:        3,
+		RetryCount:        0,
 		EstimatedDuration: 300 * time.Second, // 5分钟默认估计
-		ResourceRequests:  &scheduler.ResourceRequests{
+		ResourceRequests: &scheduler.ResourceRequests{
 			CPU:    1.0,
-			Memory: 512 * 1024 * 1024, // 512MB
+			Memory: 512 * 1024 * 1024,  // 512MB
 			Disk:   1024 * 1024 * 1024, // 1GB
 		},
 	}
@@ -160,22 +160,22 @@ func (pt *PipelineTrigger) createJobsFromPipeline(pipeline *models.Pipeline, run
 
 	// 创建测试作业
 	testJob := &scheduler.ScheduleJob{
-		JobID:         uuid.New(),
-		PipelineRunID: run.ID,
-		Name:          fmt.Sprintf("%s-test", pipeline.Name),
-		Stage:         "test",
-		Priority:      5,
-		RequiredTags:  []string{},
-		CreatedAt:     time.Now(),
-		Config:        make(map[string]interface{}),
-		Dependencies:  []uuid.UUID{buildJob.JobID}, // 依赖构建作业
-		MaxRetries:    2,
-		RetryCount:    0,
+		JobID:             uuid.New(),
+		PipelineRunID:     run.ID,
+		Name:              fmt.Sprintf("%s-test", pipeline.Name),
+		Stage:             "test",
+		Priority:          5,
+		RequiredTags:      []string{},
+		CreatedAt:         time.Now(),
+		Config:            make(map[string]interface{}),
+		Dependencies:      []uuid.UUID{buildJob.JobID}, // 依赖构建作业
+		MaxRetries:        2,
+		RetryCount:        0,
 		EstimatedDuration: 600 * time.Second, // 10分钟默认估计
-		ResourceRequests:  &scheduler.ResourceRequests{
+		ResourceRequests: &scheduler.ResourceRequests{
 			CPU:    1.0,
 			Memory: 1024 * 1024 * 1024, // 1GB
-			Disk:   1024 * 1024 * 1024,   // 1GB
+			Disk:   1024 * 1024 * 1024, // 1GB
 		},
 	}
 
@@ -216,14 +216,14 @@ func (pt *PipelineTrigger) parsePipelineConfig(config map[string]interface{}) (*
 				}
 
 				job := JobConfig{
-					Name:        getString(jobMap, "name", "unknown"),
-					Image:       getString(jobMap, "image", ""),
-					Commands:    getStringArray(jobMap, "commands"),
-					Environment: getStringMap(jobMap, "environment"),
-					Timeout:     getInt(jobMap, "timeout", int(pt.config.DefaultTimeout.Seconds())),
-					Resources:   getMap(jobMap, "resources"),
+					Name:         getString(jobMap, "name", "unknown"),
+					Image:        getString(jobMap, "image", ""),
+					Commands:     getStringArray(jobMap, "commands"),
+					Environment:  getStringMap(jobMap, "environment"),
+					Timeout:      getInt(jobMap, "timeout", int(pt.config.DefaultTimeout.Seconds())),
+					Resources:    getMap(jobMap, "resources"),
 					Dependencies: getStringArray(jobMap, "dependencies"),
-					Conditions:  getMap(jobMap, "conditions"),
+					Conditions:   getMap(jobMap, "conditions"),
 				}
 
 				stage.Jobs = append(stage.Jobs, job)
@@ -317,7 +317,7 @@ func (pt *PipelineTrigger) mergeJobConfig(job JobConfig, variables map[string]in
 	if config["environment"] == nil {
 		config["environment"] = make(map[string]string)
 	}
-	
+
 	env := config["environment"].(map[string]string)
 	for k, v := range variables {
 		if str, ok := v.(string); ok {
@@ -372,9 +372,9 @@ func (pt *PipelineTrigger) estimateJobDuration(job JobConfig) time.Duration {
 // parseResourceRequests 解析资源需求
 func (pt *PipelineTrigger) parseResourceRequests(job JobConfig) *scheduler.ResourceRequests {
 	requests := &scheduler.ResourceRequests{
-		CPU:    1.0,                    // 默认1核
-		Memory: 512 * 1024 * 1024,      // 默认512MB
-		Disk:   1024 * 1024 * 1024,     // 默认1GB
+		CPU:    1.0,                // 默认1核
+		Memory: 512 * 1024 * 1024,  // 默认512MB
+		Disk:   1024 * 1024 * 1024, // 默认1GB
 	}
 
 	if resources, ok := job.Resources["requests"].(map[string]interface{}); ok {
@@ -404,7 +404,7 @@ func (pt *PipelineTrigger) updateRunStatus(ctx context.Context, runID uuid.UUID,
 	}
 
 	if err := pt.repo.UpdatePipelineRun(ctx, runID, updates); err != nil {
-		pt.logger.Error("更新流水线运行状态失败", 
+		pt.logger.Error("更新流水线运行状态失败",
 			zap.String("run_id", runID.String()),
 			zap.Error(err))
 	}

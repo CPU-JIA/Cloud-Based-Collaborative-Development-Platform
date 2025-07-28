@@ -1,0 +1,186 @@
+name: Dependency Updates
+
+on:
+  schedule:
+    - cron: '0 0 * * 1'  # Weekly on Monday
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update-go-dependencies:
+    name: Update Go Dependencies
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.23'
+        
+    - name: Update Go modules
+      run: |
+        go get -u ./...
+        go mod tidy
+        
+    - name: Run tests
+      run: go test ./...
+      
+    - name: Create Pull Request
+      uses: peter-evans/create-pull-request@v5
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        commit-message: 'chore(deps): update Go dependencies'
+        title: 'chore(deps): update Go dependencies'
+        body: |
+          ## Description
+          This PR updates Go dependencies to their latest versions.
+          
+          ## Changes
+          - Updated Go modules
+          - Ran `go mod tidy`
+          
+          ## Testing
+          - [x] All tests pass
+          - [x] No breaking changes detected
+          
+          ## Security
+          Run security scans after merging this PR.
+        branch: update-go-dependencies
+        delete-branch: true
+        
+  update-node-dependencies:
+    name: Update Node Dependencies
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        
+    - name: Update npm dependencies
+      run: |
+        cd frontend
+        npx npm-check-updates -u
+        npm install
+        npm audit fix
+        
+    - name: Run tests
+      run: |
+        cd frontend
+        npm test -- --run
+        
+    - name: Create Pull Request
+      uses: peter-evans/create-pull-request@v5
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        commit-message: 'chore(deps): update Node dependencies'
+        title: 'chore(deps): update Node dependencies'
+        body: |
+          ## Description
+          This PR updates Node.js dependencies to their latest versions.
+          
+          ## Changes
+          - Updated npm packages
+          - Fixed audit vulnerabilities
+          
+          ## Testing
+          - [x] All tests pass
+          - [x] Frontend builds successfully
+          
+          ## Security
+          npm audit has been run and vulnerabilities fixed.
+        branch: update-node-dependencies
+        delete-branch: true
+        
+  update-docker-images:
+    name: Update Docker Base Images
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Update Dockerfile base images
+      run: |
+        # Update Go base image
+        find . -name Dockerfile -exec sed -i 's/FROM golang:[0-9.]\+/FROM golang:1.23/g' {} \;
+        
+        # Update Alpine base image
+        find . -name Dockerfile -exec sed -i 's/FROM alpine:[0-9.]\+/FROM alpine:3.19/g' {} \;
+        
+        # Update Node base image
+        find . -name Dockerfile -exec sed -i 's/FROM node:[0-9.]\+/FROM node:20/g' {} \;
+        
+    - name: Test Docker builds
+      run: |
+        for service in iam-service project-service file-service git-gateway-service; do
+          docker build -t test-$service -f ./cmd/$service/Dockerfile . || exit 1
+        done
+        
+    - name: Create Pull Request
+      uses: peter-evans/create-pull-request@v5
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        commit-message: 'chore(deps): update Docker base images'
+        title: 'chore(deps): update Docker base images'
+        body: |
+          ## Description
+          This PR updates Docker base images to their latest versions.
+          
+          ## Changes
+          - Updated Go base image to 1.23
+          - Updated Alpine base image to 3.19
+          - Updated Node base image to 20
+          
+          ## Testing
+          - [x] All Docker images build successfully
+          
+          ## Security
+          Using latest base images with security patches.
+        branch: update-docker-images
+        delete-branch: true
+        
+  security-updates:
+    name: Security Updates
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Run Dependabot security updates
+      uses: github/dependabot-action@v1
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Check for security advisories
+      run: |
+        # Check Go vulnerabilities
+        go install golang.org/x/vuln/cmd/govulncheck@latest
+        govulncheck ./...
+        
+        # Check npm vulnerabilities
+        cd frontend && npm audit
+        
+    - name: Create security report
+      run: |
+        echo "# Security Update Report" > security-updates.md
+        echo "Generated on: $(date)" >> security-updates.md
+        echo "" >> security-updates.md
+        echo "## Go Vulnerabilities" >> security-updates.md
+        govulncheck ./... >> security-updates.md 2>&1 || true
+        echo "" >> security-updates.md
+        echo "## NPM Vulnerabilities" >> security-updates.md
+        cd frontend && npm audit >> ../security-updates.md 2>&1 || true
+        
+    - name: Upload security report
+      uses: actions/upload-artifact@v3
+      with:
+        name: security-update-report
+        path: security-updates.md

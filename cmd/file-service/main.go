@@ -22,28 +22,28 @@ import (
 
 // 简化的数据模型（用于文件服务）
 type File struct {
-	ID           int       `json:"id" gorm:"primary_key"`
-	TenantID     string    `json:"tenant_id"`
-	ProjectID    int       `json:"project_id"`
-	Name         string    `json:"name"`
-	OriginalName string    `json:"original_name"`
-	Path         string    `json:"path"`
-	Size         int64     `json:"size"`
-	MimeType     string    `json:"mime_type"`
-	Extension    string    `json:"extension"`
-	Hash         string    `json:"hash"`
-	FolderID     *int      `json:"folder_id"`
-	Tags         []string  `json:"tags" gorm:"type:json"`
-	Description  string    `json:"description"`
-	Version      int       `json:"version" gorm:"default:1"`
-	IsLatest     bool      `json:"is_latest" gorm:"default:true"`
-	IsPublic     bool      `json:"is_public" gorm:"default:false"`
-	ShareToken   string    `json:"share_token"`
-	Status       string    `json:"status" gorm:"default:'active'"`
-	UploadedBy   int       `json:"uploaded_by"`
-	DownloadCount int      `json:"download_count" gorm:"default:0"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
+	ID            int       `json:"id" gorm:"primary_key"`
+	TenantID      string    `json:"tenant_id"`
+	ProjectID     int       `json:"project_id"`
+	Name          string    `json:"name"`
+	OriginalName  string    `json:"original_name"`
+	Path          string    `json:"path"`
+	Size          int64     `json:"size"`
+	MimeType      string    `json:"mime_type"`
+	Extension     string    `json:"extension"`
+	Hash          string    `json:"hash"`
+	FolderID      *int      `json:"folder_id"`
+	Tags          []string  `json:"tags" gorm:"type:json"`
+	Description   string    `json:"description"`
+	Version       int       `json:"version" gorm:"default:1"`
+	IsLatest      bool      `json:"is_latest" gorm:"default:true"`
+	IsPublic      bool      `json:"is_public" gorm:"default:false"`
+	ShareToken    string    `json:"share_token"`
+	Status        string    `json:"status" gorm:"default:'active'"`
+	UploadedBy    int       `json:"uploaded_by"`
+	DownloadCount int       `json:"download_count" gorm:"default:0"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
 }
 
 type Folder struct {
@@ -90,11 +90,11 @@ type CreateFolderRequest struct {
 
 type FileResponse struct {
 	File
-	FileType     string `json:"file_type"`
+	FileType      string `json:"file_type"`
 	FormattedSize string `json:"formatted_size"`
-	CanPreview   bool   `json:"can_preview"`
-	PreviewURL   string `json:"preview_url,omitempty"`
-	DownloadURL  string `json:"download_url"`
+	CanPreview    bool   `json:"can_preview"`
+	PreviewURL    string `json:"preview_url,omitempty"`
+	DownloadURL   string `json:"download_url"`
 }
 
 var db *gorm.DB
@@ -103,15 +103,15 @@ var uploadDir = "./uploads"
 func main() {
 	// 初始化数据库
 	initDB()
-	
+
 	// 创建上传目录
 	if err := os.MkdirAll(uploadDir, 0755); err != nil {
 		log.Fatal("无法创建上传目录:", err)
 	}
-	
+
 	// 初始化Gin路由
 	r := gin.Default()
-	
+
 	// CORS配置
 	r.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"http://localhost:3000", "http://localhost:3001", "http://localhost:3002"},
@@ -121,16 +121,16 @@ func main() {
 		AllowCredentials: true,
 		MaxAge:           12 * time.Hour,
 	}))
-	
+
 	// 设置静态文件服务
 	r.Static("/uploads", uploadDir)
-	
+
 	// API路由组
 	api := r.Group("/api/v1")
 	{
 		// 健康检查
 		api.GET("/health", healthCheck)
-		
+
 		// 文件管理
 		files := api.Group("/files")
 		{
@@ -144,7 +144,7 @@ func main() {
 			files.POST("/:id/share", shareFile)
 			files.GET("/share/:token", getSharedFile)
 		}
-		
+
 		// 文件夹管理
 		folders := api.Group("/folders")
 		{
@@ -154,17 +154,17 @@ func main() {
 			folders.PUT("/:id", updateFolder)
 			folders.DELETE("/:id", deleteFolder)
 		}
-		
+
 		// 文件活动
 		api.GET("/files/:id/activities", getFileActivities)
 		api.GET("/projects/:projectId/activities", getProjectFileActivities)
 	}
-	
+
 	log.Println("🚀 文件管理服务启动成功！")
 	log.Println("📁 文件上传目录:", uploadDir)
 	log.Println("🌐 服务地址: http://localhost:8085")
 	log.Println("🔍 健康检查: http://localhost:8085/api/v1/health")
-	
+
 	r.Run(":8085")
 }
 
@@ -175,18 +175,18 @@ func initDB() {
 	if err != nil {
 		log.Fatal("数据库连接失败:", err)
 	}
-	
+
 	// 自动迁移
 	db.AutoMigrate(&File{}, &Folder{}, &FileActivity{})
 }
 
 func healthCheck(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"service": "文件管理服务",
-		"version": "1.0.0",
-		"status":  "healthy",
-		"uptime":  time.Since(time.Now().Add(-time.Hour)).String(),
+		"success":    true,
+		"service":    "文件管理服务",
+		"version":    "1.0.0",
+		"status":     "healthy",
+		"uptime":     time.Since(time.Now().Add(-time.Hour)).String(),
 		"upload_dir": uploadDir,
 	})
 }
@@ -197,46 +197,46 @@ func uploadFiles(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "参数错误: " + err.Error()})
 		return
 	}
-	
+
 	// 获取上传的文件
 	form, err := c.MultipartForm()
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "获取文件失败: " + err.Error()})
 		return
 	}
-	
+
 	files := form.File["files"]
 	if len(files) == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "未选择文件"})
 		return
 	}
-	
+
 	var uploadedFiles []FileResponse
 	tenantID := c.GetHeader("X-Tenant-ID")
 	if tenantID == "" {
 		tenantID = "default"
 	}
-	
+
 	// 创建项目上传目录
 	projectUploadDir := filepath.Join(uploadDir, tenantID, fmt.Sprintf("project_%d", req.ProjectID))
 	if err := os.MkdirAll(projectUploadDir, 0755); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建目录失败"})
 		return
 	}
-	
+
 	for _, fileHeader := range files {
 		file, err := processFileUpload(fileHeader, req, tenantID, projectUploadDir)
 		if err != nil {
 			log.Printf("文件上传失败 %s: %v", fileHeader.Filename, err)
 			continue
 		}
-		
+
 		uploadedFiles = append(uploadedFiles, *file)
-		
+
 		// 记录活动
 		logFileActivity(file.ID, 1, "upload", fmt.Sprintf("上传文件: %s", file.OriginalName), c.ClientIP(), c.GetHeader("User-Agent"), tenantID)
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"files":   uploadedFiles,
@@ -251,33 +251,33 @@ func processFileUpload(fileHeader *multipart.FileHeader, req UploadRequest, tena
 		return nil, err
 	}
 	defer src.Close()
-	
+
 	// 计算文件哈希
 	hash := md5.New()
 	if _, err := io.Copy(hash, src); err != nil {
 		return nil, err
 	}
 	fileHash := fmt.Sprintf("%x", hash.Sum(nil))
-	
+
 	// 重新定位到文件开头
 	src.Seek(0, 0)
-	
+
 	// 生成唯一文件名
 	ext := filepath.Ext(fileHeader.Filename)
 	fileName := fmt.Sprintf("%s_%s%s", uuid.New().String(), strconv.FormatInt(time.Now().Unix(), 10), ext)
 	filePath := filepath.Join(uploadDir, fileName)
-	
+
 	// 保存文件
 	dst, err := os.Create(filePath)
 	if err != nil {
 		return nil, err
 	}
 	defer dst.Close()
-	
+
 	if _, err := io.Copy(dst, src); err != nil {
 		return nil, err
 	}
-	
+
 	// 解析标签
 	var tags []string
 	if req.Tags != "" {
@@ -286,7 +286,7 @@ func processFileUpload(fileHeader *multipart.FileHeader, req UploadRequest, tena
 			tags[i] = strings.TrimSpace(tag)
 		}
 	}
-	
+
 	// 保存到数据库
 	file := File{
 		TenantID:     tenantID,
@@ -305,12 +305,12 @@ func processFileUpload(fileHeader *multipart.FileHeader, req UploadRequest, tena
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),
 	}
-	
+
 	if err := db.Create(&file).Error; err != nil {
 		os.Remove(filePath) // 清理文件
 		return nil, err
 	}
-	
+
 	return buildFileResponse(&file), nil
 }
 
@@ -320,15 +320,15 @@ func listFiles(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "项目ID无效"})
 		return
 	}
-	
+
 	tenantID := c.GetHeader("X-Tenant-ID")
 	if tenantID == "" {
 		tenantID = "default"
 	}
-	
+
 	var files []File
 	query := db.Where("tenant_id = ? AND project_id = ? AND status = ?", tenantID, projectID, "active")
-	
+
 	// 文件夹过滤
 	if folderID := c.Query("folder_id"); folderID != "" {
 		if folderID == "null" || folderID == "0" {
@@ -337,12 +337,12 @@ func listFiles(c *gin.Context) {
 			query = query.Where("folder_id = ?", folderID)
 		}
 	}
-	
+
 	// 搜索过滤
 	if search := c.Query("search"); search != "" {
 		query = query.Where("original_name ILIKE ?", "%"+search+"%")
 	}
-	
+
 	// 文件类型过滤
 	if fileType := c.Query("type"); fileType != "" {
 		switch fileType {
@@ -354,34 +354,34 @@ func listFiles(c *gin.Context) {
 			query = query.Where("extension IN (?)", []string{".go", ".js", ".ts", ".py", ".java"})
 		}
 	}
-	
+
 	// 排序
 	order := c.DefaultQuery("order", "created_at DESC")
 	query = query.Order(order)
-	
+
 	// 分页
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
 	offset := (page - 1) * pageSize
-	
+
 	var total int64
 	query.Count(&total)
-	
+
 	if err := query.Offset(offset).Limit(pageSize).Find(&files).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "查询文件失败"})
 		return
 	}
-	
+
 	var fileResponses []FileResponse
 	for _, file := range files {
 		fileResponses = append(fileResponses, *buildFileResponse(&file))
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"files":   fileResponses,
-		"total":   total,
-		"page":    page,
+		"success":   true,
+		"files":     fileResponses,
+		"total":     total,
+		"page":      page,
 		"page_size": pageSize,
 	})
 }
@@ -392,24 +392,24 @@ func downloadFile(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "文件ID无效"})
 		return
 	}
-	
+
 	tenantID := c.GetHeader("X-Tenant-ID")
 	if tenantID == "" {
 		tenantID = "default"
 	}
-	
+
 	var file File
 	if err := db.Where("id = ? AND tenant_id = ? AND status = ?", fileID, tenantID, "active").First(&file).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "文件不存在"})
 		return
 	}
-	
+
 	// 更新下载计数
 	db.Model(&file).Update("download_count", file.DownloadCount+1)
-	
+
 	// 记录活动
 	logFileActivity(file.ID, 1, "download", fmt.Sprintf("下载文件: %s", file.OriginalName), c.ClientIP(), c.GetHeader("User-Agent"), tenantID)
-	
+
 	// 设置响应头
 	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", file.OriginalName))
 	c.Header("Content-Type", file.MimeType)
@@ -422,24 +422,24 @@ func previewFile(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "文件ID无效"})
 		return
 	}
-	
+
 	tenantID := c.GetHeader("X-Tenant-ID")
 	if tenantID == "" {
 		tenantID = "default"
 	}
-	
+
 	var file File
 	if err := db.Where("id = ? AND tenant_id = ? AND status = ?", fileID, tenantID, "active").First(&file).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "文件不存在"})
 		return
 	}
-	
+
 	// 检查是否可预览
 	if !canPreview(&file) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "该文件类型不支持预览"})
 		return
 	}
-	
+
 	// 设置适当的Content-Type
 	c.Header("Content-Type", file.MimeType)
 	c.File(file.Path)
@@ -451,12 +451,12 @@ func createFolder(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "参数错误: " + err.Error()})
 		return
 	}
-	
+
 	tenantID := c.GetHeader("X-Tenant-ID")
 	if tenantID == "" {
 		tenantID = "default"
 	}
-	
+
 	// 构建路径
 	path := req.Name
 	level := 0
@@ -469,7 +469,7 @@ func createFolder(c *gin.Context) {
 		path = parent.Path + "/" + req.Name
 		level = parent.Level + 1
 	}
-	
+
 	folder := Folder{
 		TenantID:    tenantID,
 		ProjectID:   req.ProjectID,
@@ -482,12 +482,12 @@ func createFolder(c *gin.Context) {
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
 	}
-	
+
 	if err := db.Create(&folder).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建文件夹失败"})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"folder":  folder,
@@ -500,15 +500,15 @@ func listFolders(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "项目ID无效"})
 		return
 	}
-	
+
 	tenantID := c.GetHeader("X-Tenant-ID")
 	if tenantID == "" {
 		tenantID = "default"
 	}
-	
+
 	var folders []Folder
 	query := db.Where("tenant_id = ? AND project_id = ?", tenantID, projectID)
-	
+
 	// 父文件夹过滤
 	if parentID := c.Query("parent_id"); parentID != "" {
 		if parentID == "null" || parentID == "0" {
@@ -517,12 +517,12 @@ func listFolders(c *gin.Context) {
 			query = query.Where("parent_id = ?", parentID)
 		}
 	}
-	
+
 	if err := query.Order("name ASC").Find(&folders).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "查询文件夹失败"})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"folders": folders,
@@ -538,11 +538,11 @@ func buildFileResponse(file *File) *FileResponse {
 		CanPreview:    canPreview(file),
 		DownloadURL:   fmt.Sprintf("/api/v1/files/%d/download", file.ID),
 	}
-	
+
 	if response.CanPreview {
 		response.PreviewURL = fmt.Sprintf("/api/v1/files/%d/preview", file.ID)
 	}
-	
+
 	return response
 }
 

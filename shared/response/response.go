@@ -52,7 +52,7 @@ func InternalError(c *gin.Context, logger *zap.Logger, message string, err error
 	if logger != nil {
 		logger.Error("内部错误", zap.Error(err))
 	}
-	
+
 	Error(c, http.StatusInternalServerError, message, nil)
 }
 

@@ -17,10 +17,10 @@ import (
 type TransactionPhase string
 
 const (
-	PhaseValidation TransactionPhase = "validation"  // 验证阶段
-	PhaseExecution  TransactionPhase = "execution"   // 执行阶段
-	PhaseConfirm    TransactionPhase = "confirm"     // 确认阶段
-	PhaseCancel     TransactionPhase = "cancel"      // 取消阶段
+	PhaseValidation TransactionPhase = "validation" // 验证阶段
+	PhaseExecution  TransactionPhase = "execution"  // 执行阶段
+	PhaseConfirm    TransactionPhase = "confirm"    // 确认阶段
+	PhaseCancel     TransactionPhase = "cancel"     // 取消阶段
 )
 
 // TransactionStatus 事务状态
@@ -37,28 +37,28 @@ const (
 
 // DistributedTransaction 分布式事务
 type DistributedTransaction struct {
-	ID              uuid.UUID         `json:"id"`
-	Type            string            `json:"type"`
-	Status          TransactionStatus `json:"status"`
-	CurrentPhase    TransactionPhase  `json:"current_phase"`
-	ProjectID       uuid.UUID         `json:"project_id"`
-	UserID          uuid.UUID         `json:"user_id"`
-	TenantID        uuid.UUID         `json:"tenant_id"`
+	ID              uuid.UUID              `json:"id"`
+	Type            string                 `json:"type"`
+	Status          TransactionStatus      `json:"status"`
+	CurrentPhase    TransactionPhase       `json:"current_phase"`
+	ProjectID       uuid.UUID              `json:"project_id"`
+	UserID          uuid.UUID              `json:"user_id"`
+	TenantID        uuid.UUID              `json:"tenant_id"`
 	Payload         map[string]interface{} `json:"payload"`
-	CompensationIDs []uuid.UUID       `json:"compensation_ids"`
-	CreatedAt       time.Time         `json:"created_at"`
-	UpdatedAt       time.Time         `json:"updated_at"`
-	CompletedAt     *time.Time        `json:"completed_at,omitempty"`
-	ErrorMessage    string            `json:"error_message,omitempty"`
+	CompensationIDs []uuid.UUID            `json:"compensation_ids"`
+	CreatedAt       time.Time              `json:"created_at"`
+	UpdatedAt       time.Time              `json:"updated_at"`
+	CompletedAt     *time.Time             `json:"completed_at,omitempty"`
+	ErrorMessage    string                 `json:"error_message,omitempty"`
 }
 
 // DistributedTransactionManager 分布式事务管理器
 type DistributedTransactionManager struct {
-	projectRepo       repository.ProjectRepository
-	gitClient         client.GitGatewayClient
-	compensationMgr   *compensation.CompensationManager
-	logger            *zap.Logger
-	transactions      map[uuid.UUID]*DistributedTransaction // 在实际应用中应使用持久化存储
+	projectRepo     repository.ProjectRepository
+	gitClient       client.GitGatewayClient
+	compensationMgr *compensation.CompensationManager
+	logger          *zap.Logger
+	transactions    map[uuid.UUID]*DistributedTransaction // 在实际应用中应使用持久化存储
 }
 
 // 确保实现了TransactionManager接口
@@ -249,16 +249,16 @@ func (dtm *DistributedTransactionManager) confirmCreateRepository(
 	// 2. 记录操作日志
 	// 3. 发送通知
 	// 4. 清理临时数据
-	
+
 	// 由于我们的项目服务不直接存储仓库信息（通过Git网关获取），
 	// 这里主要是验证操作是否成功
-	
+
 	// 验证仓库是否真的创建成功
 	verifyRepo, err := dtm.gitClient.GetRepository(ctx, repository.ID)
 	if err != nil {
 		return fmt.Errorf("验证仓库创建失败: %w", err)
 	}
-	
+
 	if verifyRepo.Name != repository.Name {
 		return fmt.Errorf("仓库验证失败：名称不匹配")
 	}

@@ -252,18 +252,37 @@ func (r *webhookRepository) ListWebhookEvents(ctx context.Context, filter *model
 
 // UpdateWebhookEvent 更新Webhook事件
 func (r *webhookRepository) UpdateWebhookEvent(ctx context.Context, eventID uuid.UUID, updates map[string]interface{}) error {
+	// 定义允许更新的列白名单
+	allowedColumns := map[string]bool{
+		"processed":      true,
+		"processed_at":   true,
+		"error_message":  true,
+		"updated_at":     true,
+		"event_data":     true,
+		"signature":      true,
+	}
+
 	// 构建SET子句
 	setClause := ""
 	args := []interface{}{}
 	argIndex := 1
 
 	for column, value := range updates {
+		// 验证列名是否在白名单中
+		if !allowedColumns[column] {
+			return fmt.Errorf("不允许更新的列: %s", column)
+		}
+
 		if argIndex > 1 {
 			setClause += ", "
 		}
 		setClause += fmt.Sprintf("%s = $%d", column, argIndex)
 		args = append(args, value)
 		argIndex++
+	}
+
+	if setClause == "" {
+		return fmt.Errorf("没有要更新的字段")
 	}
 
 	// 添加WHERE条件
@@ -463,18 +482,37 @@ func (r *webhookRepository) ListWebhookTriggers(ctx context.Context, repositoryI
 
 // UpdateWebhookTrigger 更新钩子触发器
 func (r *webhookRepository) UpdateWebhookTrigger(ctx context.Context, triggerID uuid.UUID, updates map[string]interface{}) error {
+	// 定义允许更新的列白名单
+	allowedColumns := map[string]bool{
+		"name":         true,
+		"event_types":  true,
+		"conditions":   true,
+		"actions":      true,
+		"enabled":      true,
+		"updated_at":   true,
+	}
+
 	// 构建SET子句
 	setClause := ""
 	args := []interface{}{}
 	argIndex := 1
 
 	for column, value := range updates {
+		// 验证列名是否在白名单中
+		if !allowedColumns[column] {
+			return fmt.Errorf("不允许更新的列: %s", column)
+		}
+
 		if argIndex > 1 {
 			setClause += ", "
 		}
 		setClause += fmt.Sprintf("%s = $%d", column, argIndex)
 		args = append(args, value)
 		argIndex++
+	}
+
+	if setClause == "" {
+		return fmt.Errorf("没有要更新的字段")
 	}
 
 	// 添加WHERE条件

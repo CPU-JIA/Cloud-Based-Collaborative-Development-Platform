@@ -43,26 +43,26 @@ func NewNotificationService(
 
 // CreateNotificationRequest 创建通知请求
 type CreateNotificationRequest struct {
-	UserID        *uuid.UUID        `json:"user_id,omitempty"`
-	TenantID      uuid.UUID         `json:"tenant_id"`
-	ProjectID     *uuid.UUID        `json:"project_id,omitempty"`
-	Type          string            `json:"type"`
-	Category      string            `json:"category"`
-	Priority      string            `json:"priority"`
-	Title         string            `json:"title,omitempty"`
-	Content       string            `json:"content,omitempty"`
-	Channels      *models.Channels  `json:"channels,omitempty"`
-	TemplateID    *uuid.UUID        `json:"template_id,omitempty"`
-	EventData     json.RawMessage   `json:"event_data,omitempty"`
-	Metadata      json.RawMessage   `json:"metadata,omitempty"`
-	CorrelationID string            `json:"correlation_id,omitempty"`
-	SourceEvent   string            `json:"source_event,omitempty"`
-	CreatedBy     uuid.UUID         `json:"created_by"`
+	UserID        *uuid.UUID       `json:"user_id,omitempty"`
+	TenantID      uuid.UUID        `json:"tenant_id"`
+	ProjectID     *uuid.UUID       `json:"project_id,omitempty"`
+	Type          string           `json:"type"`
+	Category      string           `json:"category"`
+	Priority      string           `json:"priority"`
+	Title         string           `json:"title,omitempty"`
+	Content       string           `json:"content,omitempty"`
+	Channels      *models.Channels `json:"channels,omitempty"`
+	TemplateID    *uuid.UUID       `json:"template_id,omitempty"`
+	EventData     json.RawMessage  `json:"event_data,omitempty"`
+	Metadata      json.RawMessage  `json:"metadata,omitempty"`
+	CorrelationID string           `json:"correlation_id,omitempty"`
+	SourceEvent   string           `json:"source_event,omitempty"`
+	CreatedBy     uuid.UUID        `json:"created_by"`
 }
 
 // CreateNotification 创建通知
 func (ns *NotificationService) CreateNotification(ctx context.Context, req *CreateNotificationRequest) error {
-	ns.logger.Info(fmt.Sprintf("Creating notification: type=%s, category=%s, tenant_id=%s", 
+	ns.logger.Info(fmt.Sprintf("Creating notification: type=%s, category=%s, tenant_id=%s",
 		req.Type, req.Category, req.TenantID))
 
 	// 1. 应用通知规则
@@ -130,7 +130,7 @@ func (ns *NotificationService) createNotificationWithDefaults(ctx context.Contex
 	// 如果有模板，设置模板ID并渲染内容
 	if template != nil {
 		notification.TemplateID = &template.ID
-		
+
 		if err := ns.renderNotificationContent(ctx, notification, template); err != nil {
 			ns.logger.Error(fmt.Sprintf("Failed to render template content: %v", err))
 		}
@@ -303,7 +303,7 @@ func (ns *NotificationService) checkRuleConditions(req *CreateNotificationReques
 			break
 		}
 	}
-	
+
 	if !eventTypeMatched {
 		return false
 	}
@@ -356,7 +356,7 @@ func (ns *NotificationService) isInQuietHours(quietHours *models.QuietHours) boo
 	// TODO: 实现时区转换和时间范围检查
 	// 这里需要根据用户时区进行转换
 	_ = time.Now() // 临时处理未使用变量
-	
+
 	return false
 }
 
@@ -384,7 +384,7 @@ type GetNotificationsOptions struct {
 	Priority  string     `json:"priority,omitempty"`
 	Limit     int        `json:"limit,omitempty"`
 	Offset    int        `json:"offset,omitempty"`
-	SortBy    string     `json:"sort_by,omitempty"` // created_at, priority
+	SortBy    string     `json:"sort_by,omitempty"`    // created_at, priority
 	SortOrder string     `json:"sort_order,omitempty"` // asc, desc
 }
 
@@ -442,7 +442,7 @@ func (ns *NotificationService) RetryFailedNotification(ctx context.Context, noti
 	// 重置状态
 	notification.Status = models.StatusPending
 	notification.RetryCount++
-	
+
 	if err := ns.notificationRepo.Update(ctx, notification); err != nil {
 		return fmt.Errorf("failed to update notification: %w", err)
 	}

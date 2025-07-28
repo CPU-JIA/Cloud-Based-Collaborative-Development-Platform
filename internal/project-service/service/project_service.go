@@ -25,27 +25,27 @@ type ProjectService interface {
 	UpdateProject(ctx context.Context, id uuid.UUID, req *models.UpdateProjectRequest, userID, tenantID uuid.UUID) (*models.Project, error)
 	DeleteProject(ctx context.Context, id uuid.UUID, userID, tenantID uuid.UUID) error
 	ListProjects(ctx context.Context, page, pageSize int, filters map[string]interface{}, userID, tenantID uuid.UUID) (*models.ProjectListResponse, error)
-	
+
 	// 成员管理
 	AddMember(ctx context.Context, projectID uuid.UUID, req *models.AddMemberRequest, userID, tenantID uuid.UUID) error
 	RemoveMember(ctx context.Context, projectID, memberUserID, userID, tenantID uuid.UUID) error
 	GetMembers(ctx context.Context, projectID, userID, tenantID uuid.UUID) ([]models.ProjectMember, error)
-	
+
 	// Git仓库管理
 	CreateRepository(ctx context.Context, projectID uuid.UUID, req *CreateRepositoryRequest, userID, tenantID uuid.UUID) (*models.Repository, error)
 	GetRepository(ctx context.Context, repositoryID uuid.UUID, userID, tenantID uuid.UUID) (*models.Repository, error)
 	ListRepositories(ctx context.Context, projectID uuid.UUID, page, pageSize int, userID, tenantID uuid.UUID) (*RepositoryListResponse, error)
 	UpdateRepository(ctx context.Context, repositoryID uuid.UUID, req *UpdateRepositoryRequest, userID, tenantID uuid.UUID) (*models.Repository, error)
 	DeleteRepository(ctx context.Context, repositoryID uuid.UUID, userID, tenantID uuid.UUID) error
-	
+
 	// Git高级操作
 	CreateBranch(ctx context.Context, repositoryID uuid.UUID, req *CreateBranchRequest, userID, tenantID uuid.UUID) (*models.Branch, error)
 	ListBranches(ctx context.Context, repositoryID uuid.UUID, page, pageSize int, userID, tenantID uuid.UUID) (*BranchListResponse, error)
 	DeleteBranch(ctx context.Context, repositoryID uuid.UUID, branchName string, userID, tenantID uuid.UUID) error
-	
+
 	CreatePullRequest(ctx context.Context, repositoryID uuid.UUID, req *CreatePullRequestRequest, userID, tenantID uuid.UUID) (*models.PullRequest, error)
 	GetPullRequest(ctx context.Context, repositoryID, pullRequestID uuid.UUID, userID, tenantID uuid.UUID) (*models.PullRequest, error)
-	
+
 	// 权限检查
 	CheckProjectAccess(ctx context.Context, projectID, userID uuid.UUID) (bool, error)
 	GetUserProjects(ctx context.Context, userID, tenantID uuid.UUID) ([]models.Project, error)
@@ -53,27 +53,27 @@ type ProjectService interface {
 
 // projectService 项目服务实现
 type projectService struct {
-	repo              repository.ProjectRepository
-	gitClient         client.GitGatewayClient
-	compensationMgr   *compensation.CompensationManager
-	transactionMgr    *transaction.DistributedTransactionManager
-	logger            *zap.Logger
+	repo            repository.ProjectRepository
+	gitClient       client.GitGatewayClient
+	compensationMgr *compensation.CompensationManager
+	transactionMgr  *transaction.DistributedTransactionManager
+	logger          *zap.Logger
 }
 
 // NewProjectService 创建项目服务实例
 func NewProjectService(repo repository.ProjectRepository, gitClient client.GitGatewayClient, logger *zap.Logger) ProjectService {
 	// 创建补偿管理器
 	compensationMgr := compensation.NewCompensationManager(gitClient, logger)
-	
+
 	// 创建分布式事务管理器
 	transactionMgr := transaction.NewDistributedTransactionManager(repo, gitClient, compensationMgr, logger)
-	
+
 	return &projectService{
-		repo:              repo,
-		gitClient:         gitClient,
-		compensationMgr:   compensationMgr,
-		transactionMgr:    transactionMgr,
-		logger:            logger,
+		repo:            repo,
+		gitClient:       gitClient,
+		compensationMgr: compensationMgr,
+		transactionMgr:  transactionMgr,
+		logger:          logger,
 	}
 }
 
@@ -86,13 +86,13 @@ func NewProjectServiceWithTransaction(
 ) ProjectService {
 	// 使用现有的事务管理器获取补偿管理器
 	compensationMgr := compensation.NewCompensationManager(gitClient, logger)
-	
+
 	return &projectService{
-		repo:              repo,
-		gitClient:         gitClient,
-		compensationMgr:   compensationMgr,
-		transactionMgr:    transactionMgr,
-		logger:            logger,
+		repo:            repo,
+		gitClient:       gitClient,
+		compensationMgr: compensationMgr,
+		transactionMgr:  transactionMgr,
+		logger:          logger,
 	}
 }
 
@@ -101,13 +101,13 @@ func (s *projectService) validateProjectKey(key string) error {
 	if len(key) < 2 || len(key) > 20 {
 		return errors.New("项目key长度必须在2-20个字符之间")
 	}
-	
+
 	// 只允许字母、数字和连字符，且必须以字母开头
 	matched, _ := regexp.MatchString(`^[a-zA-Z][a-zA-Z0-9\-]*$`, key)
 	if !matched {
 		return errors.New("项目key只能包含字母、数字和连字符，且必须以字母开头")
 	}
-	
+
 	return nil
 }
 
@@ -144,7 +144,7 @@ func (s *projectService) CreateProject(ctx context.Context, req *models.CreatePr
 
 	// 创建项目
 	if err := s.repo.Create(ctx, project); err != nil {
-		s.logger.Error("创建项目失败", 
+		s.logger.Error("创建项目失败",
 			zap.Error(err),
 			zap.String("project_key", req.Key),
 			zap.String("tenant_id", tenantID.String()),
@@ -735,12 +735,12 @@ type BranchListResponse struct {
 
 // CreatePullRequestRequest 创建合并请求
 type CreatePullRequestRequest struct {
-	Title         string      `json:"title" binding:"required,min=1,max=255"`
-	Description   *string     `json:"description,omitempty"`
-	SourceBranch  string      `json:"source_branch" binding:"required"`
-	TargetBranch  string      `json:"target_branch" binding:"required"`
-	AssigneeIDs   []uuid.UUID `json:"assignee_ids,omitempty"`
-	ReviewerIDs   []uuid.UUID `json:"reviewer_ids,omitempty"`
+	Title        string      `json:"title" binding:"required,min=1,max=255"`
+	Description  *string     `json:"description,omitempty"`
+	SourceBranch string      `json:"source_branch" binding:"required"`
+	TargetBranch string      `json:"target_branch" binding:"required"`
+	AssigneeIDs  []uuid.UUID `json:"assignee_ids,omitempty"`
+	ReviewerIDs  []uuid.UUID `json:"reviewer_ids,omitempty"`
 }
 
 // CreateBranch 创建分支

@@ -251,7 +251,7 @@ func (h *AgileHandler) ListTasks(c *gin.Context) {
 		response.Error(c, http.StatusBadRequest, "Project ID is required", nil)
 		return
 	}
-	
+
 	projectID, err := uuid.Parse(projectIDStr)
 	if err != nil {
 		response.Error(c, http.StatusBadRequest, "Invalid project ID", err)
@@ -1085,7 +1085,7 @@ func getUserIDFromContext(c *gin.Context) uuid.UUID {
 	if !exists {
 		return uuid.Nil
 	}
-	
+
 	switch v := userID.(type) {
 	case uuid.UUID:
 		return v
@@ -1094,7 +1094,7 @@ func getUserIDFromContext(c *gin.Context) uuid.UUID {
 			return id
 		}
 	}
-	
+
 	return uuid.Nil
 }
 
@@ -1104,7 +1104,7 @@ func getTenantIDFromContext(c *gin.Context) uuid.UUID {
 	if !exists {
 		return uuid.Nil
 	}
-	
+
 	switch v := tenantID.(type) {
 	case uuid.UUID:
 		return v
@@ -1113,6 +1113,6 @@ func getTenantIDFromContext(c *gin.Context) uuid.UUID {
 			return id
 		}
 	}
-	
+
 	return uuid.Nil
 }

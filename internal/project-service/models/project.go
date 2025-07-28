@@ -21,11 +21,11 @@ type Project struct {
 	DeletedAt   *time.Time `json:"deleted_at" gorm:"index"`
 
 	// 关联关系
-	Tenant      *Tenant         `json:"tenant,omitempty" gorm:"foreignKey:TenantID"`
-	Manager     *User           `json:"manager,omitempty" gorm:"foreignKey:ManagerID"`
-	Members     []ProjectMember `json:"members,omitempty" gorm:"foreignKey:ProjectID"`
-	Tasks       []Task          `json:"tasks,omitempty" gorm:"foreignKey:ProjectID"`
-	Repositories []Repository   `json:"repositories,omitempty" gorm:"foreignKey:ProjectID"`
+	Tenant       *Tenant         `json:"tenant,omitempty" gorm:"foreignKey:TenantID"`
+	Manager      *User           `json:"manager,omitempty" gorm:"foreignKey:ManagerID"`
+	Members      []ProjectMember `json:"members,omitempty" gorm:"foreignKey:ProjectID"`
+	Tasks        []Task          `json:"tasks,omitempty" gorm:"foreignKey:ProjectID"`
+	Repositories []Repository    `json:"repositories,omitempty" gorm:"foreignKey:ProjectID"`
 }
 
 // ProjectMember 项目成员模型
@@ -37,10 +37,10 @@ type ProjectMember struct {
 	AddedBy   *uuid.UUID `json:"added_by" gorm:"type:uuid"`
 
 	// 关联关系
-	Project *Project `json:"project,omitempty" gorm:"foreignKey:ProjectID"`
-	User    *User    `json:"user,omitempty" gorm:"foreignKey:UserID"`
-	Role    *Role    `json:"role,omitempty" gorm:"foreignKey:RoleID"`
-	AddedByUser *User `json:"added_by_user,omitempty" gorm:"foreignKey:AddedBy"`
+	Project     *Project `json:"project,omitempty" gorm:"foreignKey:ProjectID"`
+	User        *User    `json:"user,omitempty" gorm:"foreignKey:UserID"`
+	Role        *Role    `json:"role,omitempty" gorm:"foreignKey:RoleID"`
+	AddedByUser *User    `json:"added_by_user,omitempty" gorm:"foreignKey:AddedBy"`
 }
 
 // Tenant 租户模型（引用）
@@ -127,15 +127,15 @@ type PullRequest struct {
 
 // Commit 提交模型
 type Commit struct {
-	ID           uuid.UUID `json:"id"`
-	RepositoryID uuid.UUID `json:"repository_id"`
-	SHA          string    `json:"sha"`
-	Message      string    `json:"message"`
-	AuthorName   string    `json:"author_name"`
-	AuthorEmail  string    `json:"author_email"`
+	ID           uuid.UUID  `json:"id"`
+	RepositoryID uuid.UUID  `json:"repository_id"`
+	SHA          string     `json:"sha"`
+	Message      string     `json:"message"`
+	AuthorName   string     `json:"author_name"`
+	AuthorEmail  string     `json:"author_email"`
 	AuthorID     *uuid.UUID `json:"author_id,omitempty"`
-	CommittedAt  time.Time `json:"committed_at"`
-	ParentSHAs   []string  `json:"parent_shas,omitempty"`
+	CommittedAt  time.Time  `json:"committed_at"`
+	ParentSHAs   []string   `json:"parent_shas,omitempty"`
 }
 
 // WebhookEvent Webhook事件模型

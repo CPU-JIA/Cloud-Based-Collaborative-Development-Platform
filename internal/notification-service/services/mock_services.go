@@ -23,13 +23,13 @@ type MockWebhookService struct{}
 func (mws *MockWebhookService) SendWebhook(ctx context.Context, request *WebhookRequest) ([]byte, error) {
 	// Mock实现：返回模拟响应
 	fmt.Printf("Mock: Sending webhook to %s, method: %s\n", request.URL, request.Method)
-	
+
 	response := map[string]interface{}{
 		"status":  "success",
 		"message": "Webhook received",
 		"data":    request.Notification,
 	}
-	
+
 	return json.Marshal(response)
 }
 
@@ -39,7 +39,7 @@ type MockInAppService struct{}
 // SendInApp 发送应用内通知（Mock实现）
 func (mias *MockInAppService) SendInApp(ctx context.Context, request *InAppRequest) error {
 	// Mock实现：只是记录日志
-	fmt.Printf("Mock: Sending in-app notification to user %v, title: %s\n", 
+	fmt.Printf("Mock: Sending in-app notification to user %v, title: %s\n",
 		request.UserID, request.Notification.Title)
 	return nil
 }

@@ -21,7 +21,7 @@ type GitGatewayClient interface {
 	UpdateRepository(ctx context.Context, repositoryID uuid.UUID, req *UpdateRepositoryRequest) (*Repository, error)
 	DeleteRepository(ctx context.Context, repositoryID uuid.UUID) error
 	ListRepositories(ctx context.Context, projectID *uuid.UUID, page, pageSize int) (*RepositoryListResponse, error)
-	
+
 	// 分支管理
 	CreateBranch(ctx context.Context, repositoryID uuid.UUID, req *CreateBranchRequest) (*Branch, error)
 	GetBranch(ctx context.Context, repositoryID uuid.UUID, branchName string) (*Branch, error)
@@ -29,24 +29,24 @@ type GitGatewayClient interface {
 	DeleteBranch(ctx context.Context, repositoryID uuid.UUID, branchName string) error
 	SetDefaultBranch(ctx context.Context, repositoryID uuid.UUID, branchName string) error
 	MergeBranch(ctx context.Context, repositoryID uuid.UUID, targetBranch, sourceBranch string) error
-	
+
 	// 提交管理
 	CreateCommit(ctx context.Context, repositoryID uuid.UUID, req *CreateCommitRequest) (*Commit, error)
 	GetCommit(ctx context.Context, repositoryID uuid.UUID, sha string) (*Commit, error)
 	ListCommits(ctx context.Context, repositoryID uuid.UUID, branch string, page, pageSize int) (*CommitListResponse, error)
 	GetCommitDiff(ctx context.Context, repositoryID uuid.UUID, sha string) (*GitDiff, error)
 	CompareBranches(ctx context.Context, repositoryID uuid.UUID, base, head string) (*GitDiff, error)
-	
+
 	// 标签管理
 	CreateTag(ctx context.Context, repositoryID uuid.UUID, req *CreateTagRequest) (*Tag, error)
 	GetTag(ctx context.Context, repositoryID uuid.UUID, tagName string) (*Tag, error)
 	ListTags(ctx context.Context, repositoryID uuid.UUID) ([]Tag, error)
 	DeleteTag(ctx context.Context, repositoryID uuid.UUID, tagName string) error
-	
+
 	// 文件操作
 	GetFileContent(ctx context.Context, repositoryID uuid.UUID, branch, filePath string) ([]byte, error)
 	GetDirectoryContent(ctx context.Context, repositoryID uuid.UUID, branch, dirPath string) ([]FileInfo, error)
-	
+
 	// 统计和搜索
 	GetRepositoryStats(ctx context.Context, repositoryID uuid.UUID) (*RepositoryStats, error)
 	SearchRepositories(ctx context.Context, query string, projectID *uuid.UUID, page, pageSize int) (*RepositoryListResponse, error)
@@ -101,7 +101,7 @@ type APIResponse struct {
 // 通用HTTP请求方法
 func (c *gitGatewayClient) doRequest(ctx context.Context, method, path string, body interface{}, result interface{}) error {
 	var bodyReader io.Reader
-	
+
 	if body != nil {
 		bodyBytes, err := json.Marshal(body)
 		if err != nil {
@@ -194,13 +194,13 @@ func (c *gitGatewayClient) CreateRepository(ctx context.Context, req *CreateRepo
 	var result Repository
 	err := c.doRequest(ctx, "POST", "/api/v1/repositories", req, &result)
 	if err != nil {
-		c.logger.Error("Failed to create repository", 
+		c.logger.Error("Failed to create repository",
 			zap.String("name", req.Name),
 			zap.Error(err),
 		)
 		return nil, err
 	}
-	
+
 	c.logger.Info("Repository created successfully",
 		zap.String("repository_id", result.ID.String()),
 		zap.String("name", result.Name),
@@ -235,7 +235,7 @@ func (c *gitGatewayClient) UpdateRepository(ctx context.Context, repositoryID uu
 		)
 		return nil, err
 	}
-	
+
 	c.logger.Info("Repository updated successfully",
 		zap.String("repository_id", repositoryID.String()),
 	)
@@ -253,7 +253,7 @@ func (c *gitGatewayClient) DeleteRepository(ctx context.Context, repositoryID uu
 		)
 		return err
 	}
-	
+
 	c.logger.Info("Repository deleted successfully",
 		zap.String("repository_id", repositoryID.String()),
 	)
@@ -266,7 +266,7 @@ func (c *gitGatewayClient) ListRepositories(ctx context.Context, projectID *uuid
 	if projectID != nil {
 		path += "&project_id=" + projectID.String()
 	}
-	
+
 	var result RepositoryListResponse
 	err := c.doRequest(ctx, "GET", path, nil, &result)
 	if err != nil {
@@ -295,7 +295,7 @@ func (c *gitGatewayClient) CreateBranch(ctx context.Context, repositoryID uuid.U
 		)
 		return nil, err
 	}
-	
+
 	c.logger.Info("Branch created successfully",
 		zap.String("repository_id", repositoryID.String()),
 		zap.String("branch_name", result.Name),
@@ -348,7 +348,7 @@ func (c *gitGatewayClient) DeleteBranch(ctx context.Context, repositoryID uuid.U
 		)
 		return err
 	}
-	
+
 	c.logger.Info("Branch deleted successfully",
 		zap.String("repository_id", repositoryID.String()),
 		zap.String("branch_name", branchName),
@@ -363,7 +363,7 @@ func (c *gitGatewayClient) SetDefaultBranch(ctx context.Context, repositoryID uu
 	}{
 		BranchName: branchName,
 	}
-	
+
 	path := fmt.Sprintf("/api/v1/repositories/%s/default-branch", repositoryID.String())
 	err := c.doRequest(ctx, "PUT", path, req, nil)
 	if err != nil {
@@ -374,7 +374,7 @@ func (c *gitGatewayClient) SetDefaultBranch(ctx context.Context, repositoryID uu
 		)
 		return err
 	}
-	
+
 	c.logger.Info("Default branch set successfully",
 		zap.String("repository_id", repositoryID.String()),
 		zap.String("branch_name", branchName),
@@ -391,7 +391,7 @@ func (c *gitGatewayClient) MergeBranch(ctx context.Context, repositoryID uuid.UU
 		TargetBranch: targetBranch,
 		SourceBranch: sourceBranch,
 	}
-	
+
 	path := fmt.Sprintf("/api/v1/repositories/%s/merge", repositoryID.String())
 	err := c.doRequest(ctx, "POST", path, req, nil)
 	if err != nil {
@@ -403,7 +403,7 @@ func (c *gitGatewayClient) MergeBranch(ctx context.Context, repositoryID uuid.UU
 		)
 		return err
 	}
-	
+
 	c.logger.Info("Branch merged successfully",
 		zap.String("repository_id", repositoryID.String()),
 		zap.String("target_branch", targetBranch),
@@ -427,7 +427,7 @@ func (c *gitGatewayClient) CreateCommit(ctx context.Context, repositoryID uuid.U
 		)
 		return nil, err
 	}
-	
+
 	c.logger.Info("Commit created successfully",
 		zap.String("repository_id", repositoryID.String()),
 		zap.String("commit_sha", result.SHA),
@@ -457,7 +457,7 @@ func (c *gitGatewayClient) ListCommits(ctx context.Context, repositoryID uuid.UU
 	if branch != "" {
 		path += "&branch=" + branch
 	}
-	
+
 	var result CommitListResponse
 	err := c.doRequest(ctx, "GET", path, nil, &result)
 	if err != nil {
@@ -519,7 +519,7 @@ func (c *gitGatewayClient) CreateTag(ctx context.Context, repositoryID uuid.UUID
 		)
 		return nil, err
 	}
-	
+
 	c.logger.Info("Tag created successfully",
 		zap.String("repository_id", repositoryID.String()),
 		zap.String("tag_name", result.Name),
@@ -572,7 +572,7 @@ func (c *gitGatewayClient) DeleteTag(ctx context.Context, repositoryID uuid.UUID
 		)
 		return err
 	}
-	
+
 	c.logger.Info("Tag deleted successfully",
 		zap.String("repository_id", repositoryID.String()),
 		zap.String("tag_name", tagName),
@@ -643,7 +643,7 @@ func (c *gitGatewayClient) SearchRepositories(ctx context.Context, query string,
 	if projectID != nil {
 		path += "&project_id=" + projectID.String()
 	}
-	
+
 	var result RepositoryListResponse
 	err := c.doRequest(ctx, "GET", path, nil, &result)
 	if err != nil {

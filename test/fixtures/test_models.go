@@ -34,17 +34,17 @@ type TestUser struct {
 	TenantID uuid.UUID `json:"tenant_id" gorm:"type:text;not null"`
 	Email    string    `json:"email" gorm:"type:varchar(255);uniqueIndex;not null"`
 	Username string    `json:"username" gorm:"type:varchar(100);uniqueIndex;not null"`
-	
+
 	// 认证相关
 	PasswordHash string `json:"-" gorm:"type:varchar(255);not null"`
 	Salt         string `json:"-" gorm:"type:varchar(255);not null"`
-	
+
 	// 状态字段
-	IsActive     bool `json:"is_active" gorm:"default:true"`
-	IsVerified   bool `json:"is_verified" gorm:"default:false"`
-	MFAEnabled   bool `json:"mfa_enabled" gorm:"default:false"`
-	MFASecret    string `json:"-" gorm:"type:varchar(255)"`
-	
+	IsActive   bool   `json:"is_active" gorm:"default:true"`
+	IsVerified bool   `json:"is_verified" gorm:"default:false"`
+	MFAEnabled bool   `json:"mfa_enabled" gorm:"default:false"`
+	MFASecret  string `json:"-" gorm:"type:varchar(255)"`
+
 	// 系统字段
 	CreatedAt time.Time      `json:"created_at"`
 	UpdatedAt time.Time      `json:"updated_at"`

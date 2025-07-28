@@ -13,12 +13,11 @@ import (
 
 // IndexBasedReorderRequest 基于索引的任务重排序请求
 type IndexBasedReorderRequest struct {
-	TaskID      uuid.UUID  `json:"task_id" binding:"required"`       // 被移动的任务ID
-	TargetIndex int        `json:"target_index" binding:"min=0"`     // 目标位置索引
-	ColumnID    *string    `json:"column_id,omitempty"`              // 目标列ID（如果跨列移动）
-	SprintID    *uuid.UUID `json:"sprint_id,omitempty"`             // 目标Sprint ID（如果跨Sprint移动）
+	TaskID      uuid.UUID  `json:"task_id" binding:"required"`   // 被移动的任务ID
+	TargetIndex int        `json:"target_index" binding:"min=0"` // 目标位置索引
+	ColumnID    *string    `json:"column_id,omitempty"`          // 目标列ID（如果跨列移动）
+	SprintID    *uuid.UUID `json:"sprint_id,omitempty"`          // 目标Sprint ID（如果跨Sprint移动）
 }
-
 
 // ReorderTasksByIndex 重新排序任务（基于索引位置）
 func (s *agileServiceImpl) ReorderTasksByIndex(ctx context.Context, req *IndexBasedReorderRequest, userID, tenantID uuid.UUID) error {
@@ -38,7 +37,7 @@ func (s *agileServiceImpl) ReorderTasksByIndex(ctx context.Context, req *IndexBa
 	// 获取同一作用域内的任务列表
 	var tasks []models.AgileTask
 	query := s.db.WithContext(ctx).Where("project_id = ? AND deleted_at IS NULL", task.ProjectID)
-	
+
 	// 如果指定了Sprint，则限定在同一Sprint内
 	if req.SprintID != nil {
 		query = query.Where("sprint_id = ?", *req.SprintID)
@@ -67,7 +66,7 @@ func (s *agileServiceImpl) ReorderTasksByIndex(ctx context.Context, req *IndexBa
 	// 准备现有排名列表（排除被移动的任务）
 	existingRanks := make([]string, 0, len(tasks)-1)
 	var currentTaskIndex = -1
-	
+
 	for i, t := range tasks {
 		if t.ID == req.TaskID {
 			currentTaskIndex = i

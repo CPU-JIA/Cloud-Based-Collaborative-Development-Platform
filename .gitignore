@@ -15,12 +15,20 @@
 config.local.yaml
 config.*.yaml.backup
 
+# 密钥和敏感数据
+configs/secrets/
+*.secrets.yaml
+*.secrets.yml
+secrets.json
+credentials.json
+
 # SSL证书和密钥
 *.pem
 *.key
 *.crt
 *.p12
 *.pfx
+*.jks
 
 # =============================================================================
 # Go语言特定

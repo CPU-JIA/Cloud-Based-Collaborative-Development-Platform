@@ -535,11 +535,11 @@ func (h *ProjectHandler) CreateRepository(c *gin.Context) {
 
 	repository, err := h.service.CreateRepository(c.Request.Context(), projectID, &req, userID, tenantID)
 	if err != nil {
-		h.logger.Error("创建仓库失败", 
+		h.logger.Error("创建仓库失败",
 			zap.Error(err),
 			zap.String("project_id", projectID.String()),
 			zap.String("repository_name", req.Name))
-		
+
 		if err.Error() == "无权限在此项目中创建仓库" {
 			response.Error(c, http.StatusForbidden, err.Error(), nil)
 		} else {
@@ -748,7 +748,7 @@ func (h *ProjectHandler) HandleGitWebhook(c *gin.Context) {
 		response.Error(c, http.StatusInternalServerError, "Webhook处理器未初始化", nil)
 		return
 	}
-	
+
 	h.webhookHandler.HandleWebhook(c)
 }
 
@@ -764,6 +764,6 @@ func (h *ProjectHandler) GetWebhookHealth(c *gin.Context) {
 		response.Error(c, http.StatusInternalServerError, "Webhook处理器未初始化", nil)
 		return
 	}
-	
+
 	h.webhookHandler.GetHealthCheck(c)
 }

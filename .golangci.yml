@@ -1,0 +1,246 @@
+# GolangCI-Lint 企业级配置
+# Cloud-Based Collaborative Development Platform
+
+run:
+  timeout: 5m
+  issues-exit-code: 1
+  tests: true
+  build-tags:
+    - integration
+    - e2e
+  skip-dirs:
+    - vendor
+    - docs
+    - scripts
+    - deployments
+  skip-files:
+    - ".*\\.pb\\.go$"
+    - ".*_gen\\.go$"
+  modules-download-mode: readonly
+
+output:
+  format: colored-line-number
+  print-issued-lines: true
+  print-linter-name: true
+  uniq-by-line: true
+  sort-results: true
+
+linters:
+  enable:
+    # 基础检查
+    - errcheck      # 检查未处理的错误
+    - gosimple      # 简化代码建议
+    - govet         # Go官方vet检查
+    - ineffassign   # 检查无效赋值
+    - staticcheck   # 静态分析检查
+    - typecheck     # 类型检查
+    - unused        # 检查未使用的变量/函数
+    
+    # 代码风格
+    - gofmt         # 格式检查
+    - goimports     # import排序检查
+    - gocyclo       # 圈复杂度检查
+    - goconst       # 常量检查
+    - gofumpt       # 严格格式检查
+    - godot         # 注释句点检查
+    
+    # 安全检查
+    - gosec         # 安全检查
+    - bodyclose     # HTTP body关闭检查
+    - noctx         # 上下文检查
+    
+    # 性能检查
+    - prealloc      # 预分配slice检查
+    - unparam       # 未使用参数检查
+    
+    # 可维护性
+    - dupl          # 重复代码检查
+    - gocritic      # 代码评审检查
+    - revive        # 可配置的lint检查
+    - misspell      # 拼写检查
+    - whitespace    # 空白字符检查
+    
+    # 错误处理
+    - errorlint     # 错误处理检查
+    - nilerr        # nil错误检查
+    
+    # 测试相关
+    - testpackage   # 测试包检查
+    - tparallel     # 并行测试检查
+
+  disable:
+    - deadcode      # 已废弃
+    - varcheck      # 已废弃
+    - structcheck   # 已废弃
+    - scopelint     # 已废弃
+    - interfacer    # 已废弃
+    - maligned      # 已废弃
+    - golint        # 已废弃
+
+linters-settings:
+  # 错误检查配置
+  errcheck:
+    check-type-assertions: true
+    check-blank: true
+    exclude-functions:
+      - (io.Closer).Close
+      - (*database/sql.Rows).Close
+      - (*database/sql.Stmt).Close
+
+  # 圈复杂度配置
+  gocyclo:
+    min-complexity: 15
+
+  # 常量检查配置
+  goconst:
+    min-len: 3
+    min-occurrences: 3
+    ignore-tests: true
+
+  # 安全检查配置
+  gosec:
+    confidence: medium
+    severity: medium
+    excludes:
+      - G104  # 未检查错误(errcheck已覆盖)
+    includes:
+      - G101  # 硬编码凭据
+      - G102  # 网络绑定
+      - G103  # 审计unsafe包使用
+      - G201  # SQL注入
+      - G202  # SQL注入
+      - G203  # HTML模板
+      - G204  # 命令注入
+      - G301  # 文件权限
+      - G302  # 文件权限
+      - G303  # 创建文件权限
+      - G304  # 文件路径
+      - G305  # ZIP slip
+      - G401  # 弱加密
+      - G402  # TLS配置
+      - G403  # 弱随机数
+      - G404  # 不安全随机数
+      - G501  # MD5哈希
+      - G502  # SHA1哈希
+      - G503  # DES加密
+      - G504  # 3DES加密
+      - G505  # RC4加密
+      - G601  # 隐式内存别名
+
+  # 代码评审配置
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - experimental
+      - opinionated
+      - performance
+      - style
+    disabled-checks:
+      - wrapperFunc
+      - dupImport
+      - ifElseChain
+
+  # Revive配置
+  revive:
+    rules:
+      - name: blank-imports
+      - name: context-as-argument
+      - name: context-keys-type
+      - name: dot-imports
+      - name: error-return
+      - name: error-strings
+      - name: error-naming
+      - name: exported
+        arguments: ["checkPrivateReceivers","disableStutteringCheck"]
+      - name: if-return
+      - name: increment-decrement
+      - name: var-naming
+      - name: var-declaration
+      - name: package-comments
+      - name: range
+      - name: receiver-naming
+      - name: time-naming
+      - name: indent-error-flow
+      - name: errorf
+      - name: empty-block
+      - name: superfluous-else
+      - name: unused-parameter
+      - name: unreachable-code
+      - name: redefines-builtin-id
+
+  # 预分配检查配置
+  prealloc:
+    simple: true
+    range-loops: true
+    for-loops: true
+
+  # 重复代码检查配置
+  dupl:
+    threshold: 150
+
+  # 拼写检查配置
+  misspell:
+    locale: US
+    ignore-words:
+      - colour
+      - behaviour
+
+  # 未使用参数检查配置
+  unparam:
+    check-exported: true
+
+  # 空白字符检查配置
+  whitespace:
+    multi-if: false
+    multi-func: false
+
+issues:
+  # 排除规则
+  exclude-rules:
+    # 测试文件的特殊规则
+    - path: _test\.go
+      linters:
+        - gosec
+        - dupl
+        - goconst
+        - funlen
+        - gocyclo
+    
+    # main函数的特殊规则  
+    - path: cmd/.*main\.go
+      linters:
+        - funlen
+        - gocyclo
+    
+    # 生成的代码
+    - path: .*\.pb\.go
+      linters:
+        - all
+    
+    # 供应商目录
+    - path: vendor/
+      linters:
+        - all
+
+  # 最大问题数
+  max-issues-per-linter: 50
+  max-same-issues: 10
+
+  # 新代码检查
+  new: false
+  new-from-rev: ""
+  new-from-patch: ""
+
+severity:
+  default-severity: warning
+  case-sensitive: false
+  rules:
+    - linters:
+        - gosec
+        - govet
+        - errcheck
+      severity: error
+    - linters:
+        - revive
+        - stylecheck
+      severity: warning

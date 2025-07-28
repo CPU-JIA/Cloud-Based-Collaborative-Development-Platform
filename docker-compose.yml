@@ -8,7 +8,7 @@ services:
     environment:
       POSTGRES_DB: devcollab_development
       POSTGRES_USER: devcollab_dev
-      POSTGRES_PASSWORD: dev_password_123
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:-dev_password_123}
     ports:
       - "15432:5432"  # 使用不同端口避免冲突
     volumes:
@@ -212,9 +212,9 @@ services:
     ports:
       - "8084:8084"
     environment:
-      - JWT_SECRET=development_jwt_secret_key_32_chars_minimum_here_safe
+      - JWT_SECRET=${JWT_SECRET:-development_jwt_secret_key_32_chars_minimum_here_safe}
       - DATABASE_HOST=postgres
-      - DATABASE_PASSWORD=dev_password_123
+      - DATABASE_PASSWORD=${DATABASE_PASSWORD:-dev_password_123}
       - REDIS_HOST=redis
       - DOCKER_HOST=unix:///var/run/docker.sock
     volumes:

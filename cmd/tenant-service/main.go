@@ -58,7 +58,7 @@ func main() {
 	}
 
 	// 3. 数据库连接
-	dbConfig := cfg.Database.ToDBConfig().(database.Config)
+	dbConfig := cfg.Database.ToDBConfig()
 	db, err := database.NewPostgresDB(dbConfig)
 	if err != nil {
 		appLogger.Fatal("Failed to connect to database", "error", err)

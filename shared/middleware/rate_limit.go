@@ -126,24 +126,24 @@ func (l *TokenBucketLimiter) cleanupRoutine() {
 // RateLimitConfig 限流配置
 type RateLimitConfig struct {
 	// 全局限流
-	GlobalRPS   rate.Limit    `json:"global_rps" yaml:"global_rps"`
-	GlobalBurst int           `json:"global_burst" yaml:"global_burst"`
-	
+	GlobalRPS   rate.Limit `json:"global_rps" yaml:"global_rps"`
+	GlobalBurst int        `json:"global_burst" yaml:"global_burst"`
+
 	// 按IP限流
-	PerIPRPS   rate.Limit    `json:"per_ip_rps" yaml:"per_ip_rps"`
-	PerIPBurst int           `json:"per_ip_burst" yaml:"per_ip_burst"`
-	
+	PerIPRPS   rate.Limit `json:"per_ip_rps" yaml:"per_ip_rps"`
+	PerIPBurst int        `json:"per_ip_burst" yaml:"per_ip_burst"`
+
 	// 按端点限流
 	EndpointLimits map[string]EndpointLimit `json:"endpoint_limits" yaml:"endpoint_limits"`
-	
+
 	// 清理配置
 	CleanupInterval time.Duration `json:"cleanup_interval" yaml:"cleanup_interval"`
-	
+
 	// 自动封禁配置
-	AutoBanEnabled    bool          `json:"auto_ban_enabled" yaml:"auto_ban_enabled"`
-	AutoBanThreshold  int           `json:"auto_ban_threshold" yaml:"auto_ban_threshold"`     // 超出限制次数
-	AutoBanWindow     time.Duration `json:"auto_ban_window" yaml:"auto_ban_window"`         // 统计窗口
-	AutoBanDuration   time.Duration `json:"auto_ban_duration" yaml:"auto_ban_duration"`     // 封禁时长
+	AutoBanEnabled   bool          `json:"auto_ban_enabled" yaml:"auto_ban_enabled"`
+	AutoBanThreshold int           `json:"auto_ban_threshold" yaml:"auto_ban_threshold"` // 超出限制次数
+	AutoBanWindow    time.Duration `json:"auto_ban_window" yaml:"auto_ban_window"`       // 统计窗口
+	AutoBanDuration  time.Duration `json:"auto_ban_duration" yaml:"auto_ban_duration"`   // 封禁时长
 }
 
 // EndpointLimit 端点限流配置
@@ -154,14 +154,14 @@ type EndpointLimit struct {
 
 // RateLimitMiddleware 综合限流中间件
 type RateLimitMiddleware struct {
-	config       *RateLimitConfig
-	globalLimiter *TokenBucketLimiter
-	ipLimiter    *TokenBucketLimiter
+	config           *RateLimitConfig
+	globalLimiter    *TokenBucketLimiter
+	ipLimiter        *TokenBucketLimiter
 	endpointLimiters map[string]*TokenBucketLimiter
-	blacklist    *IPBlacklist
-	violations   map[string]*ViolationTracker
-	violationMu  sync.RWMutex
-	logger       *zap.Logger
+	blacklist        *IPBlacklist
+	violations       map[string]*ViolationTracker
+	violationMu      sync.RWMutex
+	logger           *zap.Logger
 }
 
 // ViolationTracker 违规追踪器
@@ -178,13 +178,13 @@ func NewRateLimitMiddleware(config *RateLimitConfig, logger *zap.Logger) *RateLi
 	}
 
 	middleware := &RateLimitMiddleware{
-		config:          config,
-		globalLimiter:   NewTokenBucketLimiter(config.GlobalRPS, config.GlobalBurst, config.CleanupInterval),
-		ipLimiter:       NewTokenBucketLimiter(config.PerIPRPS, config.PerIPBurst, config.CleanupInterval),
+		config:           config,
+		globalLimiter:    NewTokenBucketLimiter(config.GlobalRPS, config.GlobalBurst, config.CleanupInterval),
+		ipLimiter:        NewTokenBucketLimiter(config.PerIPRPS, config.PerIPBurst, config.CleanupInterval),
 		endpointLimiters: make(map[string]*TokenBucketLimiter),
-		blacklist:       NewIPBlacklist(logger),
-		violations:      make(map[string]*ViolationTracker),
-		logger:          logger,
+		blacklist:        NewIPBlacklist(logger),
+		violations:       make(map[string]*ViolationTracker),
+		logger:           logger,
 	}
 
 	// 初始化端点限流器
@@ -280,7 +280,7 @@ func (m *RateLimitMiddleware) recordViolation(ip string) {
 
 	now := time.Now()
 	violation, exists := m.violations[ip]
-	
+
 	if !exists {
 		m.violations[ip] = &ViolationTracker{
 			Count:     1,
@@ -302,13 +302,13 @@ func (m *RateLimitMiddleware) recordViolation(ip string) {
 
 	// 检查是否达到自动封禁阈值
 	if violation.Count >= m.config.AutoBanThreshold {
-		m.blacklist.AddToBlacklist(ip, 
+		m.blacklist.AddToBlacklist(ip,
 			fmt.Sprintf("自动封禁: %d次违规", violation.Count),
 			m.config.AutoBanDuration)
-		
+
 		// 清除违规记录
 		delete(m.violations, ip)
-		
+
 		m.logger.Warn("IP被自动封禁",
 			zap.String("ip", ip),
 			zap.Int("violations", violation.Count),
@@ -322,7 +322,7 @@ func (m *RateLimitMiddleware) addRateLimitHeaders(c *gin.Context, clientIP strin
 	remaining := m.ipLimiter.GetRemaining(clientIP)
 	c.Header("X-RateLimit-Remaining", fmt.Sprintf("%d", remaining))
 	c.Header("X-RateLimit-Limit", fmt.Sprintf("%d", m.config.PerIPBurst))
-	
+
 	// 重置时间（简化实现，固定60秒）
 	resetTime := time.Now().Add(time.Minute).Unix()
 	c.Header("X-RateLimit-Reset", fmt.Sprintf("%d", resetTime))
@@ -370,31 +370,31 @@ func (m *RateLimitMiddleware) GetViolationStats() map[string]*ViolationTracker {
 // getDefaultRateLimitConfig 获取默认限流配置
 func getDefaultRateLimitConfig() *RateLimitConfig {
 	return &RateLimitConfig{
-		GlobalRPS:   1000,  // 每秒1000个请求
-		GlobalBurst: 100,   // 突发100个请求
-		
-		PerIPRPS:   100,    // 每个IP每秒100个请求
-		PerIPBurst: 10,     // 每个IP突发10个请求
-		
+		GlobalRPS:   1000, // 每秒1000个请求
+		GlobalBurst: 100,  // 突发100个请求
+
+		PerIPRPS:   100, // 每个IP每秒100个请求
+		PerIPBurst: 10,  // 每个IP突发10个请求
+
 		EndpointLimits: map[string]EndpointLimit{
 			"POST /api/v1/auth/login": {
-				RPS:   10,   // 登录接口每秒10次
-				Burst: 2,    // 突发2次
+				RPS:   10, // 登录接口每秒10次
+				Burst: 2,  // 突发2次
 			},
 			"POST /api/v1/projects": {
-				RPS:   50,   // 创建项目每秒50次
-				Burst: 5,    // 突发5次
+				RPS:   50, // 创建项目每秒50次
+				Burst: 5,  // 突发5次
 			},
 			"POST /api/v1/tasks": {
-				RPS:   100,  // 创建任务每秒100次
-				Burst: 10,   // 突发10次
+				RPS:   100, // 创建任务每秒100次
+				Burst: 10,  // 突发10次
 			},
 		},
-		
+
 		CleanupInterval: 10 * time.Minute,
-		
+
 		AutoBanEnabled:   true,
-		AutoBanThreshold: 5,              // 5次违规
+		AutoBanThreshold: 5,               // 5次违规
 		AutoBanWindow:    5 * time.Minute, // 5分钟窗口
 		AutoBanDuration:  1 * time.Hour,   // 封禁1小时
 	}

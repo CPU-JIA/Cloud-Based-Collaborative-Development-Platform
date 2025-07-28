@@ -19,13 +19,13 @@ type ProjectRepository interface {
 	Update(ctx context.Context, project *models.Project) error
 	Delete(ctx context.Context, id uuid.UUID, tenantID uuid.UUID) error
 	List(ctx context.Context, tenantID uuid.UUID, page, pageSize int, filters map[string]interface{}) ([]models.Project, int64, error)
-	
+
 	// 项目成员管理
 	AddMember(ctx context.Context, member *models.ProjectMember) error
 	RemoveMember(ctx context.Context, projectID, userID uuid.UUID) error
 	GetMembers(ctx context.Context, projectID uuid.UUID) ([]models.ProjectMember, error)
 	GetMemberRole(ctx context.Context, projectID, userID uuid.UUID) (*models.Role, error)
-	
+
 	// 权限检查
 	CheckUserAccess(ctx context.Context, projectID, userID uuid.UUID) (bool, error)
 	GetUserProjects(ctx context.Context, userID uuid.UUID, tenantID uuid.UUID) ([]models.Project, error)
@@ -75,7 +75,7 @@ func (r *projectRepository) GetByID(ctx context.Context, id uuid.UUID, tenantID 
 		Preload("Members.Role").
 		Where("id = ? AND tenant_id = ? AND deleted_at IS NULL", id, tenantID).
 		First(&project).Error
-	
+
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errors.New("项目不存在")
@@ -96,7 +96,7 @@ func (r *projectRepository) GetByKey(ctx context.Context, key string, tenantID u
 		Preload("Members.Role").
 		Where("key = ? AND tenant_id = ? AND deleted_at IS NULL", key, tenantID).
 		First(&project).Error
-	
+
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errors.New("项目不存在")
@@ -113,7 +113,7 @@ func (r *projectRepository) Update(ctx context.Context, project *models.Project)
 	if project.Key != "" {
 		var count int64
 		err := r.db.WithContext(ctx).Model(&models.Project{}).
-			Where("tenant_id = ? AND key = ? AND id != ? AND deleted_at IS NULL", 
+			Where("tenant_id = ? AND key = ? AND id != ? AND deleted_at IS NULL",
 				project.TenantID, project.Key, project.ID).
 			Count(&count).Error
 		if err != nil {
@@ -137,11 +137,11 @@ func (r *projectRepository) Delete(ctx context.Context, id uuid.UUID, tenantID u
 	result := r.db.WithContext(ctx).
 		Where("id = ? AND tenant_id = ?", id, tenantID).
 		Delete(&models.Project{})
-	
+
 	if result.Error != nil {
 		return fmt.Errorf("删除项目失败: %w", result.Error)
 	}
-	
+
 	if result.RowsAffected == 0 {
 		return errors.New("项目不存在或无权限删除")
 	}
@@ -217,11 +217,11 @@ func (r *projectRepository) RemoveMember(ctx context.Context, projectID, userID 
 	result := r.db.WithContext(ctx).
 		Where("project_id = ? AND user_id = ?", projectID, userID).
 		Delete(&models.ProjectMember{})
-	
+
 	if result.Error != nil {
 		return fmt.Errorf("移除项目成员失败: %w", result.Error)
 	}
-	
+
 	if result.RowsAffected == 0 {
 		return errors.New("成员不存在")
 	}
@@ -271,19 +271,19 @@ func (r *projectRepository) CheckUserAccess(ctx context.Context, projectID, user
 	err := r.db.WithContext(ctx).
 		Where("id = ? AND deleted_at IS NULL", projectID).
 		First(&project).Error
-	
+
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return false, nil
 		}
 		return false, fmt.Errorf("检查项目权限失败: %w", err)
 	}
-	
+
 	// 如果用户是项目管理员，直接返回true
 	if project.ManagerID != nil && *project.ManagerID == userID {
 		return true, nil
 	}
-	
+
 	// 否则检查用户是否是项目成员
 	var count int64
 	err = r.db.WithContext(ctx).Model(&models.ProjectMember{}).
@@ -300,7 +300,7 @@ func (r *projectRepository) CheckUserAccess(ctx context.Context, projectID, user
 // GetUserProjects 获取用户参与的项目列表
 func (r *projectRepository) GetUserProjects(ctx context.Context, userID uuid.UUID, tenantID uuid.UUID) ([]models.Project, error) {
 	var projects []models.Project
-	
+
 	err := r.db.WithContext(ctx).
 		Joins("JOIN project_members ON projects.id = project_members.project_id").
 		Preload("Manager").

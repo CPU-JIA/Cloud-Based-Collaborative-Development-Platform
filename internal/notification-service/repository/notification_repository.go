@@ -47,7 +47,7 @@ type GetNotificationsOptions struct {
 	Priority  string     `json:"priority,omitempty"`
 	Limit     int        `json:"limit,omitempty"`
 	Offset    int        `json:"offset,omitempty"`
-	SortBy    string     `json:"sort_by,omitempty"` // created_at, priority
+	SortBy    string     `json:"sort_by,omitempty"`    // created_at, priority
 	SortOrder string     `json:"sort_order,omitempty"` // asc, desc
 }
 
@@ -108,7 +108,7 @@ func (nr *NotificationRepository) GetUnreadCount(ctx context.Context, userID uui
 		Model(&models.Notification{}).
 		Where("user_id = ? AND tenant_id = ? AND status NOT IN ?", userID, tenantID, []string{"read", "deleted"}).
 		Count(&count).Error
-	
+
 	return int(count), err
 }
 
@@ -145,7 +145,7 @@ func (nr *NotificationRepository) GetByCorrelationID(ctx context.Context, correl
 // CountNotificationsByRule 统计规则相关的通知数量
 func (nr *NotificationRepository) CountNotificationsByRule(ctx context.Context, ruleID uuid.UUID, since time.Time) (int, error) {
 	var count int64
-	
+
 	// 这里需要根据实际的数据库设计来调整查询
 	// 假设我们有一个字段来追踪是哪个规则创建的通知
 	err := nr.db.WithContext(ctx).
@@ -153,7 +153,7 @@ func (nr *NotificationRepository) CountNotificationsByRule(ctx context.Context, 
 		Where("created_at >= ?", since).
 		// TODO: 添加rule_id关联查询
 		Count(&count).Error
-	
+
 	return int(count), err
 }
 
@@ -183,7 +183,7 @@ func (nr *NotificationRepository) GetNotificationsByDateRange(ctx context.Contex
 // GetNotificationStats 获取通知统计信息
 func (nr *NotificationRepository) GetNotificationStats(ctx context.Context, tenantID uuid.UUID, startDate, endDate time.Time) (*NotificationStats, error) {
 	var stats NotificationStats
-	
+
 	// 总通知数量
 	err := nr.db.WithContext(ctx).
 		Model(&models.Notification{}).
@@ -192,7 +192,7 @@ func (nr *NotificationRepository) GetNotificationStats(ctx context.Context, tena
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// 按状态统计
 	statusStats := make(map[string]int64)
 	rows, err := nr.db.WithContext(ctx).
@@ -204,7 +204,7 @@ func (nr *NotificationRepository) GetNotificationStats(ctx context.Context, tena
 		return nil, err
 	}
 	defer rows.Close()
-	
+
 	for rows.Next() {
 		var status string
 		var count int64
@@ -213,11 +213,11 @@ func (nr *NotificationRepository) GetNotificationStats(ctx context.Context, tena
 		}
 		statusStats[status] = count
 	}
-	
+
 	stats.Sent = statusStats[models.StatusSent]
 	stats.Failed = statusStats[models.StatusFailed]
 	stats.Pending = statusStats[models.StatusPending]
-	
+
 	// 按类别统计
 	categoryStats := make(map[string]int64)
 	rows, err = nr.db.WithContext(ctx).
@@ -229,7 +229,7 @@ func (nr *NotificationRepository) GetNotificationStats(ctx context.Context, tena
 		return nil, err
 	}
 	defer rows.Close()
-	
+
 	for rows.Next() {
 		var category string
 		var count int64
@@ -238,9 +238,9 @@ func (nr *NotificationRepository) GetNotificationStats(ctx context.Context, tena
 		}
 		categoryStats[category] = count
 	}
-	
+
 	stats.CategoryStats = categoryStats
-	
+
 	return &stats, nil
 }
 

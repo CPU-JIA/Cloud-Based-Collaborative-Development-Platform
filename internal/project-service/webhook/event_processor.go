@@ -311,11 +311,11 @@ func (p *DefaultEventProcessor) handleCommitCreated(ctx context.Context, event *
 	}
 
 	return p.recordRepositoryActivity(ctx, repositoryID, "commit_created", map[string]interface{}{
-		"commit_sha":  payload.Commit.SHA,
+		"commit_sha":     payload.Commit.SHA,
 		"commit_message": payload.Commit.Message,
-		"author":      payload.Commit.Author,
-		"branch":      payload.Commit.Branch,
-		"event_id":    event.EventID,
+		"author":         payload.Commit.Author,
+		"branch":         payload.Commit.Branch,
+		"event_id":       event.EventID,
 	})
 }
 
@@ -398,28 +398,28 @@ func (p *DefaultEventProcessor) handleTagDeleted(ctx context.Context, event *Git
 func (p *DefaultEventProcessor) recordProjectActivity(ctx context.Context, projectID uuid.UUID, activityType string, data map[string]interface{}) error {
 	// 这里可以实现项目活动记录逻辑
 	// 例如：插入到项目活动表、发送通知等
-	
+
 	p.logger.Info("记录项目活动",
 		zap.String("project_id", projectID.String()),
 		zap.String("activity_type", activityType),
 		zap.Any("activity_data", data))
-	
+
 	// TODO: 实现实际的活动记录逻辑
 	// 可能需要扩展数据库schema来支持活动记录
-	
+
 	return nil
 }
 
 // recordRepositoryActivity 记录仓库活动
 func (p *DefaultEventProcessor) recordRepositoryActivity(ctx context.Context, repositoryID uuid.UUID, activityType string, data map[string]interface{}) error {
 	// 这里可以实现仓库活动记录逻辑
-	
+
 	p.logger.Info("记录仓库活动",
 		zap.String("repository_id", repositoryID.String()),
 		zap.String("activity_type", activityType),
 		zap.Any("activity_data", data))
-	
+
 	// TODO: 实现实际的活动记录逻辑
-	
+
 	return nil
 }
