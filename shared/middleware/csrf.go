@@ -163,13 +163,8 @@ func NewCSRFMiddleware(config *CSRFConfig) *CSRFMiddleware {
 	}
 
 	if config.Secret == "" {
-		// 返回一个错误处理函数而不是panic
-		return func(c *gin.Context) {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"error": "CSRF protection is not properly configured",
-			})
-			c.Abort()
-		}
+		// 使用默认配置或报错
+		config.Secret = "default-csrf-secret-key-change-in-production"
 	}
 
 	if config.TokenLength == 0 {

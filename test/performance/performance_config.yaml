@@ -1,0 +1,131 @@
+# Project Service Performance Test Configuration
+
+database:
+  host: "localhost"
+  port: 5432
+  username: "test_user"
+  password: "test_password"
+  database: "test_db"
+  ssl_mode: "disable"
+  max_open_conns: 100
+  max_idle_conns: 10
+
+load_tests:
+  # 基础CRUD性能测试
+  crud_performance:
+    enabled: true
+    operations: 500
+    timeout: "30s"
+    
+  # 并发创建测试
+  concurrent_creation:
+    enabled: true
+    concurrent_users: 50
+    duration: "60s"
+    ramp_up_time: "10s"
+    
+  # 列表查询性能测试  
+  list_query_performance:
+    enabled: true
+    concurrent_users: 30
+    duration: "120s"
+    ramp_up_time: "15s"
+    test_data_size: 2000
+    
+  # 混合工作负载测试
+  mixed_workload:
+    enabled: true
+    concurrent_users: 40
+    duration: "180s"
+    ramp_up_time: "20s"
+    read_ratio: 70    # 70% 读取操作
+    create_ratio: 20  # 20% 创建操作  
+    update_ratio: 10  # 10% 更新操作
+    
+  # 压力测试
+  stress_test:
+    enabled: false
+    concurrent_users: 100
+    duration: "300s"
+    ramp_up_time: "30s"
+
+performance_thresholds:
+  # 响应时间阈值
+  max_avg_response_time: "500ms"
+  max_p95_response_time: "1s"
+  max_p99_response_time: "2s"
+  
+  # 成功率阈值
+  min_success_rate: 95.0
+  
+  # 吞吐量阈值
+  min_throughput_rps: 100.0
+  
+  # 错误率阈值
+  max_error_rate: 5.0
+
+monitoring:
+  # 监控采样间隔
+  sample_interval: "1s"
+  
+  # 资源监控
+  monitor_cpu: true
+  monitor_memory: true
+  monitor_disk_io: true
+  monitor_network: true
+  
+  # 数据库监控
+  monitor_db_connections: true
+  monitor_db_queries: true
+  monitor_db_locks: true
+
+reporting:
+  # 报告格式
+  formats: ["json", "html", "csv"]
+  
+  # 报告输出目录
+  output_dir: "test-report"
+  
+  # 详细报告
+  include_raw_data: false
+  include_percentiles: true
+  include_error_details: true
+  
+  # 图表生成
+  generate_charts: true
+  chart_types: ["response_time", "throughput", "error_rate"]
+
+# 测试环境设置
+environment:
+  cleanup_before_test: true
+  cleanup_after_test: true
+  preserve_test_data: false
+  
+  # 数据库设置
+  auto_migrate: true
+  seed_data: true
+  
+  # 日志设置
+  log_level: "info"
+  log_format: "json"
+  
+# 高级设置
+advanced:
+  # HTTP客户端设置
+  http_timeout: "30s"
+  max_idle_conns: 100
+  max_conns_per_host: 20
+  
+  # 测试数据管理
+  data_generation:
+    use_realistic_data: true
+    data_variety: "high"
+    include_edge_cases: true
+    
+  # 缓存测试
+  test_cache_performance: true
+  cache_hit_ratio_threshold: 80.0
+  
+  # 内存泄漏检测
+  monitor_memory_leaks: true
+  memory_growth_threshold: "10MB"

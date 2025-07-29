@@ -7,7 +7,8 @@ import (
 	"time"
 
 	"github.com/cloud-platform/collaborative-dev/shared/database"
-	"gorm.io/gorm/logger"
+	"github.com/cloud-platform/collaborative-dev/shared/logger"
+	gormlogger "gorm.io/gorm/logger"
 )
 
 // Config 应用程序配置结构
@@ -67,24 +68,10 @@ func (d *DatabaseConfig) ToDBConfig() database.Config {
 		MaxIdleConns:    d.MaxIdleConns,
 		ConnMaxLifetime: d.ConnMaxLifetime,
 		ConnMaxIdleTime: d.ConnMaxIdleTime,
-		LogLevel:        logger.Silent, // Silent mode for production
+		LogLevel:        gormlogger.Silent, // Silent mode for production
 	}
 }
 
-// DatabaseDBConfig 兼容database.Config的结构
-type DatabaseDBConfig struct {
-	Host            string
-	Port            int
-	Name            string
-	User            string
-	Password        string
-	SSLMode         string
-	MaxOpenConns    int
-	MaxIdleConns    int
-	ConnMaxLifetime time.Duration
-	ConnMaxIdleTime time.Duration
-	LogLevel        interface{}
-}
 
 // RedisConfig Redis配置
 type RedisConfig struct {
@@ -128,17 +115,8 @@ type LogConfig struct {
 }
 
 // ToLoggerConfig 转换为logger.Config
-func (l *LogConfig) ToLoggerConfig() interface{} {
-	return struct {
-		Level      string `json:"level" yaml:"level"`
-		Format     string `json:"format" yaml:"format"`
-		Output     string `json:"output" yaml:"output"`
-		FilePath   string `json:"file_path" yaml:"file_path"`
-		MaxSize    int    `json:"max_size" yaml:"max_size"`
-		MaxBackups int    `json:"max_backups" yaml:"max_backups"`
-		MaxAge     int    `json:"max_age" yaml:"max_age"`
-		Compress   bool   `json:"compress" yaml:"compress"`
-	}{
+func (l *LogConfig) ToLoggerConfig() logger.Config {
+	return logger.Config{
 		Level:      l.Level,
 		Format:     l.Format,
 		Output:     l.Output,

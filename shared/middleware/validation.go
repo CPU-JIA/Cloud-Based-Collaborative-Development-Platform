@@ -342,28 +342,6 @@ func ValidateQueryParams(params map[string]string) gin.HandlerFunc {
 	}
 }
 
-// isValidUUID 检查是否为有效的UUID
-func isValidUUID(str string) bool {
-	if len(str) != 36 {
-		return false
-	}
-
-	for i, char := range str {
-		if i == 8 || i == 13 || i == 18 || i == 23 {
-			if char != '-' {
-				return false
-			}
-		} else {
-			if !((char >= '0' && char <= '9') ||
-				(char >= 'a' && char <= 'f') ||
-				(char >= 'A' && char <= 'F')) {
-				return false
-			}
-		}
-	}
-
-	return true
-}
 
 // ErrorHandler 统一错误处理中间件
 func ErrorHandler() gin.HandlerFunc {

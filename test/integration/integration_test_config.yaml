@@ -1,0 +1,223 @@
+# Project Service Integration Test Configuration
+# 项目服务集成测试配置
+
+# 数据库配置
+database:
+  host: ${TEST_DB_HOST:localhost}
+  port: ${TEST_DB_PORT:5432}
+  name: ${TEST_DB_NAME:collaborative_dev_test}
+  user: ${TEST_DB_USER:postgres}
+  password: ${TEST_DB_PASSWORD:postgres}
+  ssl_mode: ${TEST_DB_SSLMODE:disable}
+  max_open_conns: 25
+  max_idle_conns: 10
+  conn_max_lifetime: 5m
+
+# 测试配置
+test:
+  timeout: ${TEST_TIMEOUT:60s}
+  log_level: ${TEST_LOG_LEVEL:debug}
+  parallel_limit: 4
+  retry_count: 3
+  cleanup_after_test: true
+
+# 集成测试特定配置
+integration:
+  # Mock服务配置
+  mock_services:
+    git_gateway:
+      enabled: true
+      response_delay: 100ms
+      error_rate: 0.0  # 0-1之间，0表示不模拟错误
+    
+    iam_service:
+      enabled: true
+      response_delay: 50ms
+      error_rate: 0.0
+    
+    notification_service:
+      enabled: true
+      response_delay: 200ms
+      error_rate: 0.0
+
+  # 测试数据配置
+  test_data:
+    # 租户配置
+    tenants:
+      - id: "550e8400-e29b-41d4-a716-446655440001"
+        name: "测试租户1"
+        status: "active"
+      - id: "550e8400-e29b-41d4-a716-446655440002"
+        name: "测试租户2"
+        status: "active"
+    
+    # 用户配置
+    users:
+      - id: "660e8400-e29b-41d4-a716-446655440001"
+        email: "admin@test.com"
+        name: "测试管理员"
+        role: "admin"
+        tenant_id: "550e8400-e29b-41d4-a716-446655440001"
+      - id: "660e8400-e29b-41d4-a716-446655440002"
+        email: "member@test.com"
+        name: "测试成员"
+        role: "member"
+        tenant_id: "550e8400-e29b-41d4-a716-446655440001"
+      - id: "660e8400-e29b-41d4-a716-446655440003"
+        email: "user@test.com"
+        name: "测试用户"
+        role: "user"
+        tenant_id: "550e8400-e29b-41d4-a716-446655440001"
+    
+    # 项目模板
+    project_templates:
+      - key: "basic-project"
+        name: "基础项目模板"
+        description: "用于集成测试的基础项目模板"
+        visibility: "private"
+      - key: "advanced-project"
+        name: "高级项目模板"
+        description: "用于集成测试的高级项目模板"
+        visibility: "internal"
+
+# 性能测试配置
+performance:
+  # 并发测试配置
+  concurrency:
+    max_goroutines: 20
+    operations_per_goroutine: 100
+    ramp_up_duration: 5s
+    test_duration: 30s
+  
+  # 负载测试配置
+  load_test:
+    users: [1, 5, 10, 20, 50]
+    duration_per_load: 10s
+    think_time: 1s
+  
+  # 性能阈值
+  thresholds:
+    max_response_time: 2s
+    max_database_query_time: 500ms
+    max_memory_usage_mb: 512
+    max_cpu_usage_percent: 80
+
+# 测试场景配置
+scenarios:
+  # 基础功能测试
+  basic_functionality:
+    enabled: true
+    tests:
+      - project_lifecycle
+      - member_management
+      - repository_lifecycle
+      - branch_operations
+      - webhook_handling
+  
+  # 分布式事务测试
+  distributed_transactions:
+    enabled: true
+    tests:
+      - transaction_success
+      - transaction_rollback
+      - compensation_mechanism
+      - timeout_handling
+  
+  # 错误处理测试
+  error_handling:
+    enabled: true
+    tests:
+      - permission_errors
+      - resource_not_found
+      - validation_errors
+      - service_unavailable
+  
+  # 并发测试
+  concurrency:
+    enabled: true
+    tests:
+      - concurrent_project_creation
+      - concurrent_repository_operations
+      - concurrent_member_operations
+  
+  # 数据一致性测试
+  data_consistency:
+    enabled: true
+    tests:
+      - cross_service_consistency
+      - eventual_consistency
+      - data_integrity
+
+# 报告配置
+reporting:
+  # 输出格式
+  formats:
+    - junit_xml
+    - html
+    - json
+    - markdown
+  
+  # 报告详细程度
+  detail_level: detailed  # minimal, normal, detailed, verbose
+  
+  # 包含的信息
+  include:
+    - test_results
+    - coverage_report
+    - performance_metrics
+    - error_details
+    - timing_breakdown
+  
+  # 报告输出目录
+  output_dir: test-report
+  
+  # 历史报告保留数量
+  history_limit: 10
+
+# 监控配置
+monitoring:
+  # 指标收集
+  metrics:
+    enabled: true
+    collection_interval: 1s
+    metrics:
+      - response_time
+      - throughput
+      - error_rate
+      - memory_usage
+      - cpu_usage
+      - database_connections
+  
+  # 告警配置
+  alerts:
+    enabled: true
+    thresholds:
+      error_rate_percent: 5
+      response_time_ms: 2000
+      memory_usage_mb: 512
+
+# 清理配置
+cleanup:
+  # 测试后自动清理
+  auto_cleanup: true
+  
+  # 清理策略
+  strategy:
+    - test_data
+    - log_files
+    - temporary_files
+  
+  # 保留失败测试的数据
+  keep_on_failure: true
+  
+  # 清理超时
+  timeout: 30s
+
+# 调试配置
+debug:
+  enabled: ${DEBUG:false}
+  log_sql_queries: true
+  log_http_requests: true
+  log_service_calls: true
+  capture_stack_traces: true
+  verbose_errors: true

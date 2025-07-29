@@ -27,32 +27,11 @@ func main() {
 		log.Fatalf("Failed to load config: %v", err)
 	}
 
-	loggerCfg := cfg.Log.ToLoggerConfig().(struct {
-		Level      string `json:"level" yaml:"level"`
-		Format     string `json:"format" yaml:"format"`
-		Output     string `json:"output" yaml:"output"`
-		FilePath   string `json:"file_path" yaml:"file_path"`
-		MaxSize    int    `json:"max_size" yaml:"max_size"`
-		MaxBackups int    `json:"max_backups" yaml:"max_backups"`
-		MaxAge     int    `json:"max_age" yaml:"max_age"`
-		Compress   bool   `json:"compress" yaml:"compress"`
-	})
+	loggerCfg := cfg.Log.ToLoggerConfig()
+
+	appLogger, err := logger.NewZapLogger(loggerCfg)
 
 	// 简化logger初始化，直接使用NewZapLogger
-	appLogger, err := logger.NewZapLogger(struct {
-		Level      string `json:"level" yaml:"level"`
-		Format     string `json:"format" yaml:"format"`
-		Output     string `json:"output" yaml:"output"`
-		FilePath   string `json:"file_path" yaml:"file_path"`
-		MaxSize    int    `json:"max_size" yaml:"max_size"`
-		MaxBackups int    `json:"max_backups" yaml:"max_backups"`
-		MaxAge     int    `json:"max_age" yaml:"max_age"`
-		Compress   bool   `json:"compress" yaml:"compress"`
-	}{
-		Level:  loggerCfg.Level,
-		Format: loggerCfg.Format,
-		Output: loggerCfg.Output,
-	})
 	if err != nil {
 		log.Fatalf("Failed to initialize logger: %v", err)
 	}

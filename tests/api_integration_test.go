@@ -29,21 +29,22 @@ type APIIntegrationTestSuite struct {
 
 // SetupSuite 设置测试套件
 func (suite *APIIntegrationTestSuite) SetupSuite() {
-	// 使用内存数据库
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	// 使用我们创建的SQLite测试数据库
+	dbPath := "../test_database.sqlite"
+	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
 	suite.Require().NoError(err)
 
-	// 自动迁移
-	err = db.AutoMigrate(
-		&models.Team{},
-		&models.TeamMember{},
-		&models.TeamInvitation{},
-		&models.PermissionRequest{},
-		&models.User{},
-		&models.Role{},
-		&models.TeamActivity{},
-	)
-	suite.Require().NoError(err)
+	// 自动迁移 - 跳过，因为我们已经有了完整的数据库结构
+	// err = db.AutoMigrate(
+	//	&models.Team{},
+	//	&models.TeamMember{},
+	//	&models.TeamInvitation{},
+	//	&models.PermissionRequest{},
+	//	&models.User{},
+	//	&models.Role{},
+	//	&models.TeamActivity{},
+	//)
+	// suite.Require().NoError(err)
 
 	suite.db = db
 	permissionService := services.NewPermissionService(db)
@@ -58,8 +59,8 @@ func (suite *APIIntegrationTestSuite) SetupSuite() {
 	// 启动测试服务器
 	suite.server = httptest.NewServer(router)
 
-	// 初始化测试数据
-	suite.seedTestData()
+	// 初始化测试数据 - 跳过，因为我们已经有了测试数据
+	// suite.seedTestData()
 }
 
 // TearDownSuite 清理测试套件

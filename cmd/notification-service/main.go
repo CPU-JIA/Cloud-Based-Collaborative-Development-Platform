@@ -28,31 +28,10 @@ func main() {
 	}
 
 	// 初始化日志
-	loggerCfg := cfg.Log.ToLoggerConfig().(struct {
-		Level      string `json:"level" yaml:"level"`
-		Format     string `json:"format" yaml:"format"`
-		Output     string `json:"output" yaml:"output"`
-		FilePath   string `json:"file_path" yaml:"file_path"`
-		MaxSize    int    `json:"max_size" yaml:"max_size"`
-		MaxBackups int    `json:"max_backups" yaml:"max_backups"`
-		MaxAge     int    `json:"max_age" yaml:"max_age"`
-		Compress   bool   `json:"compress" yaml:"compress"`
-	})
+	loggerCfg := cfg.Log.ToLoggerConfig()
 
-	appLogger, err := logger.NewZapLogger(struct {
-		Level      string `json:"level" yaml:"level"`
-		Format     string `json:"format" yaml:"format"`
-		Output     string `json:"output" yaml:"output"`
-		FilePath   string `json:"file_path" yaml:"file_path"`
-		MaxSize    int    `json:"max_size" yaml:"max_size"`
-		MaxBackups int    `json:"max_backups" yaml:"max_backups"`
-		MaxAge     int    `json:"max_age" yaml:"max_age"`
-		Compress   bool   `json:"compress" yaml:"compress"`
-	}{
-		Level:  loggerCfg.Level,
-		Format: loggerCfg.Format,
-		Output: loggerCfg.Output,
-	})
+	appLogger, err := logger.NewZapLogger(loggerCfg)
+
 	if err != nil {
 		log.Fatalf("Failed to initialize logger: %v", err)
 	}
