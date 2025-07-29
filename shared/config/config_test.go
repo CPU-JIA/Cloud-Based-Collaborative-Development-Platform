@@ -12,7 +12,7 @@ func TestConfig_EnvironmentVariableBinding(t *testing.T) {
 		"DATABASE_PORT":     "5432",
 		"DATABASE_NAME":     "test-db",
 		"DATABASE_USER":     "test-user",
-		"DATABASE_PASSWORD": "test-password",
+		"DATABASE_PASSWORD": "strongtestpassword2024",
 		"JWT_SECRET":        "test_jwt_secret_key_32_chars_minimum_here_safe",
 		"SERVER_PORT":       "8082",
 	}
@@ -39,8 +39,8 @@ func TestConfig_EnvironmentVariableBinding(t *testing.T) {
 		t.Errorf("期望数据库主机为 'test-host'，实际为 '%s'", cfg.Database.Host)
 	}
 
-	if cfg.Database.Password != "test-password" {
-		t.Errorf("期望数据库密码为 'test-password'，实际为 '%s'", cfg.Database.Password)
+	if cfg.Database.Password != "strongtestpassword2024" {
+		t.Errorf("期望数据库密码为 'strongtestpassword2024'，实际为 '%s'", cfg.Database.Password)
 	}
 
 	if cfg.Auth.JWTSecret != "test_jwt_secret_key_32_chars_minimum_here_safe" {
@@ -105,7 +105,7 @@ func TestConfig_ValidationLogic(t *testing.T) {
 			name: "生产环境缺少JWT密钥",
 			config: Config{
 				Server:   ServerConfig{Environment: "production", Port: 8080},
-				Database: DatabaseConfig{Password: "test-password"},
+				Database: DatabaseConfig{Password: "strongtestpassword2024"},
 				Auth:     AuthConfig{JWTSecret: ""},
 			},
 			expectError: true,
@@ -125,7 +125,7 @@ func TestConfig_ValidationLogic(t *testing.T) {
 			name: "JWT密钥太短",
 			config: Config{
 				Server:   ServerConfig{Environment: "development", Port: 8080},
-				Database: DatabaseConfig{Password: "test-password"},
+				Database: DatabaseConfig{Password: "strongtestpassword2024"},
 				Auth:     AuthConfig{JWTSecret: "short"},
 			},
 			expectError: true,
